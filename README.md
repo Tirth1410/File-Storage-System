@@ -5,6 +5,7 @@ A modern file storage web application built with Next.js, Better Auth, and Prism
 ## Prerequisites
 
 Before starting, ensure you have the following installed:
+
 - Bun (JavaScript runtime and package manager)
 - PostgreSQL database
 
@@ -29,6 +30,7 @@ cp .env.example .env
 ```
 
 Open `.env` and fill in the required environment variables:
+
 - `BETTER_AUTH_SECRET`: A secure secret key for Better Auth session management.
 - `BETTER_AUTH_URL`: The base URL of your application (typically `http://localhost:3000`).
 - `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`: OAuth credentials from the Google Cloud Console.
