@@ -24,6 +24,15 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold">Dashboard</h1>
             <p>Welcome, {user.name || "User"}!</p>
             <p>Email: {user.email}</p>
+            <p>Role: {user.role || "user"}</p>
+            <p className="text-sm text-neutral-400 font-mono select-all" title="Click or double-click to select all">{user.id}</p>
+            {user.role === "admin" && (
+                <button
+                    onClick={() => router.push("/admin")}
+                    className="w-full bg-indigo-600 text-white font-medium rounded-md px-4 py-2 hover:bg-indigo-500 transition-colors">
+                    Go to Admin Portal
+                </button>
+            )}
             <button
                 onClick={() => signOut()}
                 className="w-full bg-white text-black font-medium rounded-md px-4 py-2 hover:bg-gray-200">
