@@ -1,0 +1,43 @@
+import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { auth } from "@/app/lib/auth";
+import { fileService } from "@/app/lib/file-service";
+
+export async function POST(request: Request) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { filename, size, mimeType } = body;
+
+    if (!filename || typeof filename !== "string") {
+      return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
+    }
+    if (typeof size !== "number" || size <= 0) {
+      return NextResponse.json({ error: "Invalid file size" }, { status: 400 });
+    }
+    if (!mimeType || typeof mimeType !== "string") {
+      return NextResponse.json({ error: "Invalid mime type" }, { status: 400 });
+    }
+
+    const result = await fileService.initiateUpload({
+      filename,
+      size,
+      mimeType,
+      userId: session.user.id,
+    });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Error in initiate-upload:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}

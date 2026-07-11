@@ -76,3 +76,39 @@ model Verification {
 
   @@map("verification")
 }
+
+model File {
+  id           String          @id @default(uuid())
+  ownerUserId  String
+  groupId      String?
+  bucket       String
+  objectKey    String
+  originalName String
+  mimeType     String
+  sizeBytes    BigInt
+  status       String // uploading | available | failed | deleted
+  visibility   String // private | group | link
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  deletedAt    DateTime?
+  sessions     UploadSession[]
+
+  @@map("file")
+}
+
+model UploadSession {
+  id              String    @id @default(uuid())
+  fileId          String
+  userId          String
+  storageUploadId String
+  objectKey       String
+  sizeBytes       BigInt
+  partSizeBytes   BigInt
+  status          String // initiated | uploading | completed | aborted | expired | failed
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime
+  completedAt     DateTime?
+  file            File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@map("upload_session")
+}
