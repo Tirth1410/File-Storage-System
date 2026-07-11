@@ -26,6 +26,8 @@ model User {
   banExpires    DateTime? @db.Timestamptz(3)
   sessions      Session[]
   accounts      Account[]
+  quotaUsage    QuotaUsage?
+  auditLogs     AuditLog[]
 
   @@unique([email])
   @@map("user")
@@ -111,4 +113,28 @@ model UploadSession {
   file            File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@map("upload_session")
+}
+
+model QuotaUsage {
+  userId        String   @id @map("user_id")
+  quotaBytes    BigInt   @default(2147483648) @map("quota_bytes") // 2 GB default
+  usedBytes     BigInt   @default(0) @map("used_bytes")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("quota_usage")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  action    String   // upload_initiated | upload_success | upload_aborted | upload_expired | download_requested | download_success | download_failed | file_deleted
+  fileId    String?  @map("file_id")
+  details   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_log")
 }

@@ -26,14 +26,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid mime type" }, { status: 400 });
     }
 
-    const result = await fileService.initiateUpload({
-      filename,
-      size,
-      mimeType,
-      userId: session.user.id,
-    });
+    try {
+      const result = await fileService.initiateUpload({
+        filename,
+        size,
+        mimeType,
+        userId: session.user.id,
+      });
 
-    return NextResponse.json(result);
+      return NextResponse.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Quota exceeded")) {
+        return NextResponse.json(
+          { error: "QuotaExceeded", message: error.message },
+          { status: 400 },
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     console.error("Error in initiate-upload:", error);
     const errorMessage =

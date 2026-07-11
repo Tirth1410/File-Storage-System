@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server";
+import { fileService } from "@/app/lib/file-service";
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const secret = searchParams.get("secret");
+
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && secret !== cronSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const cleanedCount = await fileService.cleanupExpiredUploads();
+    return NextResponse.json({ success: true, cleanedCount });
+  } catch (error) {
+    console.error("Error running cleanup job:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      { status: 500 },
+    );
+  }
+}
