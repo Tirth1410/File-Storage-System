@@ -101,7 +101,8 @@ export default function AdminPage() {
 
   // Selected user for details modal
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedUserDetails, setSelectedUserDetails] = useState<UserDetailStats | null>(null);
+  const [selectedUserDetails, setSelectedUserDetails] =
+    useState<UserDetailStats | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [newQuotaGB, setNewQuotaGB] = useState<number>(2);
   const [savingQuota, setSavingQuota] = useState(false);
@@ -737,19 +738,25 @@ export default function AdminPage() {
                       </h4>
                       <div className="grid grid-cols-3 gap-4 text-center bg-neutral-950 p-4 rounded-xl border border-neutral-850 text-sm">
                         <div>
-                          <p className="text-neutral-500 text-xs">Total Files</p>
+                          <p className="text-neutral-500 text-xs">
+                            Total Files
+                          </p>
                           <p className="text-xl font-bold text-white mt-1">
                             {selectedUserDetails.files.totalUploadedFiles}
                           </p>
                         </div>
                         <div>
-                          <p className="text-neutral-500 text-xs">Active Files</p>
+                          <p className="text-neutral-500 text-xs">
+                            Active Files
+                          </p>
                           <p className="text-xl font-bold text-emerald-400 mt-1">
                             {selectedUserDetails.files.totalActiveFiles}
                           </p>
                         </div>
                         <div>
-                          <p className="text-neutral-500 text-xs">Deleted Files</p>
+                          <p className="text-neutral-500 text-xs">
+                            Deleted Files
+                          </p>
                           <p className="text-xl font-bold text-neutral-500 mt-1">
                             {selectedUserDetails.files.totalDeletedFiles}
                           </p>

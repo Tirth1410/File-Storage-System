@@ -29,8 +29,7 @@ export async function GET() {
       });
     }
 
-    const remainingBytes =
-      quota.quotaBytes - quota.usedBytes;
+    const remainingBytes = quota.quotaBytes - quota.usedBytes;
     const utilization =
       quota.quotaBytes > BigInt(0)
         ? Number((quota.usedBytes * BigInt(100)) / quota.quotaBytes)

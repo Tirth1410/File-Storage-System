@@ -36,7 +36,10 @@ export async function POST(request: Request) {
 
       return NextResponse.json(result);
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("Quota exceeded")) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Quota exceeded")
+      ) {
         return NextResponse.json(
           { error: "QuotaExceeded", message: error.message },
           { status: 400 },

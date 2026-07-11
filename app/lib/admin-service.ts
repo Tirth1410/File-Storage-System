@@ -18,7 +18,10 @@ export const adminService = {
 
     // Add default quotas for users without a quota_usage row
     const usersWithQuotaCount = quotaUsages.length;
-    const usersWithoutQuotaCount = Math.max(0, totalUsers - usersWithQuotaCount);
+    const usersWithoutQuotaCount = Math.max(
+      0,
+      totalUsers - usersWithQuotaCount,
+    );
     totalAllocated += BigInt(usersWithoutQuotaCount) * defaultQuota;
 
     const totalAvailable = totalAllocated - totalUsed;
@@ -41,7 +44,9 @@ export const adminService = {
     const totalUploadedFiles = files.length;
     const activeFiles = files.filter((f) => f.status === "available");
     const totalActiveFiles = activeFiles.length;
-    const totalDeletedFiles = files.filter((f) => f.status === "deleted").length;
+    const totalDeletedFiles = files.filter(
+      (f) => f.status === "deleted",
+    ).length;
 
     let totalStorageConsumed = BigInt(0);
     for (const f of activeFiles) {
@@ -159,8 +164,7 @@ export const adminService = {
       };
     }
 
-    const remainingBytes =
-      quota.quotaBytes - quota.usedBytes;
+    const remainingBytes = quota.quotaBytes - quota.usedBytes;
     const utilization =
       quota.quotaBytes > BigInt(0)
         ? Number((quota.usedBytes * BigInt(100)) / quota.quotaBytes)
@@ -179,8 +183,12 @@ export const adminService = {
     });
 
     const totalUploadedFiles = files.length;
-    const totalActiveFiles = files.filter((f) => f.status === "available").length;
-    const totalDeletedFiles = files.filter((f) => f.status === "deleted").length;
+    const totalActiveFiles = files.filter(
+      (f) => f.status === "available",
+    ).length;
+    const totalDeletedFiles = files.filter(
+      (f) => f.status === "deleted",
+    ).length;
 
     // User activity metrics
     const uploadRequests = await prisma.uploadSession.count({

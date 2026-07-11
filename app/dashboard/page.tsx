@@ -181,7 +181,10 @@ export default function DashboardPage() {
       if (!initRes.ok) {
         const errData = await initRes.json();
         if (errData.error === "QuotaExceeded") {
-          setError(errData.message || "Quota exceeded: Not enough storage space available.");
+          setError(
+            errData.message ||
+              "Quota exceeded: Not enough storage space available.",
+          );
           setUploading(false);
           uploadControllerRef.current = { active: false };
           return;
@@ -357,7 +360,7 @@ export default function DashboardPage() {
   const handleDelete = async (fileId: string) => {
     if (
       !confirm(
-        "Are you sure you want to delete this file? This will release its quota usage."
+        "Are you sure you want to delete this file? This will release its quota usage.",
       )
     ) {
       return;

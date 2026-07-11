@@ -50,9 +50,11 @@ export const fileService = {
       });
 
       // 2. Lock quota_usage row for update to prevent race conditions
-      const lockedRows = await tx.$queryRawUnsafe<{ quota_bytes: string; used_bytes: string }[]>(
+      const lockedRows = await tx.$queryRawUnsafe<
+        { quota_bytes: string; used_bytes: string }[]
+      >(
         `SELECT quota_bytes, used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-        userId
+        userId,
       );
 
       const locked = lockedRows[0];
@@ -182,7 +184,7 @@ export const fileService = {
       // 1. Lock quota_usage
       const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
         `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-        userId
+        userId,
       );
 
       const locked = lockedRows[0];
@@ -309,7 +311,7 @@ export const fileService = {
       // Lock row
       const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
         `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-        file.ownerUserId
+        file.ownerUserId,
       );
 
       if (lockedRows.length > 0) {
@@ -347,9 +349,15 @@ export const fileService = {
 
     for (const session of expiredSessions) {
       try {
-        await r2Service.abortMultipartUpload(session.objectKey, session.storageUploadId);
+        await r2Service.abortMultipartUpload(
+          session.objectKey,
+          session.storageUploadId,
+        );
       } catch (err) {
-        console.error(`Failed to abort R2 upload for session ${session.id}:`, err);
+        console.error(
+          `Failed to abort R2 upload for session ${session.id}:`,
+          err,
+        );
       }
 
       await prisma.$transaction(async (tx) => {
