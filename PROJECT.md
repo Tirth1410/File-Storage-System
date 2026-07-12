@@ -1,448 +1,368 @@
 # File Storage System Project
 
-## Purpose
+This document serves as the **single source of truth** for the File Storage System project. It outlines the project's purpose, architecture, database schema, implemented features, key workflows, and coding conventions based on the actual codebase.
 
-Build a production-oriented file storage system for real users. The system should allow authenticated users to upload, download, preview, organize, and share documents and media files. It should support individual user storage as well as group-based file sharing.
+---
 
-This document is intended to be maintained by Claude or another LLM agent. Treat it as the project source of truth unless the user provides newer instructions.
+## 1. Purpose & Overview
 
-## Confirmed Requirements
+The File Storage System is a production-correct file storage web application designed to allow authenticated users to upload, download, preview, and delete documents and media files.
 
-### Core Features
+The system utilizes a **direct-to-storage architecture**, where large file uploads (up to 1 GB) bypass the Next.js server entirely, uploading chunks directly from the client browser to Cloudflare R2 (or any S3-compatible storage) using short-lived presigned URLs.
 
-- Users can upload documents and media files.
-- Users can download files they are allowed to access.
-- Target large file support: approximately 1 GB per file.
-- Supported media/file types include images, videos, PDFs, and other common document types.
-- Files can be shared using shareable links.
-- Shareable links must support visibility/access control.
-- Authenticated users have a dashboard showing files they uploaded.
-- Users can open and preview files from the dashboard.
-- Preview support should be basic browser-native preview:
-  - Images through standard image rendering.
-  - Videos through browser video player.
-  - PDFs through browser PDF rendering.
-  - Unsupported files can fall back to download.
-- Authentication is required.
-- Rate limiting is required.
-- Storage quota tracking is required.
-- Default example quota: 5 GB per user.
-- Users can create groups.
-- Groups can contain multiple users.
-- Users in a group can upload and download documents from that group, subject to permissions.
+---
 
-### Scale Assumptions
+## 2. Currently Implemented Features
 
-- Initial production scale: 10 to 15 users.
-- The system should still be designed with production correctness in mind.
-- Do not optimize prematurely for massive scale.
-- Avoid architectures that make large uploads pass through the application server.
+The project is built and fully functional with the following features:
 
-## Chosen Tech Stack
+### Authentication & Authorization
 
-### Application
+- **Better Auth Integration**: Utilizes `better-auth` (v1.6.23) for session management and authorization.
+- **Authentication Methods**: Supports both standard Email/Password credentials and Google OAuth.
+- **Database Hooks**: Automatically updates user roles to `admin` upon registration or session creation if their ID is specified in the `ADMIN_USER_IDS` environment variable.
 
-- Primary framework: Next.js.
-- Language: TypeScript.
-- Frontend: Next.js App Router.
-- Backend: Next.js route handlers/server-side modules.
-- Do not use Go.
-- Do not use Java.
+### Main File Dashboard (`/dashboard`)
+
+- **File Management List**: Shows the list of available files uploaded by the authenticated user.
+- **Direct Multipart Upload UI**:
+  - Allows selecting files up to 1 GB.
+  - Uploads file chunks concurrently (limit: 3) directly to Cloudflare R2.
+  - Shows real-time progress, upload speed (MB/s), and ETA (seconds).
+  - Supports canceling/aborting an active upload (cleans up unfinished R2 parts).
+  - Automatically retries failed chunk uploads (up to 3 times per chunk).
+- **Download**: Downloads the selected file by requesting a short-lived presigned GET URL.
+- **Native Browser Preview**: Opens a modal in-page using standard browser capabilities for supported types (images, videos, PDFs) via an `inline` presigned GET URL.
+- **File Deletion**: Permanently deletes a file from object storage and deletes its database metadata, releasing the user's quota.
+
+### Quota & Usage Tracking
+
+- **Transactional Safety**: Uses transactional row-level locking (`FOR UPDATE` raw SQL queries) to prevent race conditions during concurrent uploads.
+- **Allocated Quota**: Default quota is **2 GB** per user (configurable by admin).
+- **Usage Display**: Interactive progress bar in dashboard and profile page displaying utilization.
+
+### Admin Control Panel (`/admin`)
+
+- **Dashboard Observability**: Displays total storage allocated vs. used, utilization percentage, active/deleted file counts, average file size, success/failure rates for uploads and downloads, registered user counts, and counts of users nearing or exceeding their quotas.
+- **User Directory**: Lists all registered users.
+- **Banning/Suspension**: Admin can ban or unban users via Better Auth admin plugin helper client.
+- **Role Toggles**: Toggle role between `admin` and `user`.
+- **Quota Management**: Modify a user's storage quota in gigabytes (updates the DB in bytes).
+
+### System Auditing & Observability
+
+- **Audit Logging**: Keeps an audit log table of core operations including:
+  - `upload_initiated`, `upload_success`, `upload_aborted`, `upload_expired`
+  - `download_requested`, `download_success`, `download_failed`
+  - `file_deleted`
+
+### Cleanup Job (`/api/cron/cleanup`)
+
+- **Orphan Cleanup**: Cron-triggered endpoint that scans and cleanups expired upload sessions, aborts incomplete multipart uploads on R2, and marks corresponding files as failed in the DB.
+
+---
+
+## 3. Technology Stack
+
+### Core Frameworks
+
+- **Runtime**: Bun (v1.x)
+- **Framework**: Next.js (v16.2.10) using App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS (v4) using `@tailwindcss/postcss`
+- **Database client**: Prisma ORM (v7.8.0)
+- **Database**: PostgreSQL
 
 ### Authentication
 
-- Use Better Auth.
-- Keep auth integration TypeScript-native.
-- Authorization logic must be implemented explicitly around users, groups, files, and share links.
+- **Library**: Better Auth (v1.6.23) with `admin` plugin
 
-### Database
+### Object Storage Client
 
-- Use PostgreSQL for:
-  - User information.
-  - File metadata.
-  - Group metadata.
-  - Group memberships.
-  - Share links.
-  - Upload sessions.
-  - Quota tracking.
-  - Audit logs.
+- **SDK**: AWS SDK S3 client (`@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`) connected to Cloudflare R2
 
-### ORM / Query Layer
+---
 
-- Preferred: Drizzle ORM.
-- Acceptable alternative: Prisma.
-- Prefer explicit transaction control for quota and upload-session logic.
-
-### Object Storage
-
-- Use S3-compatible object storage.
-- Preferred first option: Cloudflare R2.
-- Alternative: AWS S3.
-- Files must be stored in object storage, not in PostgreSQL and not on the app server filesystem.
-
-### Rate Limiting / Cache
-
-- Use Redis-compatible storage.
-- Practical hosted options:
-  - Upstash Redis.
-  - Redis Cloud.
-  - Self-hosted Redis if deploying on a VPS.
-
-### Validation
-
-- Use Zod for request validation and shared TypeScript schemas where useful.
-
-### Deployment Direction
-
-Recommended initial production deployment:
-
-- Next.js on Vercel or similar.
-- PostgreSQL on Neon, Supabase, RDS, or another managed Postgres provider.
-- Object storage on Cloudflare R2 or AWS S3.
-- Redis on Upstash Redis, Redis Cloud, or equivalent.
-
-## Architecture Principles
-
-### Large Upload Rule
-
-Large file bytes must not pass through the Next.js backend.
-
-Correct flow:
-
-1. Browser asks Next.js backend to initiate an upload.
-2. Backend authenticates the user.
-3. Backend checks rate limits, permissions, and quota.
-4. Backend creates an upload session and object-storage multipart upload.
-5. Backend returns signed upload URLs.
-6. Browser uploads file parts directly to R2/S3.
-7. Browser reports uploaded parts back to backend.
-8. Backend completes the multipart upload.
-9. Backend marks the file metadata as available.
-
-### Download / Preview Rule
-
-Do not expose permanent public object-storage URLs.
-
-Correct flow:
-
-1. Browser requests file access from the app.
-2. Backend authenticates the user or validates share-link access.
-3. Backend checks file permissions.
-4. Backend returns a short-lived signed read URL.
-5. Browser uses the signed URL for preview or download.
-
-### Quota Rule
-
-Quota checks must be transactionally safe.
-
-Example:
-
-- User quota: 5 GB.
-- User current usage: 4.6 GB.
-- New file size: 700 MB.
-- Upload must be rejected because it would exceed quota.
-
-Concurrent upload race conditions must be handled. Do not only sum file sizes at request time without locking or reserved-byte tracking.
-
-Preferred approach:
-
-- Track committed usage.
-- Track reserved upload bytes for in-progress uploads.
-- Use database transactions and row-level locking where needed.
-- Release reserved bytes when uploads fail, expire, or are aborted.
-
-## Back-of-the-Envelope Numbers
-
-### Per User Storage
-
-- Default quota: 5 GB per user.
-- Initial users: 10 to 15.
-- Total possible user quota allocation:
-  - 10 users * 5 GB = 50 GB.
-  - 15 users * 5 GB = 75 GB.
-
-### Large File Uploads
-
-- Target large file size: approximately 1 GB.
-- A 5 GB quota allows about 5 files of 1 GB each per user, before metadata and smaller files are considered.
-- Across 10 users, worst-case quota-filled usage is about 50 one-GB files.
-- Across 15 users, worst-case quota-filled usage is about 75 one-GB files.
-
-### Multipart Upload Sizing
-
-Use multipart upload for large files.
-
-Reasonable initial part size:
-
-- 16 MB per part.
-
-Approximate part counts:
-
-- 1 GB file / 16 MB = about 64 parts.
-- 5 GB quota filled with 1 GB files = about 320 uploaded parts per user over time.
-
-Alternative part size:
-
-- 32 MB per part.
-
-Approximate part counts:
-
-- 1 GB file / 32 MB = about 32 parts.
-
-Initial recommendation:
-
-- Start with 16 MB or 32 MB parts.
-- Keep concurrency modest, such as 3 to 5 simultaneous part uploads per file.
-- Prefer correctness and stable retry behavior over maximum throughput.
-
-### Metadata Size
-
-Metadata in PostgreSQL should be small relative to object storage.
-
-Expected metadata per file is likely a few KB or less, including:
-
-- File row.
-- Permission rows.
-- Share-link rows.
-- Audit rows.
-- Upload-session rows.
-
-For 50 to 75 large files, metadata storage is negligible compared with object storage usage.
-
-## Suggested Source Layout
-
-Use clear server modules instead of putting all logic directly inside route handlers.
+## 4. Directory Structure
 
 ```txt
-src/
-  app/
-    api/
-      files/
-      groups/
-      share-links/
-      auth/
-  server/
-    auth/
-    db/
-    files/
-    groups/
-    permissions/
-    quota/
-    rate-limit/
-    share-links/
-    storage/
-    upload-sessions/
-    audit/
-  components/
-  lib/
+file-storage-system/
+├── app/                      # Next.js App Router root
+│   ├── admin/                # Admin Portal UI page
+│   ├── api/                  # Backend Route Handlers
+│   │   ├── admin/            # Admin stats & user quota endpoints
+│   │   ├── auth/             # Better Auth Next.js handlers
+│   │   ├── cron/             # Upload session cleanup endpoint
+│   │   ├── files/            # File upload initialization, chunk signing, completion, and download endpoints
+│   │   └── profile/          # User stats summary for profile page
+│   ├── dashboard/            # Main User Dashboard page
+│   ├── generated/            # Output directory for Prisma Client
+│   ├── lib/                  # Services and core business logic
+│   │   ├── admin-service.ts  # Stats aggregation & user details lookup
+│   │   ├── audit-service.ts  # Unified database audit log writer
+│   │   ├── auth-client.ts    # Client-side Better Auth SDK
+│   │   ├── auth.ts           # Server-side Better Auth configuration
+│   │   ├── file-service.ts   # Core upload orchestration and DB locking logic
+│   │   ├── prisma.ts         # Prisma client instantiation with PostgreSQL adapter
+│   │   └── r2.ts             # Cloudflare R2 wrapper (AWS S3 commands & presigning)
+│   ├── profile/              # User profile page
+│   ├── sign-in/              # Credentials and Google social sign-in page
+│   ├── sign-up/              # Credentials registration page
+│   ├── globals.css           # Global Tailwind CSS styles
+│   └── layout.tsx            # Main layout wrapper
+├── prisma/                   # Prisma Schema & Database Configuration
+│   ├── configure-r2.ts       # Script to verify R2 bucket existence and configure CORS rules
+│   ├── migrations/           # Database migration files
+│   └── schema.prisma         # Database models definition
+├── package.json              # Project dependencies and script runner configurations
+├── bun.lock                  # Bun lockfile
+└── tsconfig.json             # TypeScript configuration
 ```
 
-Route handlers should be thin. Business logic should live under `src/server`.
+---
 
-## Suggested API Surface
+## 5. Database Schema
 
-Initial file APIs:
+Defined in `prisma/schema.prisma`.
 
-```txt
-POST /api/files/initiate-upload
-POST /api/files/sign-part
-POST /api/files/complete-upload
-POST /api/files/abort-upload
-GET  /api/files
-GET  /api/files/:id
-GET  /api/files/:id/view-url
-GET  /api/files/:id/download-url
-DELETE /api/files/:id
+```mermaid
+erDiagram
+    user {
+        string id PK
+        string name
+        string email UK
+        boolean emailVerified
+        string image
+        datetime createdAt
+        datetime updatedAt
+        string role
+        boolean banned
+        string banReason
+        datetime banExpires
+    }
+    session {
+        string id PK
+        datetime expiresAt
+        string token UK
+        datetime createdAt
+        datetime updatedAt
+        string ipAddress
+        string userAgent
+        string userId FK
+        string impersonatedBy
+    }
+    account {
+        string id PK
+        string accountId
+        string providerId
+        string userId FK
+        string accessToken
+        string refreshToken
+        string idToken
+        datetime accessTokenExpiresAt
+        datetime refreshTokenExpiresAt
+        string scope
+        string password
+        datetime createdAt
+        datetime updatedAt
+    }
+    verification {
+        string id PK
+        string identifier
+        string value
+        datetime expiresAt
+        datetime createdAt
+        datetime updatedAt
+    }
+    file {
+        string id PK
+        string ownerUserId
+        string groupId
+        string bucket
+        string objectKey
+        string originalName
+        string mimeType
+        bigint sizeBytes
+        string status
+        string visibility
+        datetime createdAt
+        datetime updatedAt
+        datetime deletedAt
+    }
+    upload_session {
+        string id PK
+        string fileId FK
+        string userId
+        string storageUploadId
+        string objectKey
+        bigint sizeBytes
+        bigint partSizeBytes
+        string status
+        datetime createdAt
+        datetime expiresAt
+        datetime completedAt
+    }
+    quota_usage {
+        string userId PK
+        bigint quotaBytes
+        bigint usedBytes
+        datetime updatedAt
+    }
+    audit_log {
+        string id PK
+        string userId FK
+        string action
+        string fileId
+        string details
+        datetime createdAt
+    }
+
+    user ||--o{ session : "has"
+    user ||--o{ account : "has"
+    user ||--o| quota_usage : "defines"
+    user ||--o{ audit_log : "performs"
+    file ||--o{ upload_session : "spawns"
 ```
 
-Initial share-link APIs:
+### Models Summary
 
-```txt
-POST /api/share-links
-GET  /api/share/:token
-PATCH /api/share-links/:id
-DELETE /api/share-links/:id
+- **User**: Better Auth schema extended with `role`, `banned`, `banReason`, and `banExpires`. Role is `admin` or default.
+- **Session & Account & Verification**: Standard Better Auth entities mapping active user logins and social providers.
+- **File**: Stores object storage details, mime-type, original filename, and states (`uploading`, `available`, `failed`, `deleted`).
+- **UploadSession**: Represents an active multipart upload session. Maps a `storageUploadId` issued by Cloudflare R2 and tracks status (`initiated`, `uploading`, `completed`, `aborted`, `expired`, `failed`).
+- **QuotaUsage**: Maintains storage usage per user. Defaults to 2 GB (`2147483648` bytes).
+- **AuditLog**: Stores structural activity logs tracking downloads, deletions, and upload phases.
+
+---
+
+## 6. Architectural Principles & Critical Workflows
+
+### 6.1 The Large Upload Rule (Direct Upload Flow)
+
+Large files (up to 1 GB) must never stream through the Next.js server. The backend serves only as an authenticator and orchestrator.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Browser
+    participant API as Next.js Server
+    participant DB as Postgres (Prisma)
+    participant Storage as Cloudflare R2
+
+    Client->>API: POST /api/files/initiate-upload (name, size, type)
+    activate API
+    API->>DB: Begin Transaction & Lock user's quotaUsage row (FOR UPDATE)
+    DB-->>API: Row Locked, available quota verified
+    API->>DB: Create File record (status: uploading)
+    API->>Storage: s3Client.send(CreateMultipartUploadCommand)
+    Storage-->>API: Returns storageUploadId
+    API->>DB: Create upload_session record (status: initiated)
+    API->>DB: Log Audit Event: upload_initiated
+    API-->>Client: Returns uploadId, objectKey, partSizeBytes (8MB)
+    deactivate API
+
+    Note over Client, Storage: Client uploads chunks concurrently
+
+    loop For each part in file
+        Client->>API: POST /api/files/sign-part (uploadId, objectKey, partNumber)
+        API-->>Client: Returns short-lived presigned PUT URL
+        Client->>Storage: PUT chunk data directly using signed URL
+        Storage-->>Client: Returns ETag header
+    end
+
+    Client->>API: POST /api/files/complete-upload (uploadId, objectKey, parts: [{partNumber, etag}])
+    activate API
+    API->>Storage: s3Client.send(CompleteMultipartUploadCommand)
+    Storage-->>API: Success response
+    API->>DB: Begin Transaction & Lock user's quotaUsage row (FOR UPDATE)
+    API->>DB: Update quotaUsage.usedBytes += file.sizeBytes
+    API->>DB: Update upload_session (status: completed)
+    API->>DB: Update file (status: available)
+    API->>DB: Log Audit Event: upload_success
+    API-->>Client: Returns { success: true, fileId }
+    deactivate API
 ```
 
-Initial group APIs:
+### 6.2 View / Download URL Flow
 
-```txt
-POST /api/groups
-GET  /api/groups
-GET  /api/groups/:id
-POST /api/groups/:id/members
-PATCH /api/groups/:id/members/:userId
-DELETE /api/groups/:id/members/:userId
-GET  /api/groups/:id/files
+No object storage buckets are publicly accessible. Access to files goes through the application backend.
+
+1. **Request**: Browser requests a read URL from `GET /api/files/[id]/download-url?download=true|false`.
+2. **Access Check**: Server verifies that the file exists, has a status of `available`, and is owned by the requesting authenticated user.
+3. **Presign**: Server requests a short-lived presigned GET URL from Cloudflare R2 (exipres in 3600 seconds) via `GetObjectCommand`.
+   - If `download=true`, Content-Disposition is set as `attachment; filename="..."`.
+   - If `download=false` (used for previewing), Content-Disposition is set as `inline; filename="..."`.
+4. **Log & Return**: Server writes an audit log (`download_requested` / `download_success`) and returns the signed URL to the browser.
+5. **Consumption**: Browser uses the signed URL to display files inside an `iframe`, `video` tag, or downloads the file natively.
+
+### 6.3 Cleanup Cron Job
+
+1. **Trigger**: `/api/cron/cleanup` is hit (protected by an optional `CRON_SECRET` search parameter).
+2. **Retrieve**: Queries all `UploadSession` records with status `initiated` or `uploading` that have passed their `expiresAt` timestamp.
+3. **Cleanup**: For each expired session:
+   - Calls R2 `AbortMultipartUploadCommand` to delete accumulated chunk data.
+   - Updates `UploadSession` status to `expired`.
+   - Updates `File` status to `failed` and sets `deletedAt`.
+   - Logs `upload_expired` to the `AuditLog` table.
+
+---
+
+## 7. Environment & Configuration
+
+The application expects the following configuration in `.env` (refer to `.env.example`):
+
+| Variable Name          | Description                                            | Example Value                                   |
+| :--------------------- | :----------------------------------------------------- | :---------------------------------------------- |
+| `BETTER_AUTH_SECRET`   | Secure secret key for Better Auth session signing      | _High-entropy hash_                             |
+| `BETTER_AUTH_URL`      | Base URL of the running Next.js app                    | `http://localhost:3000`                         |
+| `GOOGLE_CLIENT_ID`     | Google Client ID for OAuth login                       | `76472721...apps.googleusercontent.com`         |
+| `GOOGLE_CLIENT_SECRET` | Google Client Secret for OAuth login                   | `GOCSPX-...`                                    |
+| `DATABASE_URL`         | PostgreSQL database connection string                  | `postgresql://user:pass@localhost:5432/db`      |
+| `ACCESS_KEY`           | Cloudflare R2 Access Key ID                            | `9a84a3c71f45345...`                            |
+| `SECRET_ACCESS_KEY`    | Cloudflare R2 Secret Access Key                        | `42ebd7191d5...`                                |
+| `S3_URL`               | Cloudflare R2 endpoint URL                             | `https://<account-id>.r2.cloudflarestorage.com` |
+| `R2_BUCKET`            | The name of the Cloudflare R2 bucket                   | `file-storage-system`                           |
+| `ADMIN_USER_IDS`       | Comma-separated user IDs seeded as admin on login      | `user-uuid-1,user-uuid-2`                       |
+| `CRON_SECRET`          | Secret token to authenticate the cleanup cron endpoint | `my_cron_secret`                                |
+
+### Cloudflare R2 CORS Rules
+
+To support browser direct uploading, the R2 bucket must be configured to allow chunked uploads. You can apply the CORS configuration by running:
+
+```bash
+bun run prisma/configure-r2.ts
 ```
 
-## Suggested Database Tables
+This script checks/creates the bucket and configures CORS to expose the `ETag` header, which is essential for client-side multipart completion.
 
-Minimum core tables:
+---
 
-```txt
-users
-sessions
-accounts
-files
-upload_sessions
-groups
-group_members
-file_permissions
-share_links
-quota_usage
-audit_logs
-```
+## 8. Coding Conventions & Development Workflow
 
-Important `files` fields:
+### Development Rules
 
-```txt
-id
-owner_user_id
-group_id nullable
-bucket
-object_key
-original_name
-mime_type
-size_bytes
-status: uploading | available | failed | deleted
-visibility: private | group | link
-created_at
-updated_at
-deleted_at nullable
-```
+- **No Large Server Transfers**: File bytes must never pass through Next.js server memory. Direct-to-storage upload must be preserved.
+- **Quota Lock**: Quota manipulation must always occur inside a Prisma database transaction using a row-level write lock (`FOR UPDATE` SQL queries) to prevent multi-upload race conditions from exceeding the quota.
+- **Separation of Concerns**: Keep API routes thin. Centralize database logic and external S3 interactions within `app/lib/` service modules (`fileService`, `r2Service`, `adminService`, `auditService`).
+- **Prisma Generated Output**: Prisma Client output is configured to write to the `app/generated/prisma` directory (see `prisma/schema.prisma`). Remember to reference imports correctly.
 
-Important `upload_sessions` fields:
+### Common CLI Tasks
 
-```txt
-id
-file_id
-user_id
-storage_upload_id
-object_key
-size_bytes
-reserved_bytes
-part_size_bytes
-status: initiated | uploading | completed | aborted | expired | failed
-created_at
-expires_at
-completed_at nullable
-```
+- **Install dependencies**: `bun install`
+- **Run local server**: `bun run dev`
+- **Generate Prisma Client**: `bun prisma generate`
+- **Deploy DB migrations**: `bun prisma migrate dev`
+- **Expose CORS / Configure R2**: `bun run prisma/configure-r2.ts`
+- **Type-check codebase**: `bun run typecheck`
+- **Format codebase**: `bun run format`
 
-Important `share_links` fields:
+---
 
-```txt
-id
-file_id
-token_hash
-created_by_user_id
-visibility
-expires_at nullable
-max_downloads nullable
-download_count
-created_at
-revoked_at nullable
-```
+## 9. Removed Obsolete Drafts / Future Roadmap
 
-Important `quota_usage` fields:
+The previous documentation draft outlined several specs which are **NOT currently implemented** in the codebase. They remain as potential features on the future roadmap:
 
-```txt
-user_id
-quota_bytes
-used_bytes
-reserved_bytes
-updated_at
-```
-
-## Permission Model
-
-Start simple.
-
-Suggested group roles:
-
-```txt
-owner
-admin
-member
-viewer
-```
-
-Suggested file access rules:
-
-- File owner can view, download, share, and delete their files.
-- Group owner/admin can manage files in the group.
-- Group member can upload and download group files if allowed by group policy.
-- Group viewer can only view/download group files.
-- Share-link access is controlled by token validity, expiry, revocation, and optional download limits.
-
-Keep permission checks centralized in `src/server/permissions`.
-
-## Background Jobs
-
-The project needs background cleanup even at small scale.
-
-Initial jobs:
-
-- Expire old upload sessions.
-- Abort incomplete multipart uploads.
-- Release reserved quota for failed or expired uploads.
-- Delete object-storage files for soft-deleted records after a retention window.
-- Expire or revoke old share links.
-
-For the first version, jobs can be implemented as protected cron endpoints or deployment-provider scheduled functions.
-
-## Security Requirements
-
-- All file access must go through application-level authorization.
-- Object storage buckets should be private.
-- Signed upload URLs should be short-lived.
-- Signed download/view URLs should be short-lived.
-- Share-link tokens must be high entropy.
-- Store only token hashes for share links, not raw tokens.
-- Validate MIME type and file size before initiating upload.
-- Treat client-provided MIME type as advisory, not fully trusted.
-- Add rate limits to auth, upload initiation, signed URL generation, share-link access, and download URL generation.
-- Record audit logs for important actions:
-  - Upload initiated.
-  - Upload completed.
-  - File downloaded.
-  - Share link created.
-  - Share link used.
-  - File deleted.
-  - Group membership changed.
-
-## Current Product Decisions
-
-- Use Next.js and TypeScript for both frontend and backend.
-- Use Better Auth.
-- Use PostgreSQL for user information and file metadata.
-- Use S3-compatible object storage, preferably Cloudflare R2.
-- Use direct browser-to-object-storage uploads with signed multipart URLs.
-- Use browser-native previews only for the initial version.
-- Initial scale target is 10 to 15 production users.
-- Do not use Go.
-- Do not use Java.
-
-## Open Decisions
-
-These choices are not final yet:
-
-- Drizzle vs Prisma, though Drizzle is preferred.
-- Cloudflare R2 vs AWS S3, though R2 is preferred for initial cost and simplicity.
-- Exact hosting provider.
-- Exact Redis provider.
-- Exact upload UI library. Uppy is a candidate, but a custom multipart upload client is also acceptable.
-
-## Agent Instructions
-
-When modifying this project:
-
-- Preserve the direct-to-object-storage upload architecture.
-- Do not route large file bytes through Next.js.
-- Keep route handlers thin.
-- Put business logic in server modules.
-- Use transactions for quota-sensitive operations.
-- Prefer explicit permission checks over scattered inline conditions.
-- Keep object storage private.
-- Use short-lived signed URLs.
-- Update this document when architectural decisions change.
+1. **User Groups & Group-based Sharing**: There are currently no models for `Group` or `GroupMember` in `schema.prisma`. All uploaded files are strictly owner-private.
+2. **File Permissions Table**: Ad-hoc viewer/admin overrides are not present. Only the file owner and system admins have delete/read access.
+3. **Shareable Links**: Public share tokens or hash token verification endpoints are not implemented.
+4. **Redis Cache & Rate Limiting**: The project contains no Redis database integrations or rate-limiting packages (e.g. Upstash).
