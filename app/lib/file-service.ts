@@ -1,5 +1,6 @@
 import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
+import { auditService } from "@/app/lib/audit-service";
 
 export interface InitiateUploadInput {
   filename: string;
@@ -22,6 +23,7 @@ export interface AbortUploadInput {
 }
 
 const PART_SIZE_BYTES = 8 * 1024 * 1024; // 8MB default chunk size
+const DEFAULT_QUOTA_BYTES = BigInt(2 * 1024 * 1024 * 1024); // 2 GB
 
 export const fileService = {
   async initiateUpload({
@@ -30,53 +32,93 @@ export const fileService = {
     mimeType,
     userId,
   }: InitiateUploadInput) {
-    // 1. Generate a unique object key in R2
+    // Generate file ID and key beforehand
     const fileId = crypto.randomUUID();
     const fileExtension = filename.split(".").pop();
     const objectKey = `${userId}/${fileId}${fileExtension ? `.${fileExtension}` : ""}`;
 
-    // 2. Create the file record in DB with status "uploading"
-    const file = await prisma.file.create({
-      data: {
-        id: fileId,
-        ownerUserId: userId,
-        bucket: process.env.R2_BUCKET!,
-        objectKey,
-        originalName: filename,
-        mimeType,
-        sizeBytes: BigInt(size),
-        status: "uploading",
-        visibility: "private",
-      },
-    });
+    return await prisma.$transaction(async (tx) => {
+      // 1. Ensure quota_usage record exists
+      await tx.quotaUsage.upsert({
+        where: { userId },
+        create: {
+          userId,
+          quotaBytes: DEFAULT_QUOTA_BYTES,
+          usedBytes: BigInt(0),
+        },
+        update: {},
+      });
 
-    // 3. Initiate multipart upload on R2
-    const { uploadId } = await r2Service.initializeMultipartUpload(
-      objectKey,
-      mimeType,
-    );
-
-    // 4. Create the upload session record in DB
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-    const uploadSession = await prisma.uploadSession.create({
-      data: {
-        fileId: file.id,
+      // 2. Lock quota_usage row for update to prevent race conditions
+      const lockedRows = await tx.$queryRawUnsafe<
+        { quota_bytes: string; used_bytes: string }[]
+      >(
+        `SELECT quota_bytes, used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
         userId,
-        storageUploadId: uploadId,
-        objectKey,
-        sizeBytes: BigInt(size),
-        partSizeBytes: BigInt(PART_SIZE_BYTES),
-        status: "initiated",
-        expiresAt,
-      },
-    });
+      );
 
-    return {
-      uploadId: uploadSession.storageUploadId,
-      objectKey: uploadSession.objectKey,
-      fileId: file.id,
-      partSizeBytes: PART_SIZE_BYTES,
-    };
+      const locked = lockedRows[0];
+      const quotaBytes = BigInt(locked.quota_bytes);
+      const usedBytes = BigInt(locked.used_bytes);
+
+      const requestedSize = BigInt(size);
+      const availableBytes = quotaBytes - usedBytes;
+
+      if (requestedSize > availableBytes) {
+        throw new Error("Quota exceeded: Not enough storage space available.");
+      }
+
+      // 3. Create the file record in DB with status "uploading"
+      const file = await tx.file.create({
+        data: {
+          id: fileId,
+          ownerUserId: userId,
+          bucket: process.env.R2_BUCKET!,
+          objectKey,
+          originalName: filename,
+          mimeType,
+          sizeBytes: requestedSize,
+          status: "uploading",
+          visibility: "private",
+        },
+      });
+
+      // 4. Initiate multipart upload on R2
+      const { uploadId } = await r2Service.initializeMultipartUpload(
+        objectKey,
+        mimeType,
+      );
+
+      // 5. Create the upload session record in DB
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      const uploadSession = await tx.uploadSession.create({
+        data: {
+          fileId: file.id,
+          userId,
+          storageUploadId: uploadId,
+          objectKey,
+          sizeBytes: requestedSize,
+          partSizeBytes: BigInt(PART_SIZE_BYTES),
+          status: "initiated",
+          expiresAt,
+        },
+      });
+
+      // 6. Write audit log
+      await auditService.log({
+        userId,
+        action: "upload_initiated",
+        fileId: file.id,
+        details: `Initiated upload of file ${filename} (${size} bytes)`,
+      });
+
+      return {
+        uploadId: uploadSession.storageUploadId,
+        objectKey: uploadSession.objectKey,
+        fileId: file.id,
+        partSizeBytes: PART_SIZE_BYTES,
+      };
+    });
   },
 
   async signPart(
@@ -137,22 +179,51 @@ export const fileService = {
     // Complete upload in R2
     await r2Service.completeMultipartUpload(objectKey, uploadId, parts);
 
-    // Update upload session and file records in DB
-    await prisma.$transaction([
-      prisma.uploadSession.update({
+    // Update upload session, file records, and user quota in DB
+    await prisma.$transaction(async (tx) => {
+      // 1. Lock quota_usage
+      const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+        `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+        userId,
+      );
+
+      const locked = lockedRows[0];
+      const usedBytes = BigInt(locked.used_bytes);
+
+      const size = uploadSession.sizeBytes;
+      const newUsed = usedBytes + size;
+
+      await tx.quotaUsage.update({
+        where: { userId },
+        data: {
+          usedBytes: newUsed,
+        },
+      });
+
+      // 2. Update session and file
+      await tx.uploadSession.update({
         where: { id: uploadSession.id },
         data: {
           status: "completed",
           completedAt: new Date(),
         },
-      }),
-      prisma.file.update({
+      });
+
+      await tx.file.update({
         where: { id: uploadSession.fileId },
         data: {
           status: "available",
         },
-      }),
-    ]);
+      });
+
+      // 3. Log audit
+      await auditService.log({
+        userId,
+        action: "upload_success",
+        fileId: uploadSession.fileId,
+        details: `Successfully completed upload of file ${uploadSession.fileId} (${size} bytes)`,
+      });
+    });
 
     return {
       fileId: uploadSession.fileId,
@@ -177,20 +248,138 @@ export const fileService = {
     await r2Service.abortMultipartUpload(objectKey, uploadId);
 
     // Update DB
-    await prisma.$transaction([
-      prisma.uploadSession.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.uploadSession.update({
         where: { id: uploadSession.id },
         data: {
           status: "aborted",
         },
-      }),
-      prisma.file.update({
+      });
+
+      await tx.file.update({
         where: { id: uploadSession.fileId },
         data: {
           status: "failed",
           deletedAt: new Date(),
         },
-      }),
-    ]);
+      });
+
+      // Log audit
+      await auditService.log({
+        userId,
+        action: "upload_aborted",
+        fileId: uploadSession.fileId,
+        details: `Aborted upload session ${uploadId}`,
+      });
+    });
+  },
+
+  async deleteFile(fileId: string, userId: string, isAdmin = false) {
+    const file = await prisma.file.findUnique({
+      where: { id: fileId },
+    });
+
+    if (!file) {
+      throw new Error("File not found");
+    }
+
+    if (file.ownerUserId !== userId && !isAdmin) {
+      throw new Error("Forbidden");
+    }
+
+    // 1. Delete object from Cloudflare R2
+    await r2Service.deleteObject(file.objectKey);
+
+    // 2. Remove all metadata from database and update user's quota
+    return await prisma.$transaction(async (tx) => {
+      // Cascade deletes the upload sessions referencing this file
+      await tx.file.delete({
+        where: { id: fileId },
+      });
+
+      // Ensure quota record exists
+      await tx.quotaUsage.upsert({
+        where: { userId: file.ownerUserId },
+        create: {
+          userId: file.ownerUserId,
+          quotaBytes: DEFAULT_QUOTA_BYTES,
+          usedBytes: BigInt(0),
+        },
+        update: {},
+      });
+
+      // Lock row
+      const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+        `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+        file.ownerUserId,
+      );
+
+      if (lockedRows.length > 0) {
+        const locked = lockedRows[0];
+        const usedBytes = BigInt(locked.used_bytes);
+        const size = file.sizeBytes;
+        const newUsed = usedBytes >= size ? usedBytes - size : BigInt(0);
+
+        await tx.quotaUsage.update({
+          where: { userId: file.ownerUserId },
+          data: {
+            usedBytes: newUsed,
+          },
+        });
+      }
+
+      // Log audit
+      await auditService.log({
+        userId,
+        action: "file_deleted",
+        fileId,
+        details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database. Action performed by ${userId}`,
+      });
+    });
+  },
+
+  async cleanupExpiredUploads() {
+    const now = new Date();
+    const expiredSessions = await prisma.uploadSession.findMany({
+      where: {
+        status: { in: ["initiated", "uploading"] },
+        expiresAt: { lt: now },
+      },
+    });
+
+    for (const session of expiredSessions) {
+      try {
+        await r2Service.abortMultipartUpload(
+          session.objectKey,
+          session.storageUploadId,
+        );
+      } catch (err) {
+        console.error(
+          `Failed to abort R2 upload for session ${session.id}:`,
+          err,
+        );
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.uploadSession.update({
+          where: { id: session.id },
+          data: { status: "expired" },
+        });
+
+        await tx.file.update({
+          where: { id: session.fileId },
+          data: { status: "failed", deletedAt: new Date() },
+        });
+
+        await auditService.log({
+          userId: session.userId,
+          action: "upload_expired",
+          fileId: session.fileId,
+          details: `Upload session expired. Object key: ${session.objectKey}`,
+        });
+      });
+    }
+
+    return expiredSessions.length;
   },
 };

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
+import { auditService } from "@/app/lib/audit-service";
 
 export async function GET(
   request: Request,
@@ -48,6 +49,15 @@ export async function GET(
       file.originalName,
       download,
     );
+
+    await auditService.log({
+      userId: session.user.id,
+      action: "download_success",
+      fileId: file.id,
+      details: download
+        ? `Requested download URL for file: ${file.originalName}`
+        : `Requested preview URL for file: ${file.originalName}`,
+    });
 
     return NextResponse.json({ url });
   } catch (error) {

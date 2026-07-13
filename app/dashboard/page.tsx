@@ -23,12 +23,38 @@ interface UploadProgress {
   etaSeconds: number;
 }
 
+interface ProfileData {
+  storage: {
+    quotaBytes: string;
+    usedBytes: string;
+    remainingBytes: string;
+    utilization: number;
+  };
+  files: {
+    totalUploadedFiles: number;
+    totalDownloads: number;
+    recentUploads: {
+      id: string;
+      originalName: string;
+      sizeBytes: string;
+      createdAt: string;
+    }[];
+    recentDownloads: {
+      id: string;
+      fileId: string;
+      originalName: string;
+      downloadedAt: string;
+    }[];
+  };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
 
   // Upload states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -49,6 +75,18 @@ export default function DashboardPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  const fetchProfileData = async () => {
+    try {
+      const res = await fetch("/api/profile");
+      if (res.ok) {
+        const data = await res.json();
+        setProfileData(data);
+      }
+    } catch (err) {
+      console.error("Error loading profile stats:", err);
+    }
+  };
+
   const fetchFiles = async () => {
     await Promise.resolve();
     setFilesLoading(true);
@@ -58,6 +96,7 @@ export default function DashboardPage() {
         const data = await res.json();
         setFiles(data);
       }
+      await fetchProfileData();
     } catch (err) {
       console.error("Error loading files:", err);
     } finally {
@@ -77,8 +116,13 @@ export default function DashboardPage() {
             const data = await res.json();
             setFiles(data);
           }
+          const profRes = await fetch("/api/profile");
+          if (profRes.ok && active) {
+            const profData = await profRes.json();
+            setProfileData(profData);
+          }
         } catch (err) {
-          console.error("Error loading files:", err);
+          console.error("Error loading files/profile:", err);
         } finally {
           if (active) {
             setFilesLoading(false);
@@ -136,6 +180,15 @@ export default function DashboardPage() {
 
       if (!initRes.ok) {
         const errData = await initRes.json();
+        if (errData.error === "QuotaExceeded") {
+          setError(
+            errData.message ||
+              "Quota exceeded: Not enough storage space available.",
+          );
+          setUploading(false);
+          uploadControllerRef.current = { active: false };
+          return;
+        }
         throw new Error(errData.error || "Failed to initiate upload");
       }
 
@@ -304,6 +357,31 @@ export default function DashboardPage() {
     setProgress(null);
   };
 
+  const handleDelete = async (fileId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this file? This will release its quota usage.",
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/files/${fileId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setSuccessMessage("File deleted successfully!");
+        fetchFiles();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete file");
+      }
+    } catch (err) {
+      console.error("Error deleting file:", err);
+      alert("An error occurred while deleting file");
+    }
+  };
+
   const handleDownload = async (file: UploadedFile) => {
     try {
       const res = await fetch(
@@ -392,8 +470,14 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="font-semibold text-sm">{user.name || "User"}</p>
-              <p className="text-neutral-500 text-xs">{user.email}</p>
+              <p className="text-neutral-555 text-xs">{user.email}</p>
             </div>
+            <button
+              onClick={() => router.push("/profile")}
+              className="bg-indigo-600 hover:bg-indigo-755 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all border border-indigo-500 shadow-md shadow-indigo-900/10"
+            >
+              My Profile
+            </button>
             <button
               onClick={() => signOut()}
               className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 px-4 py-2 rounded-lg text-sm font-semibold transition-all border border-neutral-700"
@@ -432,9 +516,24 @@ export default function DashboardPage() {
                     {user.role || "user"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-550">Storage Quota:</span>
-                  <span className="font-medium text-neutral-300">5.00 GB</span>
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-neutral-500">Storage Usage:</span>
+                    <span className="font-medium text-neutral-300 font-mono text-xs">
+                      {profileData
+                        ? `${formatBytes(profileData.storage.usedBytes)} / ${formatBytes(profileData.storage.quotaBytes)}`
+                        : "Loading..."}
+                    </span>
+                  </div>
+
+                  {profileData && (
+                    <div className="w-full h-1.5 bg-neutral-950 rounded-full overflow-hidden border border-neutral-850 mt-1">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+                        style={{ width: `${profileData.storage.utilization}%` }}
+                      ></div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-555">User ID:</span>
@@ -855,6 +954,26 @@ export default function DashboardPage() {
                                 />
                               </svg>
                               <span className="hidden md:inline">Download</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(file.id)}
+                              className="bg-red-950/20 hover:bg-red-950/45 text-red-400 border border-red-500/20 p-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+                              title="Delete File"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                              <span className="hidden md:inline">Delete</span>
                             </button>
                           </div>
                         </div>
