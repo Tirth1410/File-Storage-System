@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import { fileService } from "@/app/lib/file-service";
+import { logger, withLogging } from "@/app/lib/logger";
 
-export async function POST(request: Request) {
+export const POST = withLogging(async (request: Request) => {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -48,9 +49,9 @@ export async function POST(request: Request) {
       throw error;
     }
   } catch (error) {
-    console.error("Error in initiate-upload:", error);
+    logger.error("Error in initiate-upload:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
+});

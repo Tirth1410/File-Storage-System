@@ -1,4 +1,5 @@
 import prisma from "@/app/lib/prisma";
+import { logger } from "@/app/lib/logger";
 
 export const auditService = {
   async log({
@@ -22,7 +23,7 @@ export const auditService = {
         },
       });
     } catch (err) {
-      console.error("Failed to write audit log:", err);
+      logger.error("Failed to write audit log:", err);
     }
   },
 };

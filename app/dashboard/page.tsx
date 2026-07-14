@@ -299,7 +299,7 @@ export default function DashboardPage() {
       await Promise.all(activeUploads);
 
       if (!uploadControllerRef.current.active) {
-        throw new Error("Upload cancelled by user");
+        return;
       }
 
       // 3. Complete upload
@@ -319,6 +319,11 @@ export default function DashboardPage() {
       setActiveTab("own");
       fetchFiles("own");
     } catch (err) {
+      if (!uploadControllerRef.current.active) {
+        // If an error happens (e.g. aborted chunk request) but the upload was already cancelled, just ignore it.
+        return;
+      }
+
       console.error("Upload error:", err);
       const errorMessage =
         err instanceof Error

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { fileService } from "@/app/lib/file-service";
+import { logger, withLogging } from "@/app/lib/logger";
 
-export async function GET(request: Request) {
+export const GET = withLogging(async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const secret = searchParams.get("secret");
@@ -14,10 +15,10 @@ export async function GET(request: Request) {
     const cleanedCount = await fileService.cleanupExpiredUploads();
     return NextResponse.json({ success: true, cleanedCount });
   } catch (error) {
-    console.error("Error running cleanup job:", error);
+    logger.error("Error running cleanup job:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal error" },
       { status: 500 },
     );
   }
-}
+});

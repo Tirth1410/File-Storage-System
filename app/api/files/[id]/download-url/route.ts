@@ -4,67 +4,67 @@ import { auth } from "@/app/lib/auth";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
 import { authorizationService } from "@/app/lib/authorization-service";
+import { logger, withLogging } from "@/app/lib/logger";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+export const GET = withLogging(
+  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+    try {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
 
-    const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const download = searchParams.get("download") !== "false"; // default to true
-    const token = searchParams.get("token") || undefined;
+      const { id } = await params;
+      const { searchParams } = new URL(request.url);
+      const download = searchParams.get("download") !== "false"; // default to true
+      const token = searchParams.get("token") || undefined;
 
-    const access = await authorizationService.canAccessFile({
-      fileId: id,
-      userId: session?.user?.id,
-      token,
-      requiredAccess: download ? "download" : "preview",
-    });
+      const access = await authorizationService.canAccessFile({
+        fileId: id,
+        userId: session?.user?.id,
+        token,
+        requiredAccess: download ? "download" : "preview",
+      });
 
-    if (!access.authorized || !access.file) {
-      return NextResponse.json(
-        { error: access.reason || "Forbidden" },
-        { status: 403 },
+      if (!access.authorized || !access.file) {
+        return NextResponse.json(
+          { error: access.reason || "Forbidden" },
+          { status: 403 },
+        );
+      }
+
+      const file = access.file;
+
+      if (file.status !== "available") {
+        return NextResponse.json(
+          { error: "File is not ready yet" },
+          { status: 400 },
+        );
+      }
+
+      const url = await r2Service.generatePresignedGetUrl(
+        file.objectKey,
+        file.originalName,
+        download,
       );
+
+      const logUserId = session?.user?.id || file.ownerUserId;
+      const anonymousNote = !session?.user?.id ? " (via share link)" : "";
+
+      await auditService.log({
+        userId: logUserId,
+        action: "download_success",
+        fileId: file.id,
+        details: download
+          ? `Requested download URL for file: ${file.originalName}${anonymousNote}`
+          : `Requested preview URL for file: ${file.originalName}${anonymousNote}`,
+      });
+
+      return NextResponse.json({ url });
+    } catch (error) {
+      logger.error("Error generating download url:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Internal server error";
+      return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
-
-    const file = access.file;
-
-    if (file.status !== "available") {
-      return NextResponse.json(
-        { error: "File is not ready yet" },
-        { status: 400 },
-      );
-    }
-
-    const url = await r2Service.generatePresignedGetUrl(
-      file.objectKey,
-      file.originalName,
-      download,
-    );
-
-    const logUserId = session?.user?.id || file.ownerUserId;
-    const anonymousNote = !session?.user?.id ? " (via share link)" : "";
-
-    await auditService.log({
-      userId: logUserId,
-      action: "download_success",
-      fileId: file.id,
-      details: download
-        ? `Requested download URL for file: ${file.originalName}${anonymousNote}`
-        : `Requested preview URL for file: ${file.originalName}${anonymousNote}`,
-    });
-
-    return NextResponse.json({ url });
-  } catch (error) {
-    console.error("Error generating download url:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
-  }
-}
+  },
+);

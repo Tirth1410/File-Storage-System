@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import prisma from "@/app/lib/prisma";
+import { logger, withLogging } from "@/app/lib/logger";
 
-export async function GET() {
+export const GET = withLogging(async () => {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -95,10 +96,10 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Error in profile stats:", error);
+    logger.error("Error in profile stats:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
     );
   }
-}
+});
