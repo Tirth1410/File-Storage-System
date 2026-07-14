@@ -4,15 +4,13 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/app/lib/auth-client";
 import { useEffect, useState } from "react";
 
-const formatBytes = (bytes: number | string, decimals = 2) => {
-  const b = typeof bytes === "string" ? parseInt(bytes, 10) : bytes;
-  if (isNaN(b) || b === 0) return "0 Bytes";
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(b) / Math.log(k));
-  return parseFloat((b / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
-};
+import { AppShell } from "@/app/components/shared/AppShell";
+import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
+import { SectionCard } from "@/app/components/shared/SectionCard";
+import { StatCard } from "@/app/components/shared/StatCard";
+import { StorageBar } from "@/app/components/shared/StorageBar";
+import { StatusBadge } from "@/app/components/shared/StatusBadge";
+import { formatBytes } from "@/app/lib/utils";
 
 interface ProfileData {
   storage: {
@@ -49,10 +47,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const res = await fetch("/api/profile");
-      if (res.ok) {
-        const data = await res.json();
-        setProfileData(data);
-      }
+      if (res.ok) setProfileData(await res.json());
     } catch (err) {
       console.error("Error fetching profile details:", err);
     } finally {
@@ -65,176 +60,175 @@ export default function ProfilePage() {
       if (!session?.user) {
         router.push("/sign-in");
       } else {
-        Promise.resolve().then(() => {
-          fetchProfileData();
-        });
+        Promise.resolve().then(() => fetchProfileData());
       }
     }
   }, [isPending, session, router]);
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-950 text-white">
-        <p className="text-xl font-medium animate-pulse">
-          Loading auth session...
-        </p>
-      </div>
-    );
-  }
-
-  if (!session?.user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-950 text-white">
-        <p className="text-xl font-medium animate-pulse">Redirecting...</p>
-      </div>
-    );
-  }
+  if (isPending) return <LoadingScreen message="Loading auth session..." />;
+  if (!session?.user) return <LoadingScreen message="Redirecting..." />;
 
   const { user } = session;
+  const initials = user.name
+    ? user.name.slice(0, 2).toUpperCase()
+    : user.email.slice(0, 2).toUpperCase();
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 font-sans p-6 md:p-12 relative overflow-hidden">
-      {/* Background Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+    <>
+      <AppShell
+        userName={user.name || undefined}
+        backHref="/dashboard"
+        backLabel="Dashboard"
+      />
 
-      <div className="max-w-4xl mx-auto space-y-8 relative z-10">
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-neutral-800">
+      <main className="min-h-screen bg-[#FAFAFA]">
+        <div className="max-w-5xl mx-auto px-6 md:px-10 py-8 space-y-6">
+          {/* Page title */}
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              My Profile Dashboard
+            <h1 className="text-2xl font-bold tracking-tight text-[#171717]">
+              My Profile
             </h1>
-            <p className="text-neutral-400 text-sm mt-1">
-              Monitor your storage allocation, usage patterns, and recent file
-              activity.
+            <p className="text-sm text-[#737373] mt-0.5">
+              Usage stats, storage quota, and recent activity
             </p>
           </div>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="bg-neutral-900 border border-neutral-800 text-white font-medium rounded-md px-4 py-2 hover:bg-neutral-800 transition-colors shrink-0"
-          >
-            ← Back to Dashboard
-          </button>
-        </header>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-3">
-            <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-neutral-450 text-sm">
-              Loading your profile data...
-            </span>
-          </div>
-        ) : (
-          profileData && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Left Side: Account Info & Quota Info */}
-              <div className="md:col-span-1 space-y-6">
-                {/* Profile Card */}
-                <div className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-850 rounded-2xl p-6 shadow-xl space-y-4">
-                  <div className="flex flex-col items-center text-center space-y-2 border-b border-neutral-850 pb-4">
-                    <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/25">
-                      {user.name ? user.name.slice(0, 2).toUpperCase() : "US"}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-28 gap-3">
+              <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-[#737373]">Loading profile data...</p>
+            </div>
+          ) : profileData ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Left column */}
+              <div className="space-y-5">
+                {/* Identity Card */}
+                <SectionCard title="Account">
+                  <div className="flex flex-col items-center text-center gap-3 pb-5 border-b border-[#E5E7EB]">
+                    <div className="w-16 h-16 bg-[rgba(0,47,167,0.1)] border border-[rgba(0,47,167,0.2)] rounded-full flex items-center justify-center font-bold text-xl text-[#002FA7]">
+                      {initials}
                     </div>
-                    <h2 className="text-lg font-bold text-neutral-250 mt-2">
-                      {user.name || "User"}
-                    </h2>
-                    <p className="text-xs text-neutral-500">{user.email}</p>
+                    <div>
+                      <p className="text-base font-bold text-[#171717]">
+                        {user.name || "User"}
+                      </p>
+                      <p className="text-xs text-[#737373] mt-0.5">
+                        {user.email}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      variant={user.role === "admin" ? "admin" : "user"}
+                      label={user.role || "user"}
+                    />
                   </div>
-                  <div className="space-y-2 text-sm text-neutral-400">
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Role:</span>
-                      <span className="capitalize font-medium text-neutral-200">
-                        {user.role || "user"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Member Since:</span>
-                      <span className="font-medium text-neutral-200">
+                  <div className="space-y-3 pt-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#737373]">Member Since</span>
+                      <span className="font-semibold text-[#171717]">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                  </div>
-                </div>
-
-                {/* Quota Progress Card */}
-                <div className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-850 rounded-2xl p-6 shadow-xl space-y-4">
-                  <h3 className="text-sm font-bold text-neutral-200 uppercase tracking-wider">
-                    Storage Quota
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="w-full h-3 bg-neutral-950 rounded-full overflow-hidden border border-neutral-850">
-                      <div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
-                        style={{ width: `${profileData.storage.utilization}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-xs font-mono text-neutral-400">
-                      <span>{profileData.storage.utilization}% Used</span>
-                      <span>
-                        {formatBytes(profileData.storage.quotaBytes)} Total
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#737373]">Files</span>
+                      <span className="font-semibold text-[#171717]">
+                        {profileData.files.totalUploadedFiles}
                       </span>
                     </div>
-                    <div className="border-t border-neutral-850 pt-3 space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Used Storage:</span>
-                        <span className="font-mono text-neutral-300">
-                          {formatBytes(profileData.storage.usedBytes)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-550">Available:</span>
-                        <span className="font-mono text-emerald-400 font-semibold">
-                          {formatBytes(profileData.storage.remainingBytes)}
-                        </span>
-                      </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#737373]">Downloads</span>
+                      <span className="font-semibold text-[#171717]">
+                        {profileData.files.totalDownloads}
+                      </span>
                     </div>
                   </div>
-                </div>
+                </SectionCard>
+
+                {/* Quota Card */}
+                <SectionCard title="Storage Quota">
+                  <StorageBar
+                    usedBytes={profileData.storage.usedBytes}
+                    quotaBytes={profileData.storage.quotaBytes}
+                    utilization={profileData.storage.utilization}
+                    variant="full"
+                  />
+                  <div className="mt-4 pt-4 border-t border-[#E5E7EB] space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-[#737373]">Available</span>
+                      <span className="font-semibold text-[#16A34A] font-mono">
+                        {formatBytes(profileData.storage.remainingBytes)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#737373]">Total Quota</span>
+                      <span className="font-semibold text-[#171717] font-mono">
+                        {formatBytes(profileData.storage.quotaBytes)}
+                      </span>
+                    </div>
+                  </div>
+                </SectionCard>
               </div>
 
-              {/* Right Side: File stats & lists */}
+              {/* Right column */}
               <div className="md:col-span-2 space-y-6">
-                {/* Basic Stats Grid */}
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-neutral-900/40 border border-neutral-800/80 rounded-xl p-5 backdrop-blur-sm">
-                    <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider mb-1">
-                      Uploaded Files
-                    </p>
-                    <h3 className="text-2xl font-bold text-white">
-                      {profileData.files.totalUploadedFiles}
-                    </h3>
-                  </div>
-                  <div className="bg-neutral-900/40 border border-neutral-800/80 rounded-xl p-5 backdrop-blur-sm">
-                    <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider mb-1">
-                      Total Downloads
-                    </p>
-                    <h3 className="text-2xl font-bold text-indigo-400">
-                      {profileData.files.totalDownloads}
-                    </h3>
-                  </div>
+                {/* Stat cards */}
+                <div className="grid grid-cols-2 gap-5">
+                  <StatCard
+                    label="Total Files"
+                    value={profileData.files.totalUploadedFiles}
+                    icon={
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                    }
+                  />
+                  <StatCard
+                    label="Total Downloads"
+                    value={profileData.files.totalDownloads}
+                    icon={
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
+                      </svg>
+                    }
+                  />
                 </div>
 
                 {/* Recent Uploads */}
-                <div className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-850 rounded-2xl p-6 shadow-xl space-y-4">
-                  <h3 className="text-sm font-bold text-neutral-200 uppercase tracking-wider">
-                    Recent Uploads
-                  </h3>
+                <SectionCard title="Recent Uploads" noPadding>
                   {profileData.files.recentUploads.length === 0 ? (
-                    <p className="text-xs text-neutral-500 py-4">
-                      No files uploaded recently.
-                    </p>
+                    <div className="px-6 py-12 text-center text-xs text-[#A3A3A3]">
+                      No recent uploads.
+                    </div>
                   ) : (
-                    <div className="divide-y divide-neutral-800/50">
+                    <div className="divide-y divide-[#F5F5F5]">
                       {profileData.files.recentUploads.map((file) => (
                         <div
                           key={file.id}
-                          className="flex justify-between items-center py-2.5 text-sm"
+                          className="flex justify-between items-center px-6 py-3.5 hover:bg-[#FAFAFA] transition-colors"
                         >
-                          <div className="truncate max-w-[250px] font-medium text-neutral-300">
+                          <span className="text-sm font-medium text-[#171717] truncate max-w-[55%]">
                             {file.originalName}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-neutral-500 font-mono">
+                          </span>
+                          <div className="flex items-center gap-4 text-xs text-[#737373] font-mono shrink-0">
                             <span>{formatBytes(file.sizeBytes)}</span>
                             <span>
                               {new Date(file.createdAt).toLocaleDateString()}
@@ -244,41 +238,37 @@ export default function ProfilePage() {
                       ))}
                     </div>
                   )}
-                </div>
+                </SectionCard>
 
                 {/* Recent Downloads */}
-                <div className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-850 rounded-2xl p-6 shadow-xl space-y-4">
-                  <h3 className="text-sm font-bold text-neutral-200 uppercase tracking-wider">
-                    Recent Downloads
-                  </h3>
+                <SectionCard title="Recent Downloads" noPadding>
                   {profileData.files.recentDownloads.length === 0 ? (
-                    <p className="text-xs text-neutral-500 py-4">
+                    <div className="px-6 py-12 text-center text-xs text-[#A3A3A3]">
                       No downloads logged recently.
-                    </p>
+                    </div>
                   ) : (
-                    <div className="divide-y divide-neutral-800/50">
+                    <div className="divide-y divide-[#F5F5F5]">
                       {profileData.files.recentDownloads.map((log) => (
                         <div
                           key={log.id}
-                          className="flex justify-between items-center py-2.5 text-sm"
+                          className="flex justify-between items-center px-6 py-3.5 hover:bg-[#FAFAFA] transition-colors"
                         >
-                          <div className="truncate max-w-[250px] font-medium text-neutral-300">
+                          <span className="text-sm font-medium text-[#171717] truncate max-w-[55%]">
                             {log.originalName}
-                          </div>
-                          <div className="text-xs text-neutral-500 font-mono">
-                            {new Date(log.downloadedAt).toLocaleDateString()}{" "}
-                            {new Date(log.downloadedAt).toLocaleTimeString()}
-                          </div>
+                          </span>
+                          <span className="text-xs text-[#737373] font-mono shrink-0">
+                            {new Date(log.downloadedAt).toLocaleString()}
+                          </span>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                </SectionCard>
               </div>
             </div>
-          )
-        )}
-      </div>
-    </main>
+          ) : null}
+        </div>
+      </main>
+    </>
   );
 }

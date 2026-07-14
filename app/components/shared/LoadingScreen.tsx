@@ -1,0 +1,18 @@
+/**
+ * LoadingScreen — full-page spinner shown while auth session is pending.
+ */
+
+interface LoadingScreenProps {
+  message?: string;
+}
+
+export function LoadingScreen({ message = "Loading..." }: LoadingScreenProps) {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-[#FAFAFA]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-[#525252]">{message}</p>
+      </div>
+    </div>
+  );
+}
