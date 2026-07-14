@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/app/lib/auth-client";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import { ShareModal } from "./ShareModal";
 
 interface UploadedFile {
   id: string;
@@ -12,6 +13,7 @@ interface UploadedFile {
   sizeBytes: string;
   status: string;
   createdAt: string;
+  ownerUserId: string;
 }
 
 interface UploadProgress {
@@ -55,6 +57,7 @@ export default function DashboardPage() {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [activeTab, setActiveTab] = useState<"own" | "shared">("own");
 
   // Upload states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -74,6 +77,7 @@ export default function DashboardPage() {
   const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [shareFile, setShareFile] = useState<UploadedFile | null>(null);
 
   const fetchProfileData = async () => {
     try {
@@ -87,11 +91,11 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchFiles = async () => {
+  const fetchFiles = async (tab: "own" | "shared" = activeTab) => {
     await Promise.resolve();
     setFilesLoading(true);
     try {
-      const res = await fetch("/api/files");
+      const res = await fetch(`/api/files?type=${tab}`);
       if (res.ok) {
         const data = await res.json();
         setFiles(data);
@@ -110,8 +114,9 @@ export default function DashboardPage() {
     } else if (session?.user) {
       let active = true;
       const load = async () => {
+        setFilesLoading(true);
         try {
-          const res = await fetch("/api/files");
+          const res = await fetch(`/api/files?type=${activeTab}`);
           if (res.ok && active) {
             const data = await res.json();
             setFiles(data);
@@ -134,7 +139,7 @@ export default function DashboardPage() {
         active = false;
       };
     }
-  }, [isPending, session, router]);
+  }, [isPending, session, router, activeTab]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -311,7 +316,8 @@ export default function DashboardPage() {
       setSuccessMessage("File uploaded successfully!");
       setSelectedFile(null);
       setProgress(null);
-      fetchFiles();
+      setActiveTab("own");
+      fetchFiles("own");
     } catch (err) {
       console.error("Upload error:", err);
       const errorMessage =
@@ -743,13 +749,32 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-850 rounded-2xl p-6 shadow-xl min-h-[500px] flex flex-col justify-between">
               <div>
-                <div className="flex justify-between items-center pb-4 mb-4 border-b border-neutral-800">
-                  <h2 className="text-xl font-bold text-neutral-200">
-                    My Files
-                  </h2>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 mb-4 border-b border-neutral-800 gap-4">
+                  <div className="flex gap-2 bg-neutral-950 p-1 rounded-xl border border-neutral-850">
+                    <button
+                      onClick={() => setActiveTab("own")}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        activeTab === "own"
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
+                          : "text-neutral-450 hover:text-neutral-200"
+                      }`}
+                    >
+                      My Files
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("shared")}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        activeTab === "shared"
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20"
+                          : "text-neutral-450 hover:text-neutral-200"
+                      }`}
+                    >
+                      Shared with Me
+                    </button>
+                  </div>
                   <button
-                    onClick={fetchFiles}
-                    className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold flex items-center gap-1 transition-colors"
+                    onClick={() => fetchFiles(activeTab)}
+                    className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold flex items-center gap-1 transition-colors self-end sm:self-auto"
                   >
                     <svg
                       className="w-3.5 h-3.5"
@@ -795,11 +820,14 @@ export default function DashboardPage() {
                       </svg>
                     </div>
                     <h3 className="text-neutral-300 font-bold mb-1">
-                      No Files Uploaded
+                      {activeTab === "own"
+                        ? "No Files Uploaded"
+                        : "No Shared Files"}
                     </h3>
                     <p className="text-neutral-550 text-xs max-w-sm">
-                      Select a large file on the left panel to upload it
-                      directly to R2 multipart storage.
+                      {activeTab === "own"
+                        ? "Select a large file on the left panel to upload it directly to R2 multipart storage."
+                        : "Files shared with you by other users will appear here."}
                     </p>
                   </div>
                 ) : (
@@ -955,26 +983,54 @@ export default function DashboardPage() {
                               </svg>
                               <span className="hidden md:inline">Download</span>
                             </button>
-                            <button
-                              onClick={() => handleDelete(file.id)}
-                              className="bg-red-950/20 hover:bg-red-950/45 text-red-400 border border-red-500/20 p-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
-                              title="Delete File"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
-                              <span className="hidden md:inline">Delete</span>
-                            </button>
+                            {session?.user?.id === file.ownerUserId && (
+                              <>
+                                <button
+                                  onClick={() => setShareFile(file)}
+                                  className="bg-indigo-650/10 hover:bg-indigo-650/20 text-indigo-400 border border-indigo-500/20 p-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+                                  title="Share File"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                                    />
+                                  </svg>
+                                  <span className="hidden md:inline">
+                                    Share
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(file.id)}
+                                  className="bg-red-950/20 hover:bg-red-950/45 text-red-400 border border-red-500/20 p-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+                                  title="Delete File"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                  <span className="hidden md:inline">
+                                    Delete
+                                  </span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       );
@@ -1083,6 +1139,11 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Share Modal */}
+      {shareFile && (
+        <ShareModal file={shareFile} onClose={() => setShareFile(null)} />
       )}
     </main>
   );

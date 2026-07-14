@@ -13,21 +13,22 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
-  role          String?
-  banned        Boolean?
-  banReason     String?
-  banExpires    DateTime? @db.Timestamptz(3)
-  sessions      Session[]
-  accounts      Account[]
-  quotaUsage    QuotaUsage?
-  auditLogs     AuditLog[]
+  id              String           @id
+  name            String
+  email           String
+  emailVerified   Boolean
+  image           String?
+  createdAt       DateTime
+  updatedAt       DateTime
+  role            String?
+  banned          Boolean?
+  banReason       String?
+  banExpires      DateTime?        @db.Timestamptz(3)
+  sessions        Session[]
+  accounts        Account[]
+  quotaUsage      QuotaUsage?
+  auditLogs       AuditLog[]
+  filePermissions FilePermission[]
 
   @@unique([email])
   @@map("user")
@@ -80,7 +81,7 @@ model Verification {
 }
 
 model File {
-  id           String          @id @default(uuid())
+  id           String           @id @default(uuid())
   ownerUserId  String
   groupId      String?
   bucket       String
@@ -90,10 +91,12 @@ model File {
   sizeBytes    BigInt
   status       String // uploading | available | failed | deleted
   visibility   String // private | group | link
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   deletedAt    DateTime?
   sessions     UploadSession[]
+  shareLinks   ShareLink[]
+  permissions  FilePermission[]
 
   @@map("file")
 }
@@ -116,12 +119,12 @@ model UploadSession {
 }
 
 model QuotaUsage {
-  userId        String   @id @map("user_id")
-  quotaBytes    BigInt   @default(2147483648) @map("quota_bytes") // 2 GB default
-  usedBytes     BigInt   @default(0) @map("used_bytes")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  userId     String   @id @map("user_id")
+  quotaBytes BigInt   @default(2147483648) @map("quota_bytes") // 2 GB default
+  usedBytes  BigInt   @default(0) @map("used_bytes")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("quota_usage")
 }
@@ -129,12 +132,44 @@ model QuotaUsage {
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
-  action    String   // upload_initiated | upload_success | upload_aborted | upload_expired | download_requested | download_success | download_failed | file_deleted
+  action    String // upload_initiated | upload_success | upload_aborted | upload_expired | download_requested | download_success | download_failed | file_deleted
   fileId    String?  @map("file_id")
   details   String?
   createdAt DateTime @default(now()) @map("created_at")
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("audit_log")
+}
+
+model ShareLink {
+  id            String    @id @default(uuid())
+  fileId        String
+  token         String    @unique
+  isActive      Boolean   @default(true)
+  expiresAt     DateTime?
+  allowDownload Boolean   @default(true)
+  allowPreview  Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("share_link")
+}
+
+model FilePermission {
+  id         String   @id @default(uuid())
+  fileId     String
+  userId     String
+  permission String // read | write
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, userId])
+  @@map("file_permission")
 }

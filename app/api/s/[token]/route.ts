@@ -1,26 +1,36 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
 import { authorizationService } from "@/app/lib/authorization-service";
+import { auth } from "@/app/lib/auth";
+import { headers } from "next/headers";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ token: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
+    const { token } = await params;
+    const { searchParams } = new URL(request.url);
+    const download = searchParams.get("download") === "true"; // default false (preview)
+
+    const shareLink = await prisma.shareLink.findUnique({
+      where: { token },
+      include: { file: true },
     });
 
-    const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const download = searchParams.get("download") !== "false"; // default to true
-    const token = searchParams.get("token") || undefined;
+    if (!shareLink) {
+      return NextResponse.json(
+        { error: "Invalid share link" },
+        { status: 404 },
+      );
+    }
+
+    const session = await auth.api.getSession({ headers: await headers() });
 
     const access = await authorizationService.canAccessFile({
-      fileId: id,
+      fileId: shareLink.fileId,
       userId: session?.user?.id,
       token,
       requiredAccess: download ? "download" : "preview",
@@ -60,11 +70,20 @@ export async function GET(
         : `Requested preview URL for file: ${file.originalName}${anonymousNote}`,
     });
 
-    return NextResponse.json({ url });
+    return NextResponse.json({
+      file: {
+        id: file.id,
+        originalName: file.originalName,
+        mimeType: file.mimeType,
+        sizeBytes: file.sizeBytes.toString(),
+      },
+      url,
+    });
   } catch (error) {
-    console.error("Error generating download url:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    console.error("Error resolving share link:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
