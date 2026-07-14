@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import prisma from "@/app/lib/prisma";
+import { Prisma } from "@/app/generated/prisma/client";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -13,11 +14,28 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type");
+
+    const whereClause: Prisma.FileWhereInput = {
+      status: "available",
+    };
+
+    if (type === "own") {
+      whereClause.ownerUserId = session.user.id;
+    } else if (type === "shared") {
+      whereClause.ownerUserId = { not: session.user.id };
+      whereClause.permissions = { some: { userId: session.user.id } };
+    } else {
+      // Default: fetch both owned and shared files
+      whereClause.OR = [
+        { ownerUserId: session.user.id },
+        { permissions: { some: { userId: session.user.id } } },
+      ];
+    }
+
     const files = await prisma.file.findMany({
-      where: {
-        ownerUserId: session.user.id,
-        status: "available",
-      },
+      where: whereClause,
       orderBy: {
         createdAt: "desc",
       },
