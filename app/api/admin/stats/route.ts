@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import { adminService } from "@/app/lib/admin-service";
+import { logger, withLogging } from "@/app/lib/logger";
 
-export async function GET() {
+export const GET = withLogging(async () => {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -20,10 +21,10 @@ export async function GET() {
     const stats = await adminService.getDashboardStats();
     return NextResponse.json(stats);
   } catch (error) {
-    console.error("Error in GET /api/admin/stats:", error);
+    logger.error("Error in GET /api/admin/stats:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
     );
   }
-}
+});

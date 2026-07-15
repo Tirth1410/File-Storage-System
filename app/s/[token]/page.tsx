@@ -78,10 +78,10 @@ export default function SharedFilePage({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-950 text-white font-sans">
+      <div className="flex items-center justify-center min-h-screen bg-[#FAFAFA] text-[#171717] font-sans">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-neutral-400 font-medium">
+          <div className="w-12 h-12 border-4 border-[#3b6fe8] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-neutral-500 font-medium">
             Loading file details...
           </p>
         </div>
@@ -91,9 +91,9 @@ export default function SharedFilePage({
 
   if (error || !file) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-950 text-white font-sans p-6">
-        <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-2xl">
-          <div className="w-16 h-16 bg-red-950/30 text-red-500 rounded-full flex items-center justify-center mx-auto border border-red-900/50">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAFAFA] text-[#171717] font-sans p-6">
+        <div className="bg-white border border-neutral-200 p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto border border-red-100">
             <svg
               className="w-8 h-8"
               fill="none"
@@ -108,8 +108,8 @@ export default function SharedFilePage({
               />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-neutral-200">Access Denied</h1>
-          <p className="text-sm text-neutral-400">{error}</p>
+          <h1 className="text-xl font-bold text-[#171717]">Access Denied</h1>
+          <p className="text-sm text-neutral-500">{error}</p>
         </div>
       </div>
     );
@@ -129,26 +129,26 @@ export default function SharedFilePage({
   const isPdf = file.mimeType === "application/pdf";
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 font-sans p-6 md:p-12 flex flex-col items-center relative overflow-hidden">
+    <main className="min-h-screen bg-[#FAFAFA] text-[#171717] font-sans p-6 md:p-12 flex flex-col items-center relative overflow-hidden">
       {/* Background Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#3b6fe8]/5 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#002FA7]/5 rounded-full blur-[120px] pointer-events-none"></div>
 
       <div className="max-w-4xl w-full mx-auto space-y-8 relative z-10 flex flex-col items-center">
         <div className="text-center space-y-2 mb-8 mt-12">
-          <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#171717]">
             Shared with You
           </h1>
-          <p className="text-neutral-500 text-sm">
+          <p className="text-neutral-500 text-sm font-medium">
             Secure File Transfer via CloudStorage
           </p>
         </div>
 
-        <div className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-850 rounded-2xl w-full shadow-2xl overflow-hidden">
-          <div className="p-8 border-b border-neutral-800 flex flex-col md:flex-row items-center gap-6">
-            <div className="w-16 h-16 bg-neutral-950 border border-neutral-800 rounded-2xl flex items-center justify-center shrink-0">
+        <div className="bg-white/80 backdrop-blur-xl border border-neutral-200 rounded-2xl w-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <div className="p-8 border-b border-neutral-100 flex flex-col md:flex-row items-center gap-6">
+            <div className="w-16 h-16 bg-neutral-50 border border-neutral-100 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
               <svg
-                className="w-8 h-8 text-indigo-400"
+                className="w-8 h-8 text-[#3b6fe8]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -163,7 +163,7 @@ export default function SharedFilePage({
             </div>
             <div className="flex-1 text-center md:text-left overflow-hidden w-full">
               <h2
-                className="text-xl font-bold text-neutral-200 truncate"
+                className="text-xl font-bold text-[#171717] truncate"
                 title={file.originalName}
               >
                 {file.originalName}
@@ -176,7 +176,7 @@ export default function SharedFilePage({
             </div>
             <button
               onClick={handleDownload}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-900/20 shrink-0 w-full md:w-auto flex items-center justify-center gap-2"
+              className="bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] hover:brightness-110 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_4px_14px_rgba(59,111,232,0.3)] shrink-0 w-full md:w-auto flex items-center justify-center gap-2"
             >
               <svg
                 className="w-5 h-5"
@@ -196,7 +196,7 @@ export default function SharedFilePage({
           </div>
 
           {previewUrl ? (
-            <div className="bg-neutral-950 min-h-[400px] flex items-center justify-center p-6 relative">
+            <div className="bg-neutral-50/50 min-h-[400px] flex items-center justify-center p-6 relative">
               {isImage && (
                 <Image
                   src={previewUrl}
@@ -204,28 +204,28 @@ export default function SharedFilePage({
                   width={1200}
                   height={800}
                   unoptimized
-                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-md border border-neutral-800"
+                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm border border-neutral-200"
                 />
               )}
               {isVideo && (
                 <video
                   src={previewUrl}
                   controls
-                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-md border border-neutral-800"
+                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm border border-neutral-200"
                 />
               )}
               {isPdf && (
                 <iframe
                   src={previewUrl}
-                  className="w-full h-[70vh] border-0 rounded-lg shadow-md"
+                  className="w-full h-[70vh] border border-neutral-200 rounded-lg shadow-sm"
                   title="PDF Preview"
                 />
               )}
             </div>
           ) : (
-            <div className="bg-neutral-950/50 py-16 flex flex-col items-center justify-center text-neutral-500 gap-3">
+            <div className="bg-neutral-50/50 py-16 flex flex-col items-center justify-center text-neutral-400 gap-3">
               <svg
-                className="w-12 h-12 text-neutral-700"
+                className="w-12 h-12 text-neutral-300"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -243,7 +243,7 @@ export default function SharedFilePage({
                   d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                 />
               </svg>
-              <p className="text-sm">
+              <p className="text-sm font-medium">
                 Preview not available for this file type.
               </p>
             </div>

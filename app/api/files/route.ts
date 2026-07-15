@@ -3,8 +3,9 @@ import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import prisma from "@/app/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
+import { logger, withLogging } from "@/app/lib/logger";
 
-export async function GET(request: NextRequest) {
+export const GET = withLogging(async (request: NextRequest) => {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -48,9 +49,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(serializedFiles);
   } catch (error) {
-    console.error("Error fetching files:", error);
+    logger.error("Error fetching files:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
+});

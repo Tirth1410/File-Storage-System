@@ -1,6 +1,7 @@
 import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
+import { logger } from "@/app/lib/logger";
 
 export interface InitiateUploadInput {
   filename: string;
@@ -354,7 +355,7 @@ export const fileService = {
           session.storageUploadId,
         );
       } catch (err) {
-        console.error(
+        logger.error(
           `Failed to abort R2 upload for session ${session.id}:`,
           err,
         );
