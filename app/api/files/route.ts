@@ -26,12 +26,42 @@ export const GET = withLogging(async (request: NextRequest) => {
       whereClause.ownerUserId = session.user.id;
     } else if (type === "shared") {
       whereClause.ownerUserId = { not: session.user.id };
-      whereClause.permissions = { some: { userId: session.user.id } };
+      whereClause.OR = [
+        { permissions: { some: { userId: session.user.id } } },
+        {
+          groupFiles: {
+            some: {
+              isActive: true,
+              group: {
+                members: {
+                  some: {
+                    userId: session.user.id,
+                  },
+                },
+              },
+            },
+          },
+        },
+      ];
     } else {
       // Default: fetch both owned and shared files
       whereClause.OR = [
         { ownerUserId: session.user.id },
         { permissions: { some: { userId: session.user.id } } },
+        {
+          groupFiles: {
+            some: {
+              isActive: true,
+              group: {
+                members: {
+                  some: {
+                    userId: session.user.id,
+                  },
+                },
+              },
+            },
+          },
+        },
       ];
     }
 

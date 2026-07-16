@@ -21,7 +21,8 @@ The project is built and fully functional with the following features:
 - **Better Auth Integration**: Utilizes `better-auth` (v1.6.23) for session management and authorization.
 - **Authentication Methods**: Supports both standard Email/Password credentials and Google OAuth.
 - **Database Hooks**: Automatically updates user roles to `admin` upon registration or session creation if their ID is specified in the `ADMIN_USER_IDS` environment variable.
-- **Shared Permissions Model**: Restricts access to files. Files can be private, shared via tokenized links, or shared directly with other registered users via their email addresses with specific read/write access.
+- **Shared Permissions Model**: Restricts access to files. Files can be private, shared via tokenized links, shared directly with other registered users via their email addresses, or shared with groups.
+- **Group Sharing & Collaboration**: Enables users to create groups, manage group memberships with specific roles (Owner, Admin, Member), and share files with one or more groups simultaneously under distinct preview and download capabilities.
 
 ### Main File Dashboard (`/dashboard`)
 
@@ -123,6 +124,10 @@ file-storage-system/
 │   │   │   ├── [id]/         # Operations specific to a file
 │   │   │   │   ├── download-url/  # Requests presigned read URLs (preview/download)
 │   │   │   │   │   └── route.ts
+│   │   │   │   ├── groups/        # Manages group sharing configuration for a file
+│   │   │   │   │   ├── [groupId]/
+│   │   │   │   │   │   └── route.ts
+│   │   │   │   │   └── route.ts
 │   │   │   │   ├── permissions/   # Assigns or revokes specific user permissions
 │   │   │   │   │   ├── [userId]/
 │   │   │   │   │   │   └── route.ts
@@ -141,6 +146,14 @@ file-storage-system/
 │   │   │   ├── sign-part/     # Requests presigned URL for a single upload part
 │   │   │   │   └── route.ts
 │   │   │   └── route.ts       # Fetches files owned by or shared with the user
+│   │   ├── groups/           # Group management and member endpoints
+│   │   │   ├── [groupId]/
+│   │   │   │   ├── members/
+│   │   │   │   │   ├── [memberUserId]/
+│   │   │   │   │   │   └── route.ts
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
 │   │   ├── profile/          # User quota utilization stats API
 │   │   │   └── route.ts
 │   │   └── s/                # Public/authenticated access via share links
@@ -164,6 +177,8 @@ file-storage-system/
 │   │   └── page.tsx
 │   ├── generated/            # Output directory for Prisma Client
 │   ├── globals.css           # Global CSS styles including custom utility overrides
+│   ├── groups/               # User Groups management page
+│   │   └── page.tsx
 │   ├── layout.tsx            # Main layout wrapper
 │   ├── page.tsx              # Public-facing home/landing page
 │   ├── profile/              # User profile page displaying storage usage and audit metrics
@@ -300,15 +315,48 @@ erDiagram
         datetime createdAt
         datetime updatedAt
     }
+    group {
+        string id PK
+        string name
+        string description
+        string ownerUserId FK
+        boolean isArchived
+        datetime createdAt
+        datetime updatedAt
+    }
+    group_member {
+        string id PK
+        string groupId FK
+        string userId FK
+        string role
+        datetime joinedAt
+    }
+    group_file {
+        string id PK
+        string groupId FK
+        string fileId FK
+        string sharedByUserId FK
+        boolean allowPreview
+        boolean allowDownload
+        boolean isActive
+        datetime sharedAt
+        datetime updatedAt
+    }
 
     user ||--o{ session : "has"
     user ||--o{ account : "has"
     user ||--o| quota_usage : "defines"
     user ||--o{ audit_log : "performs"
     user ||--o{ file_permission : "has"
+    user ||--o{ group : "owns"
+    user ||--o{ group_member : "belongs"
+    user ||--o{ group_file : "shares"
     file ||--o{ upload_session : "spawns"
     file ||--o{ share_link : "has"
     file ||--o{ file_permission : "has"
+    file ||--o{ group_file : "shared_in"
+    group ||--o{ group_member : "has"
+    group ||--o{ group_file : "has"
 ```
 
 ### Models Summary
@@ -321,6 +369,9 @@ erDiagram
 - **AuditLog**: Stores structural activity logs tracking downloads, deletions, and upload phases.
 - **ShareLink**: Stores tokenized sharing configurations enabling public preview and download access based on expiration or flag rules.
 - **FilePermission**: Grants granular user-to-user access (`read` or `write` permission override) for a specific file.
+- **Group**: Represents a collection of users with a group owner and options for archiving.
+- **GroupMember**: Junction model representing group memberships, containing user roles (`OWNER`, `ADMIN`, `MEMBER`).
+- **GroupFile**: Junction model mapping which files are shared with which groups, along with granular access settings (`allowPreview`, `allowDownload`, `isActive`).
 
 ---
 
@@ -493,7 +544,5 @@ This script checks/creates the bucket and configures CORS to expose the `ETag` h
 
 ## 9. Removed Obsolete Drafts / Future Roadmap
 
-The features in the previous roadmap have been successfully implemented or adapted. The updated roadmap includes:
-
-1. **User Groups & Group-based Sharing**: There are currently no models for `Group` or `GroupMember` in `schema.prisma`. All uploaded files are owned individually. The nullable `groupId` on `File` exists for future grouping structures.
-2. **Redis Cache & Rate Limiting**: The project contains no Redis database integrations or rate-limiting packages (e.g. Upstash). This remains as a future scalability item.
+1. **Redis Cache & Rate Limiting**: The project contains no Redis database integrations or rate-limiting packages (e.g. Upstash). This remains as a future scalability item.
+2. **Advanced Permissions**: Future expansions could support group-based folder organization, nested groups, and inheritance logic.
