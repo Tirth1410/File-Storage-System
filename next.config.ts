@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     "*.ngrok-free.dev",
     "*.ngrok.app",
     "*.ngrok.io",
+    "*",
   ],
 };
 export default nextConfig;

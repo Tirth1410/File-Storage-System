@@ -47,6 +47,33 @@ export const authorizationService = {
       if (permission) {
         return { authorized: true, file };
       }
+
+      // Group permission check
+      const groupFiles = await prisma.groupFile.findMany({
+        where: {
+          fileId,
+          isActive: true,
+          group: {
+            members: {
+              some: {
+                userId,
+              },
+            },
+          },
+        },
+      });
+
+      if (groupFiles.length > 0) {
+        if (requiredAccess === "download") {
+          const canDownload = groupFiles.some((gf) => gf.allowDownload);
+          if (canDownload) return { authorized: true, file };
+        } else if (requiredAccess === "preview") {
+          const canPreview = groupFiles.some((gf) => gf.allowPreview);
+          if (canPreview) return { authorized: true, file };
+        } else {
+          return { authorized: true, file };
+        }
+      }
     }
 
     // Share link check

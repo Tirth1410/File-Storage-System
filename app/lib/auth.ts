@@ -25,6 +25,9 @@ export const auth = betterAuth({
   trustedOrigins: [
     "http://localhost:3000",
     "https://premises-snout-surgery.ngrok-free.dev",
+    "https://*.ngrok-free.app",
+    "https://*.ngrok.app",
+    "https://*.ngrok.io",
   ],
   databaseHooks: {
     user: {

@@ -72,8 +72,16 @@ export function AppShell({
 
   /* ── Nav items: back link + actions ── */
   const navItems: Array<{ label: string; onClick: () => void }> = [];
-  if (backHref)
+  if (backHref) {
     navItems.push({ label: backLabel, onClick: () => router.push(backHref) });
+  } else if (userName) {
+    navItems.push({
+      label: "Dashboard",
+      onClick: () => router.push("/dashboard"),
+    });
+    navItems.push({ label: "Groups", onClick: () => router.push("/groups") });
+    navItems.push({ label: "Profile", onClick: () => router.push("/profile") });
+  }
 
   const primaryActions = actions.filter((a) => a.variant === "primary");
   const ghostActions = actions.filter((a) => a.variant !== "primary");

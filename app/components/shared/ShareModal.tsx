@@ -27,11 +27,29 @@ interface SharedPermission {
   user: { name: string | null; email: string };
 }
 
+interface SharedGroupItem {
+  groupId: string;
+  allowPreview: boolean;
+  allowDownload: boolean;
+  isActive: boolean;
+  group: {
+    name: string;
+  };
+}
+
+interface GroupListItem {
+  id: string;
+  name: string;
+  currentUserRole: string;
+}
+
 export function ShareModal({ file, onClose }: ShareModalProps) {
   const [links, setLinks] = useState<ShareLink[]>([]);
   const [permissions, setPermissions] = useState<SharedPermission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"links" | "users">("links");
+  const [activeTab, setActiveTab] = useState<"links" | "users" | "groups">(
+    "links",
+  );
   const [allowDownload, setAllowDownload] = useState(true);
   const [allowPreview, setAllowPreview] = useState(true);
   const [expiresAt, setExpiresAt] = useState("");
@@ -39,17 +57,33 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
   const [permError, setPermError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Group states
+  const [userGroups, setUserGroups] = useState<GroupListItem[]>([]);
+  const [sharedGroups, setSharedGroups] = useState<SharedGroupItem[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [allowDownloadGroup, setAllowDownloadGroup] = useState(true);
+  const [allowPreviewGroup, setAllowPreviewGroup] = useState(true);
+  const [groupShareError, setGroupShareError] = useState("");
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [linksRes, permsRes] = await Promise.all([
-        fetch(`/api/files/${file.id}/share`),
-        fetch(`/api/files/${file.id}/permissions`),
-      ]);
+      const [linksRes, permsRes, sharedGroupsRes, userGroupsRes] =
+        await Promise.all([
+          fetch(`/api/files/${file.id}/share`),
+          fetch(`/api/files/${file.id}/permissions`),
+          fetch(`/api/files/${file.id}/groups`),
+          fetch(`/api/groups`),
+        ]);
       const linksData = await linksRes.json();
       const permsData = await permsRes.json();
+      const sharedGroupsData = await sharedGroupsRes.json();
+      const userGroupsData = await userGroupsRes.json();
+
       if (linksRes.ok) setLinks(linksData.links || []);
       if (permsRes.ok) setPermissions(permsData.permissions || []);
+      if (sharedGroupsRes.ok) setSharedGroups(sharedGroupsData.groups || []);
+      if (userGroupsRes.ok) setUserGroups(userGroupsData || []);
     } catch (err) {
       console.error("Error fetching share data", err);
     }
@@ -134,6 +168,46 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
     }
   };
 
+  const shareWithGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGroupShareError("");
+    if (!selectedGroupId) {
+      setGroupShareError("Please select a group");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/files/${file.id}/groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId: selectedGroupId,
+          allowPreview: allowPreviewGroup,
+          allowDownload: allowDownloadGroup,
+        }),
+      });
+      if (res.ok) {
+        setSelectedGroupId("");
+        fetchData();
+      } else {
+        const data = await res.json();
+        setGroupShareError(data.error || "Failed to share with group");
+      }
+    } catch {
+      setGroupShareError("Error sharing with group");
+    }
+  };
+
+  const unshareFromGroup = async (groupId: string) => {
+    try {
+      const res = await fetch(`/api/files/${file.id}/groups/${groupId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) fetchData();
+    } catch {
+      alert("Error unsharing from group");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl overflow-hidden">
@@ -155,7 +229,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
 
         {/* Tab strip */}
         <div className="flex border-b border-[#E5E7EB]">
-          {(["links", "users"] as const).map((tab) => (
+          {(["links", "users", "groups"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -165,7 +239,11 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   : "text-[#525252] hover:text-[#171717]"
               }`}
             >
-              {tab === "links" ? "Share Links" : "User Permissions"}
+              {tab === "links"
+                ? "Share Links"
+                : tab === "users"
+                  ? "User Permissions"
+                  : "Share to Group"}
             </button>
           ))}
         </div>
@@ -306,7 +384,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                 )}
               </div>
             </div>
-          ) : (
+          ) : activeTab === "users" ? (
             <div className="space-y-6">
               {/* Add User Form */}
               <form
@@ -374,6 +452,108 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                       </div>
                       <button
                         onClick={() => removePermission(perm.userId)}
+                        className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] px-3 py-1 rounded-lg hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Share with Group Form */}
+              <form
+                onSubmit={shareWithGroup}
+                className="bg-white p-5 rounded-xl border border-[#E5E7EB] space-y-4"
+              >
+                <h4 className="text-sm font-bold text-[#171717]">
+                  Share with a Group
+                </h4>
+                {groupShareError && (
+                  <p className="text-xs text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] p-3 rounded-lg">
+                    {groupShareError}
+                  </p>
+                )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-[#737373] mb-1 font-medium">
+                      Select Group
+                    </label>
+                    <select
+                      value={selectedGroupId}
+                      onChange={(e) => setSelectedGroupId(e.target.value)}
+                      className="w-full bg-white border border-[#E5E7EB] rounded-lg p-2 text-sm text-[#171717] focus:outline-none focus:border-[#002FA7]"
+                    >
+                      <option value="">-- Choose a Group --</option>
+                      {userGroups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name} ({g.currentUserRole})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="flex items-center gap-2 text-sm text-[#525252] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allowPreviewGroup}
+                        onChange={(e) => setAllowPreviewGroup(e.target.checked)}
+                        className="rounded accent-[#002FA7]"
+                      />
+                      Allow Preview
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-[#525252] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allowDownloadGroup}
+                        onChange={(e) =>
+                          setAllowDownloadGroup(e.target.checked)
+                        }
+                        className="rounded accent-[#002FA7]"
+                      />
+                      Allow Download
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 rounded-lg text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer"
+                  >
+                    Share with Group
+                  </button>
+                </div>
+              </form>
+
+              {/* Shared Groups List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-[#171717] uppercase tracking-wide">
+                  Shared Groups ({sharedGroups.length})
+                </h4>
+                {sharedGroups.length === 0 ? (
+                  <p className="text-xs text-[#737373]">
+                    Not shared with any groups.
+                  </p>
+                ) : (
+                  sharedGroups.map((sg) => (
+                    <div
+                      key={sg.groupId}
+                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex items-center justify-between gap-4"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-[#171717]">
+                          {sg.group.name}
+                        </p>
+                        <div className="flex gap-3 mt-1 text-[10px] text-[#737373] font-mono">
+                          <span>Preview: {sg.allowPreview ? "Yes" : "No"}</span>
+                          <span>
+                            Download: {sg.allowDownload ? "Yes" : "No"}
+                          </span>
+                          <span>Active: {sg.isActive ? "Yes" : "No"}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => unshareFromGroup(sg.groupId)}
                         className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] px-3 py-1 rounded-lg hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
                       >
                         Remove
