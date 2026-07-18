@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 
 interface SharedFile {
   id: string;
@@ -69,10 +70,10 @@ export default function SharedFilePage({
         document.body.removeChild(a);
       } else {
         const data = await res.json();
-        alert(data.error || "Download not allowed");
+        toast.error(data.error || "Download not allowed");
       }
     } catch {
-      alert("Error downloading file");
+      toast.error("Error downloading file");
     }
   };
 
@@ -90,6 +91,14 @@ export default function SharedFilePage({
   }
 
   if (error || !file) {
+    const isExpired = error === "Share link expired";
+    const isInvalid = error === "Invalid share link";
+    const title = isExpired
+      ? "Share Link Expired"
+      : isInvalid
+        ? "Invalid Share Link"
+        : "Access Denied";
+
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAFAFA] text-[#171717] font-sans p-6">
         <div className="bg-white border border-neutral-200 p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
@@ -108,8 +117,14 @@ export default function SharedFilePage({
               />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-[#171717]">Access Denied</h1>
-          <p className="text-sm text-neutral-500">{error}</p>
+          <h1 className="text-xl font-bold text-[#171717]">{title}</h1>
+          <p className="text-sm text-neutral-500">
+            {isExpired
+              ? "This share link has expired and is no longer available."
+              : isInvalid
+                ? "This link is invalid or has been removed."
+                : error}
+          </p>
         </div>
       </div>
     );

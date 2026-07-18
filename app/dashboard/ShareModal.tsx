@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 
 interface ShareModalProps {
   file: { id: string; originalName: string };
@@ -84,12 +85,13 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       if (res.ok) {
         fetchData();
         setExpiresAt("");
+        toast.success("Share link generated successfully!");
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to generate link");
+        toast.error(data.error || "Failed to generate link");
       }
     } catch {
-      alert("Error generating link");
+      toast.error("Error generating link");
     }
   };
 
@@ -100,16 +102,19 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       });
       if (res.ok) {
         fetchData();
+        toast.success("Share link deleted successfully!");
+      } else {
+        toast.error("Failed to delete link");
       }
     } catch {
-      alert("Error deleting link");
+      toast.error("Error deleting link");
     }
   };
 
   const copyToClipboard = (token: string) => {
     const url = `${window.location.origin}/s/${token}`;
     navigator.clipboard.writeText(url);
-    alert("Link copied to clipboard!");
+    toast.success("Link copied to clipboard!");
   };
 
   const addPermission = async (e: React.FormEvent) => {
@@ -140,9 +145,12 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       });
       if (res.ok) {
         fetchData();
+        toast.success("User access removed successfully!");
+      } else {
+        toast.error("Failed to remove user permission");
       }
     } catch {
-      alert("Error removing permission");
+      toast.error("Error removing permission");
     }
   };
 
@@ -259,17 +267,9 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                       className="bg-neutral-900 p-3 rounded-xl border border-neutral-800 flex items-center justify-between gap-4"
                     >
                       <div className="flex-1 overflow-hidden">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-mono text-neutral-300 truncate">
-                            {window.location.origin}/s/{link.token}
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(link.token)}
-                            className="text-indigo-400 hover:text-indigo-300 text-xs shrink-0"
-                          >
-                            Copy
-                          </button>
-                        </div>
+                        <span className="text-sm font-mono text-neutral-300 truncate block">
+                          {window.location.origin}/s/{link.token}
+                        </span>
                         <div className="flex gap-3 mt-1 text-[10px] text-neutral-500">
                           <span>
                             Preview: {link.allowPreview ? "Yes" : "No"}
@@ -285,25 +285,33 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => deleteLink(link.id)}
-                        className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors bg-red-950/20"
-                        title="Delete Link"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button
+                          onClick={() => copyToClipboard(link.token)}
+                          className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold px-2.5 py-1.5 border border-neutral-800 rounded-lg hover:bg-neutral-800/40 transition-all cursor-pointer"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => deleteLink(link.id)}
+                          className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors bg-red-950/20"
+                          title="Delete Link"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}

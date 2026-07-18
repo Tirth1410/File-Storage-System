@@ -11,6 +11,7 @@ import { SectionCard } from "@/app/components/shared/SectionCard";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { StorageBar } from "@/app/components/shared/StorageBar";
 import { formatBytes, formatDateTime } from "@/app/lib/utils";
+import { toast } from "sonner";
 
 /* ─── Types ─── */
 
@@ -290,12 +291,13 @@ export default function AdminPage() {
         const detailsRes = await fetch(`/api/admin/users/${selectedUser.id}`);
         if (detailsRes.ok) setSelectedUserDetails(await detailsRes.json());
         await fetchStats();
+        toast.success("Storage quota updated successfully!");
       } else {
         const errData = await res.json();
-        alert(errData.error || "Failed to update quota");
+        toast.error(errData.error || "Failed to update quota");
       }
     } catch {
-      alert("Error saving quota");
+      toast.error("Error saving quota");
     } finally {
       setSavingQuota(false);
     }
