@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 
 interface SharedFile {
   id: string;
@@ -69,10 +70,10 @@ export default function SharedFilePage({
         document.body.removeChild(a);
       } else {
         const data = await res.json();
-        alert(data.error || "Download not allowed");
+        toast.error(data.error || "Download not allowed");
       }
     } catch {
-      alert("Error downloading file");
+      toast.error("Error downloading file");
     }
   };
 

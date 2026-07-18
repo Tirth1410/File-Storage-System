@@ -10,6 +10,7 @@ import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { formatBytes } from "@/app/lib/utils";
+import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 
 interface Group {
   id: string;
@@ -102,11 +103,45 @@ export default function GroupsPage() {
   const [editDesc, setEditDesc] = useState("");
   const [editError, setEditError] = useState("");
 
+  // Custom Alert / Confirm Dialog state
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    type?: "alert" | "confirm";
+    variant?: "danger" | "info" | "success";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const showCustomAlert = (
+    title: string,
+    message: string,
+    variant: "danger" | "info" | "success" = "info",
+  ) => {
+    setDialogState({
+      isOpen: true,
+      title,
+      message,
+      confirmLabel: "OK",
+      type: "alert",
+      variant,
+      onConfirm: () => {},
+    });
+  };
+
   // Preview file state
   const [previewFile, setPreviewFile] = useState<GroupFile["file"] | null>(
     null,
   );
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewAllowDownload, setPreviewAllowDownload] = useState(true);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchGroups = useCallback(async () => {
@@ -137,7 +172,7 @@ export default function GroupsPage() {
       if (res.ok) {
         setGroupDetails(await res.json());
       } else {
-        alert("Failed to load group details");
+        showCustomAlert("Error", "Failed to load group details", "danger");
         setActiveGroup(null);
       }
     } catch (err) {
@@ -203,23 +238,37 @@ export default function GroupsPage() {
 
   const handleRemoveMember = async (memberUserId: string) => {
     if (!activeGroup) return;
-    if (!confirm("Are you sure you want to remove this member?")) return;
-    try {
-      const res = await fetch(
-        `/api/groups/${activeGroup.id}/members/${memberUserId}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (res.ok) {
-        fetchGroupDetails(activeGroup.id);
-      } else {
-        const d = await res.json();
-        alert(d.error || "Failed to remove member");
-      }
-    } catch {
-      alert("Error removing member");
-    }
+    setDialogState({
+      isOpen: true,
+      title: "Remove Member",
+      message: "Are you sure you want to remove this member?",
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      type: "confirm",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(
+            `/api/groups/${activeGroup.id}/members/${memberUserId}`,
+            {
+              method: "DELETE",
+            },
+          );
+          if (res.ok) {
+            fetchGroupDetails(activeGroup.id);
+          } else {
+            const d = await res.json();
+            showCustomAlert(
+              "Error",
+              d.error || "Failed to remove member",
+              "danger",
+            );
+          }
+        } catch {
+          showCustomAlert("Error", "Error removing member", "danger");
+        }
+      },
+    });
   };
 
   const handleChangeRole = async (
@@ -240,33 +289,47 @@ export default function GroupsPage() {
         fetchGroupDetails(activeGroup.id);
       } else {
         const d = await res.json();
-        alert(d.error || "Failed to change role");
+        showCustomAlert("Error", d.error || "Failed to change role", "danger");
       }
     } catch {
-      alert("Error changing role");
+      showCustomAlert("Error", "Error changing role", "danger");
     }
   };
 
   const handleLeaveGroup = async () => {
     if (!activeGroup || !session?.user) return;
-    if (!confirm("Are you sure you want to leave this group?")) return;
-    try {
-      const res = await fetch(
-        `/api/groups/${activeGroup.id}/members/${session.user.id}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (res.ok) {
-        setActiveGroup(null);
-        fetchGroups();
-      } else {
-        const d = await res.json();
-        alert(d.error || "Failed to leave group");
-      }
-    } catch {
-      alert("Error leaving group");
-    }
+    setDialogState({
+      isOpen: true,
+      title: "Leave Group",
+      message: "Are you sure you want to leave this group?",
+      confirmLabel: "Leave",
+      cancelLabel: "Cancel",
+      type: "confirm",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(
+            `/api/groups/${activeGroup.id}/members/${session.user.id}`,
+            {
+              method: "DELETE",
+            },
+          );
+          if (res.ok) {
+            setActiveGroup(null);
+            fetchGroups();
+          } else {
+            const d = await res.json();
+            showCustomAlert(
+              "Error",
+              d.error || "Failed to leave group",
+              "danger",
+            );
+          }
+        } catch {
+          showCustomAlert("Error", "Error leaving group", "danger");
+        }
+      },
+    });
   };
 
   const handleUpdateGroup = async (e: React.FormEvent) => {
@@ -296,49 +359,79 @@ export default function GroupsPage() {
 
   const handleDeleteGroup = async () => {
     if (!activeGroup) return;
-    if (
-      !confirm(
+    setDialogState({
+      isOpen: true,
+      title: "Delete Group",
+      message:
         "CRITICAL: Are you sure you want to delete this group? All shared files access for members will be revoked immediately. This cannot be undone.",
-      )
-    )
-      return;
-    try {
-      const res = await fetch(`/api/groups/${activeGroup.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setActiveGroup(null);
-        fetchGroups();
-      } else {
-        const d = await res.json();
-        alert(d.error || "Failed to delete group");
-      }
-    } catch {
-      alert("Error deleting group");
-    }
+      confirmLabel: "Delete Group",
+      cancelLabel: "Cancel",
+      type: "confirm",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/groups/${activeGroup.id}`, {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            setActiveGroup(null);
+            fetchGroups();
+          } else {
+            const d = await res.json();
+            showCustomAlert(
+              "Error",
+              d.error || "Failed to delete group",
+              "danger",
+            );
+          }
+        } catch {
+          showCustomAlert("Error", "Error deleting group", "danger");
+        }
+      },
+    });
   };
 
   const handleUnshareFile = async (fileId: string) => {
     if (!activeGroup) return;
-    if (!confirm("Are you sure you want to unshare this file from the group?"))
-      return;
-    try {
-      const res = await fetch(`/api/files/${fileId}/groups/${activeGroup.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        fetchGroupDetails(activeGroup.id);
-      } else {
-        const d = await res.json();
-        alert(d.error || "Failed to unshare file");
-      }
-    } catch {
-      alert("Error unsharing file");
-    }
+    setDialogState({
+      isOpen: true,
+      title: "Unshare File",
+      message: "Are you sure you want to unshare this file from the group?",
+      confirmLabel: "Unshare",
+      cancelLabel: "Cancel",
+      type: "confirm",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(
+            `/api/files/${fileId}/groups/${activeGroup.id}`,
+            {
+              method: "DELETE",
+            },
+          );
+          if (res.ok) {
+            fetchGroupDetails(activeGroup.id);
+          } else {
+            const d = await res.json();
+            showCustomAlert(
+              "Error",
+              d.error || "Failed to unshare file",
+              "danger",
+            );
+          }
+        } catch {
+          showCustomAlert("Error", "Error unsharing file", "danger");
+        }
+      },
+    });
   };
 
-  const handleFilePreview = async (file: GroupFile["file"]) => {
+  const handleFilePreview = async (
+    file: GroupFile["file"],
+    allowDownload: boolean = true,
+  ) => {
     setPreviewFile(file);
+    setPreviewAllowDownload(allowDownload);
     setPreviewUrl(null);
     setPreviewLoading(true);
     try {
@@ -370,10 +463,10 @@ export default function GroupsPage() {
         a.click();
         document.body.removeChild(a);
       } else {
-        alert("Failed to get download URL");
+        showCustomAlert("Error", "Failed to get download URL", "danger");
       }
     } catch {
-      console.error("Download error");
+      showCustomAlert("Error", "Error downloading file", "danger");
     }
   };
 
@@ -409,6 +502,21 @@ export default function GroupsPage() {
                 },
               ]
         }
+      />
+
+      <ConfirmationDialog
+        isOpen={dialogState.isOpen}
+        title={dialogState.title}
+        message={dialogState.message}
+        confirmLabel={dialogState.confirmLabel}
+        cancelLabel={dialogState.cancelLabel}
+        type={dialogState.type}
+        variant={dialogState.variant}
+        onConfirm={() => {
+          dialogState.onConfirm();
+          setDialogState((prev) => ({ ...prev, isOpen: false }));
+        }}
+        onCancel={() => setDialogState((prev) => ({ ...prev, isOpen: false }))}
       />
 
       <main className="min-h-screen bg-[#FAFAFA]">
@@ -528,19 +636,16 @@ export default function GroupsPage() {
                                   {gf.sharedByUser.name ||
                                     gf.sharedByUser.email}
                                 </p>
-                                <div className="flex gap-3 mt-1.5 text-[10px] text-[#A3A3A3] font-mono">
-                                  <span>
-                                    Preview: {gf.allowPreview ? "Yes" : "No"}
-                                  </span>
-                                  <span>
-                                    Download: {gf.allowDownload ? "Yes" : "No"}
-                                  </span>
-                                </div>
                               </div>
                               <div className="flex gap-2">
                                 {gf.allowPreview && (
                                   <button
-                                    onClick={() => handleFilePreview(gf.file)}
+                                    onClick={() =>
+                                      handleFilePreview(
+                                        gf.file,
+                                        gf.allowDownload,
+                                      )
+                                    }
                                     className="bg-[rgba(0,47,167,0.06)] hover:bg-[rgba(0,47,167,0.12)] text-[#002FA7] font-semibold px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
                                   >
                                     Preview
@@ -629,7 +734,7 @@ export default function GroupsPage() {
                                     onClick={() => handleRemoveMember(m.userId)}
                                     className="bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626] font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
                                   >
-                                    Kick
+                                    Remove
                                   </button>
                                 </div>
                               )}
@@ -964,25 +1069,27 @@ export default function GroupsPage() {
                 </h3>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleFileDownload(previewFile)}
-                  className="bg-[#002FA7] hover:bg-[#002482] text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                {previewAllowDownload && (
+                  <button
+                    onClick={() => handleFileDownload(previewFile)}
+                    className="bg-[#002FA7] hover:bg-[#002482] text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                    />
-                  </svg>
-                  Download
-                </button>
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    Download
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setPreviewFile(null);

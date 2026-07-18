@@ -8,6 +8,7 @@
 
 import { useState, useRef } from "react";
 import { formatBytes } from "@/app/lib/utils";
+import { toast } from "sonner";
 
 interface UploadProgress {
   filename: string;
@@ -26,8 +27,6 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const uploadControllerRef = useRef<{
     active: boolean;
@@ -38,8 +37,6 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       setSelectedFile(e.target.files[0]);
-      setError(null);
-      setSuccessMessage(null);
     }
   };
 
@@ -47,8 +44,6 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
     if (!selectedFile) return;
 
     setUploading(true);
-    setError(null);
-    setSuccessMessage(null);
     uploadControllerRef.current = { active: true };
 
     const startTime = Date.now();
@@ -68,13 +63,10 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
 
       if (!initRes.ok) {
         const errData = await initRes.json();
-        if (errData.error === "QuotaExceeded") {
-          setError(
-            errData.message || "Quota exceeded: Not enough storage space.",
-          );
-          return;
-        }
-        throw new Error(errData.error || "Failed to initiate upload");
+        const msg =
+          errData.message || errData.error || "Failed to initiate upload";
+        toast.error(msg);
+        return;
       }
 
       const initData = await initRes.json();
@@ -171,16 +163,16 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
       });
       if (!completeRes.ok) throw new Error("Failed to complete upload");
 
-      setSuccessMessage("File uploaded successfully!");
+      toast.success("File uploaded successfully!");
       setSelectedFile(null);
       setProgress(null);
       onSuccess();
     } catch (err) {
       if (!uploadControllerRef.current.active) return;
       console.error("Upload error:", err);
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred.",
-      );
+      const message =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
+      toast.error(message);
       if (uploadId && objectKey && uploadControllerRef.current.active) {
         try {
           await fetch("/api/files/abort-upload", {
@@ -208,7 +200,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
         });
       } catch {}
     }
-    setError("Upload cancelled.");
+    toast.success("Upload cancelled.");
     setUploading(false);
     setProgress(null);
   };
@@ -337,19 +329,6 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
           >
             Cancel Upload
           </button>
-        </div>
-      )}
-
-      {/* Error / Success */}
-      {error && (
-        <div className="bg-[rgba(220,38,38,0.07)] text-[#DC2626] border border-[rgba(220,38,38,0.2)] p-4 rounded-xl text-xs leading-relaxed">
-          <p className="font-bold mb-1">Upload Failed</p>
-          <p>{error}</p>
-        </div>
-      )}
-      {successMessage && (
-        <div className="bg-[rgba(22,163,74,0.08)] text-[#16A34A] border border-[rgba(22,163,74,0.2)] p-4 rounded-xl text-xs font-medium">
-          {successMessage}
         </div>
       )}
     </div>

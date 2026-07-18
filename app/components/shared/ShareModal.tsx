@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 
 interface ShareModalProps {
   file: { id: string; originalName: string };
@@ -109,12 +110,13 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       if (res.ok) {
         fetchData();
         setExpiresAt("");
+        toast.success("Share link generated successfully!");
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to generate link");
+        toast.error(data.error || "Failed to generate link");
       }
     } catch {
-      alert("Error generating link");
+      toast.error("Error generating link");
     }
   };
 
@@ -123,9 +125,14 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       const res = await fetch(`/api/files/${file.id}/share/${linkId}`, {
         method: "DELETE",
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        fetchData();
+        toast.success("Share link deleted successfully!");
+      } else {
+        toast.error("Failed to delete link");
+      }
     } catch {
-      alert("Error deleting link");
+      toast.error("Error deleting link");
     }
   };
 
@@ -162,9 +169,14 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       const res = await fetch(`/api/files/${file.id}/permissions/${userId}`, {
         method: "DELETE",
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        fetchData();
+        toast.success("User access removed successfully!");
+      } else {
+        toast.error("Failed to remove user permission");
+      }
     } catch {
-      alert("Error removing permission");
+      toast.error("Error removing permission");
     }
   };
 
@@ -202,9 +214,14 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       const res = await fetch(`/api/files/${file.id}/groups/${groupId}`, {
         method: "DELETE",
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        fetchData();
+        toast.success("Group access removed successfully!");
+      } else {
+        toast.error("Failed to unshare from group");
+      }
     } catch {
-      alert("Error unsharing from group");
+      toast.error("Error unsharing from group");
     }
   };
 
@@ -330,21 +347,9 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                       className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex items-center justify-between gap-4"
                     >
                       <div className="flex-1 overflow-hidden">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-[#171717] truncate">
-                            {window.location.origin}/s/{link.token}
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(link.token, link.id)}
-                            className={`text-xs font-semibold shrink-0 px-2 py-0.5 rounded transition-all ${
-                              copiedId === link.id
-                                ? "bg-[rgba(22,163,74,0.1)] text-[#16A34A]"
-                                : "text-[#002FA7] hover:bg-[rgba(0,47,167,0.08)]"
-                            } cursor-pointer`}
-                          >
-                            {copiedId === link.id ? "Copied!" : "Copy"}
-                          </button>
-                        </div>
+                        <span className="text-xs font-mono text-[#171717] truncate block">
+                          {window.location.origin}/s/{link.token}
+                        </span>
                         <div className="flex gap-3 mt-1.5 text-[10px] text-[#737373] font-mono">
                           <span>
                             Preview: {link.allowPreview ? "Yes" : "No"}
@@ -360,25 +365,37 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => deleteLink(link.id)}
-                        className="p-2 rounded-lg bg-[rgba(220,38,38,0.07)] text-[#DC2626] hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
-                        title="Delete Link"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button
+                          onClick={() => copyToClipboard(link.token, link.id)}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+                            copiedId === link.id
+                              ? "bg-[rgba(22,163,74,0.1)] text-[#16A34A] border-[rgba(22,163,74,0.2)]"
+                              : "text-[#002FA7] border-[rgba(0,47,167,0.15)] hover:bg-[rgba(0,47,167,0.08)]"
+                          } cursor-pointer`}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
+                          {copiedId === link.id ? "Copied!" : "Copy"}
+                        </button>
+                        <button
+                          onClick={() => deleteLink(link.id)}
+                          className="p-2 rounded-xl bg-[rgba(220,38,38,0.07)] text-[#DC2626] border border-[rgba(220,38,38,0.15)] hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
+                          title="Delete Link"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}

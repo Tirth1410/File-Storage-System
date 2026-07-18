@@ -12,6 +12,8 @@ import { SectionCard } from "@/app/components/shared/SectionCard";
 import { ShareModal } from "@/app/components/shared/ShareModal";
 import { FileListItem } from "@/app/components/dashboard/FileListItem";
 import { UploadPanel } from "@/app/components/dashboard/UploadPanel";
+import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
+import { toast } from "sonner";
 
 interface UploadedFile {
   id: string;
@@ -54,7 +56,39 @@ export default function DashboardPage() {
   const [shareFile, setShareFile] = useState<UploadedFile | null>(null);
 
   // Success/error feedback
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Custom Alert / Confirm Dialog state
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    type?: "alert" | "confirm";
+    variant?: "danger" | "info" | "success";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const showCustomAlert = (
+    title: string,
+    message: string,
+    variant: "danger" | "info" | "success" = "info",
+  ) => {
+    setDialogState({
+      isOpen: true,
+      title,
+      message,
+      confirmLabel: "OK",
+      type: "alert",
+      variant,
+      onConfirm: () => {},
+    });
+  };
 
   /* ─── data fetching ─── */
   const fetchProfileData = useCallback(async () => {
@@ -113,20 +147,34 @@ export default function DashboardPage() {
 
   /* ─── file actions ─── */
   const handleDelete = async (fileId: string) => {
-    if (!confirm("Delete this file? Its storage quota will be released."))
-      return;
-    try {
-      const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
-      if (res.ok) {
-        setSuccessMessage("File deleted.");
-        fetchFiles();
-      } else {
-        const d = await res.json();
-        alert(d.error || "Delete failed");
-      }
-    } catch {
-      alert("An error occurred while deleting");
-    }
+    setDialogState({
+      isOpen: true,
+      title: "Delete File",
+      message:
+        "Are you sure you want to delete this file? Its storage quota will be released.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      type: "confirm",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
+          if (res.ok) {
+            toast.success("File deleted successfully!");
+            fetchFiles();
+          } else {
+            const d = await res.json();
+            showCustomAlert("Error", d.error || "Delete failed", "danger");
+          }
+        } catch {
+          showCustomAlert(
+            "Error",
+            "An error occurred while deleting",
+            "danger",
+          );
+        }
+      },
+    });
   };
 
   const handleDownload = async (file: UploadedFile) => {
@@ -143,10 +191,10 @@ export default function DashboardPage() {
         a.click();
         document.body.removeChild(a);
       } else {
-        alert("Failed to get download URL");
+        showCustomAlert("Error", "Failed to get download URL", "danger");
       }
     } catch {
-      console.error("Download error");
+      showCustomAlert("Error", "Error downloading file", "danger");
     }
   };
 
@@ -198,6 +246,21 @@ export default function DashboardPage() {
         }
       />
 
+      <ConfirmationDialog
+        isOpen={dialogState.isOpen}
+        title={dialogState.title}
+        message={dialogState.message}
+        confirmLabel={dialogState.confirmLabel}
+        cancelLabel={dialogState.cancelLabel}
+        type={dialogState.type}
+        variant={dialogState.variant}
+        onConfirm={() => {
+          dialogState.onConfirm();
+          setDialogState((prev) => ({ ...prev, isOpen: false }));
+        }}
+        onCancel={() => setDialogState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
       <main className="min-h-screen bg-[#FAFAFA]">
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 space-y-6">
           {/* Page title row */}
@@ -210,11 +273,6 @@ export default function DashboardPage() {
                 Upload, manage and share your files
               </p>
             </div>
-            {successMessage && (
-              <div className="bg-[rgba(22,163,74,0.08)] text-[#16A34A] border border-[rgba(22,163,74,0.2)] px-4 py-2 rounded-xl text-xs font-semibold">
-                {successMessage}
-              </div>
-            )}
           </div>
 
           {/* Quota strip */}
@@ -265,8 +323,6 @@ export default function DashboardPage() {
               <SectionCard title="Upload File">
                 <UploadPanel
                   onSuccess={() => {
-                    setSuccessMessage("File uploaded!");
-                    setTimeout(() => setSuccessMessage(null), 4000);
                     setActiveTab("own");
                     fetchFiles("own");
                   }}
