@@ -84,9 +84,9 @@ model Verification {
 }
 
 model File {
-  id           String           @id @default(uuid())
+  id           String           @id @default(uuid()) @db.Uuid
   ownerUserId  String
-  groupId      String?
+  groupId      String?          @db.Uuid
   bucket       String
   objectKey    String
   originalName String
@@ -106,8 +106,8 @@ model File {
 }
 
 model UploadSession {
-  id              String    @id @default(uuid())
-  fileId          String
+  id              String    @id @default(uuid()) @db.Uuid
+  fileId          String    @db.Uuid
   userId          String
   storageUploadId String
   objectKey       String
@@ -134,10 +134,10 @@ model QuotaUsage {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id")
   action    String // upload_initiated | upload_success | upload_aborted | upload_expired | download_requested | download_success | download_failed | file_deleted
-  fileId    String?  @map("file_id")
+  fileId    String?  @map("file_id") @db.Uuid
   details   String?
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -147,8 +147,8 @@ model AuditLog {
 }
 
 model ShareLink {
-  id            String    @id @default(uuid())
-  fileId        String
+  id            String    @id @default(uuid()) @db.Uuid
+  fileId        String    @db.Uuid
   token         String    @unique
   isActive      Boolean   @default(true)
   expiresAt     DateTime?
@@ -164,8 +164,8 @@ model ShareLink {
 }
 
 model FilePermission {
-  id         String   @id @default(uuid())
-  fileId     String
+  id         String   @id @default(uuid()) @db.Uuid
+  fileId     String   @db.Uuid
   userId     String
   permission String // read | write
   createdAt  DateTime @default(now())
@@ -179,7 +179,7 @@ model FilePermission {
 }
 
 model Group {
-  id           String        @id @default(uuid())
+  id           String        @id @default(uuid()) @db.Uuid
   name         String
   description  String?
   ownerUserId  String
@@ -195,8 +195,8 @@ model Group {
 }
 
 model GroupMember {
-  id       String   @id @default(uuid())
-  groupId  String
+  id       String   @id @default(uuid()) @db.Uuid
+  groupId  String   @db.Uuid
   userId   String
   role     String   // OWNER | ADMIN | MEMBER
   joinedAt DateTime @default(now())
@@ -209,9 +209,9 @@ model GroupMember {
 }
 
 model GroupFile {
-  id             String   @id @default(uuid())
-  groupId        String
-  fileId         String
+  id             String   @id @default(uuid()) @db.Uuid
+  groupId        String   @db.Uuid
+  fileId         String   @db.Uuid
   sharedByUserId String
   allowPreview   Boolean  @default(true)
   allowDownload  Boolean  @default(true)

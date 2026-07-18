@@ -28,12 +28,6 @@ export const authorizationService = {
         return { authorized: true, file };
       }
 
-      // Admin check
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (user?.role === "admin") {
-        return { authorized: true, file };
-      }
-
       // File permission check
       const permission = await prisma.filePermission.findUnique({
         where: {

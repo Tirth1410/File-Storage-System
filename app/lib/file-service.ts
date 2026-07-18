@@ -38,88 +38,103 @@ export const fileService = {
     const fileExtension = filename.split(".").pop();
     const objectKey = `${userId}/${fileId}${fileExtension ? `.${fileExtension}` : ""}`;
 
-    return await prisma.$transaction(async (tx) => {
-      // 1. Ensure quota_usage record exists
-      await tx.quotaUsage.upsert({
-        where: { userId },
-        create: {
+    // 1. Initiate multipart upload on R2 OUTSIDE the transaction
+    const { uploadId } = await r2Service.initializeMultipartUpload(
+      objectKey,
+      mimeType,
+    );
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // 2. Ensure quota_usage record exists
+        await tx.quotaUsage.upsert({
+          where: { userId },
+          create: {
+            userId,
+            quotaBytes: DEFAULT_QUOTA_BYTES,
+            usedBytes: BigInt(0),
+          },
+          update: {},
+        });
+
+        // 3. Lock quota_usage row for update to prevent race conditions
+        const lockedRows = await tx.$queryRawUnsafe<
+          { quota_bytes: string; used_bytes: string }[]
+        >(
+          `SELECT quota_bytes, used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
           userId,
-          quotaBytes: DEFAULT_QUOTA_BYTES,
-          usedBytes: BigInt(0),
-        },
-        update: {},
-      });
+        );
 
-      // 2. Lock quota_usage row for update to prevent race conditions
-      const lockedRows = await tx.$queryRawUnsafe<
-        { quota_bytes: string; used_bytes: string }[]
-      >(
-        `SELECT quota_bytes, used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-        userId,
-      );
+        const locked = lockedRows[0];
+        const quotaBytes = BigInt(locked.quota_bytes);
+        const usedBytes = BigInt(locked.used_bytes);
 
-      const locked = lockedRows[0];
-      const quotaBytes = BigInt(locked.quota_bytes);
-      const usedBytes = BigInt(locked.used_bytes);
+        const requestedSize = BigInt(size);
+        const availableBytes = quotaBytes - usedBytes;
 
-      const requestedSize = BigInt(size);
-      const availableBytes = quotaBytes - usedBytes;
+        if (requestedSize > availableBytes) {
+          throw new Error(
+            "Quota exceeded: Not enough storage space available.",
+          );
+        }
 
-      if (requestedSize > availableBytes) {
-        throw new Error("Quota exceeded: Not enough storage space available.");
-      }
+        // 4. Create the file record in DB with status "uploading"
+        const file = await tx.file.create({
+          data: {
+            id: fileId,
+            ownerUserId: userId,
+            bucket: process.env.R2_BUCKET!,
+            objectKey,
+            originalName: filename,
+            mimeType,
+            sizeBytes: requestedSize,
+            status: "uploading",
+            visibility: "private",
+          },
+        });
 
-      // 3. Create the file record in DB with status "uploading"
-      const file = await tx.file.create({
-        data: {
-          id: fileId,
-          ownerUserId: userId,
-          bucket: process.env.R2_BUCKET!,
-          objectKey,
-          originalName: filename,
-          mimeType,
-          sizeBytes: requestedSize,
-          status: "uploading",
-          visibility: "private",
-        },
-      });
+        // 5. Create the upload session record in DB
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        const uploadSession = await tx.uploadSession.create({
+          data: {
+            fileId: file.id,
+            userId,
+            storageUploadId: uploadId,
+            objectKey,
+            sizeBytes: requestedSize,
+            partSizeBytes: BigInt(PART_SIZE_BYTES),
+            status: "initiated",
+            expiresAt,
+          },
+        });
 
-      // 4. Initiate multipart upload on R2
-      const { uploadId } = await r2Service.initializeMultipartUpload(
-        objectKey,
-        mimeType,
-      );
-
-      // 5. Create the upload session record in DB
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      const uploadSession = await tx.uploadSession.create({
-        data: {
+        // 6. Write audit log
+        await auditService.log({
+          userId,
+          action: "upload_initiated",
           fileId: file.id,
-          userId,
-          storageUploadId: uploadId,
-          objectKey,
-          sizeBytes: requestedSize,
-          partSizeBytes: BigInt(PART_SIZE_BYTES),
-          status: "initiated",
-          expiresAt,
-        },
-      });
+          details: `Initiated upload of file ${filename} (${size} bytes)`,
+        });
 
-      // 6. Write audit log
-      await auditService.log({
-        userId,
-        action: "upload_initiated",
-        fileId: file.id,
-        details: `Initiated upload of file ${filename} (${size} bytes)`,
+        return {
+          uploadId: uploadSession.storageUploadId,
+          objectKey: uploadSession.objectKey,
+          fileId: file.id,
+          partSizeBytes: PART_SIZE_BYTES,
+        };
       });
-
-      return {
-        uploadId: uploadSession.storageUploadId,
-        objectKey: uploadSession.objectKey,
-        fileId: file.id,
-        partSizeBytes: PART_SIZE_BYTES,
-      };
-    });
+    } catch (dbError) {
+      // Clean up the R2 upload if the database transaction fails
+      try {
+        await r2Service.abortMultipartUpload(objectKey, uploadId);
+      } catch (r2Error) {
+        logger.error(
+          `Failed to abort R2 upload after database transaction error:`,
+          r2Error,
+        );
+      }
+      throw dbError;
+    }
   },
 
   async signPart(
