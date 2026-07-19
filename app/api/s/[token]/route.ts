@@ -14,8 +14,6 @@ export const GET = withLogging(
   ) => {
     try {
       const { token } = await params;
-      const { searchParams } = new URL(request.url);
-      const download = searchParams.get("download") === "true"; // default false (preview)
 
       const shareLink = await prisma.shareLink.findUnique({
         where: { token },
@@ -35,7 +33,7 @@ export const GET = withLogging(
         fileId: shareLink.fileId,
         userId: session?.user?.id,
         token,
-        requiredAccess: download ? "download" : "preview",
+        requiredAccess: "read",
       });
 
       if (!access.authorized || !access.file) {
@@ -54,11 +52,24 @@ export const GET = withLogging(
         );
       }
 
-      const url = await r2Service.generatePresignedGetUrl(
-        file.objectKey,
-        file.originalName,
-        download,
-      );
+      let previewUrl: string | null = null;
+      let downloadUrl: string | null = null;
+
+      if (shareLink.allowPreview) {
+        previewUrl = await r2Service.generatePresignedGetUrl(
+          file.objectKey,
+          file.originalName,
+          false, // preview
+        );
+      }
+
+      if (shareLink.allowDownload) {
+        downloadUrl = await r2Service.generatePresignedGetUrl(
+          file.objectKey,
+          file.originalName,
+          true, // download
+        );
+      }
 
       const logUserId = session?.user?.id || file.ownerUserId;
       const anonymousNote = !session?.user?.id ? " (via share link)" : "";
@@ -67,9 +78,7 @@ export const GET = withLogging(
         userId: logUserId,
         action: "download_success",
         fileId: file.id,
-        details: download
-          ? `Requested download URL for file: ${file.originalName}${anonymousNote}`
-          : `Requested preview URL for file: ${file.originalName}${anonymousNote}`,
+        details: `Accessed share link for file: ${file.originalName}${anonymousNote}`,
       });
 
       return NextResponse.json({
@@ -79,7 +88,10 @@ export const GET = withLogging(
           mimeType: file.mimeType,
           sizeBytes: file.sizeBytes.toString(),
         },
-        url,
+        previewUrl,
+        downloadUrl,
+        allowPreview: shareLink.allowPreview,
+        allowDownload: shareLink.allowDownload,
       });
     } catch (error) {
       logger.error("Error resolving share link:", error);

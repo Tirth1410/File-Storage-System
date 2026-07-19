@@ -456,7 +456,18 @@ export function AppShell({
                 {(actions.length > 0 || userName) && (
                   <div className="vault-sep" />
                 )}
-                <button className="vault-btn-ghost" onClick={() => signOut()}>
+                <button
+                  className="vault-btn-ghost"
+                  onClick={() =>
+                    signOut({
+                      fetchOptions: {
+                        onSuccess: () => {
+                          router.push("/sign-in");
+                        },
+                      },
+                    })
+                  }
+                >
                   Sign Out
                 </button>
               </>

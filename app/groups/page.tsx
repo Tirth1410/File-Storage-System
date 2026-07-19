@@ -4,6 +4,12 @@ import { useSession } from "@/app/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
+
+const PDFCanvasViewer = dynamic(
+  () => import("@/app/components/shared/PDFCanvasViewer"),
+  { ssr: false },
+);
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
@@ -157,13 +163,9 @@ export default function GroupsPage() {
   }, []);
 
   useEffect(() => {
-    if (!isPending && !session?.user) {
-      router.push("/sign-in");
-      return;
-    }
     if (!session?.user) return;
     Promise.resolve().then(() => fetchGroups());
-  }, [isPending, session, router, fetchGroups]);
+  }, [session, fetchGroups]);
 
   const fetchGroupDetails = useCallback(async (groupId: string) => {
     setDetailsLoading(true);
@@ -1102,7 +1104,13 @@ export default function GroupsPage() {
               </div>
             </div>
             {/* Body */}
-            <div className="flex-1 bg-[#FAFAFA] flex items-center justify-center overflow-auto min-h-[300px] max-h-[65vh] p-6">
+            <div
+              className={`flex-1 bg-[#FAFAFA] flex items-center justify-center min-h-[300px] max-h-[65vh] ${
+                previewFile?.mimeType === "application/pdf"
+                  ? "overflow-hidden p-0"
+                  : "overflow-auto p-6"
+              }`}
+            >
               {previewLoading ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
@@ -1131,10 +1139,10 @@ export default function GroupsPage() {
                     />
                   )}
                   {previewFile.mimeType === "application/pdf" && (
-                    <iframe
-                      src={previewUrl}
-                      className="w-full h-[60vh] border-0 rounded-xl"
-                      title="PDF Preview"
+                    <PDFCanvasViewer
+                      key={previewUrl}
+                      url={previewUrl}
+                      heightClass="h-[65vh] max-h-[65vh]"
                     />
                   )}
                 </>

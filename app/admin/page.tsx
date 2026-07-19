@@ -201,9 +201,11 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (!isPending) {
-      if (!session?.user) return void router.push("/sign-in");
-      if (session.user.role !== "admin") return void router.push("/dashboard");
+    if (!isPending && session?.user) {
+      if (session.user.role !== "admin") {
+        router.push("/dashboard");
+        return;
+      }
       Promise.resolve().then(() => {
         fetchUsers();
         fetchStats();

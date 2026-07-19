@@ -1,8 +1,14 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { formatBytes } from "@/app/lib/utils";
 import Image from "next/image";
-import { toast } from "sonner";
+import dynamic from "next/dynamic";
+
+const PDFCanvasViewer = dynamic(
+  () => import("@/app/components/shared/PDFCanvasViewer"),
+  { ssr: false },
+);
 
 interface SharedFile {
   id: string;
@@ -23,25 +29,31 @@ export default function SharedFilePage({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Preview state
+  // Permissions and URLs
+  const [allowDownload, setAllowDownload] = useState(false);
+  const [allowPreview, setAllowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // We just want to see if the link is valid first, maybe get basic info.
-    // The endpoint returns URL right away, but let's just fetch preview url by default.
     const fetchFileData = async () => {
       try {
-        const res = await fetch(`/api/s/${token}?download=false`);
+        const res = await fetch(`/api/s/${token}`);
         if (res.ok) {
           const data = await res.json();
           setFile(data.file);
-          // If it's an image/video/pdf, the URL is ready for preview
+          setAllowDownload(data.allowDownload);
+          setAllowPreview(data.allowPreview);
+          setDownloadUrl(data.downloadUrl);
+
           if (
-            data.file.mimeType.startsWith("image/") ||
-            data.file.mimeType.startsWith("video/") ||
-            data.file.mimeType === "application/pdf"
+            data.allowPreview &&
+            data.previewUrl &&
+            (data.file.mimeType.startsWith("image/") ||
+              data.file.mimeType.startsWith("video/") ||
+              data.file.mimeType === "application/pdf")
           ) {
-            setPreviewUrl(data.url);
+            setPreviewUrl(data.previewUrl);
           }
         } else {
           const data = await res.json();
@@ -56,25 +68,14 @@ export default function SharedFilePage({
     fetchFileData();
   }, [token]);
 
-  const handleDownload = async () => {
-    if (!file) return;
-    try {
-      const res = await fetch(`/api/s/${token}?download=true`);
-      if (res.ok) {
-        const data = await res.json();
-        const a = document.createElement("a");
-        a.href = data.url;
-        a.download = file.originalName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        const data = await res.json();
-        toast.error(data.error || "Download not allowed");
-      }
-    } catch {
-      toast.error("Error downloading file");
-    }
+  const handleDownload = () => {
+    if (!file || !downloadUrl) return;
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = file.originalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   if (loading) {
@@ -130,15 +131,6 @@ export default function SharedFilePage({
     );
   }
 
-  function formatBytes(bytes: number | string) {
-    const b = Number(bytes);
-    if (b === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(b) / Math.log(k));
-    return parseFloat((b / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  }
-
   const isImage = file.mimeType.startsWith("image/");
   const isVideo = file.mimeType.startsWith("video/");
   const isPdf = file.mimeType === "application/pdf";
@@ -189,80 +181,80 @@ export default function SharedFilePage({
                 <span className="truncate max-w-[150px]">{file.mimeType}</span>
               </div>
             </div>
-            <button
-              onClick={handleDownload}
-              className="bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] hover:brightness-110 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_4px_14px_rgba(59,111,232,0.3)] shrink-0 w-full md:w-auto flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            {allowDownload && downloadUrl && (
+              <button
+                onClick={handleDownload}
+                className="bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] hover:brightness-110 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_4px_14px_rgba(59,111,232,0.3)] shrink-0 w-full md:w-auto flex items-center justify-center gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              Download
-            </button>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                Download
+              </button>
+            )}
           </div>
 
-          {previewUrl ? (
-            <div className="bg-neutral-50/50 min-h-[400px] flex items-center justify-center p-6 relative">
-              {isImage && (
-                <Image
-                  src={previewUrl}
-                  alt={file.originalName}
-                  width={1200}
-                  height={800}
-                  unoptimized
-                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm border border-neutral-200"
-                />
-              )}
-              {isVideo && (
-                <video
-                  src={previewUrl}
-                  controls
-                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm border border-neutral-200"
-                />
-              )}
-              {isPdf && (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-[70vh] border border-neutral-200 rounded-lg shadow-sm"
-                  title="PDF Preview"
-                />
-              )}
-            </div>
-          ) : (
-            <div className="bg-neutral-50/50 py-16 flex flex-col items-center justify-center text-neutral-400 gap-3">
-              <svg
-                className="w-12 h-12 text-neutral-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              <p className="text-sm font-medium">
-                Preview not available for this file type.
-              </p>
-            </div>
-          )}
+          {allowPreview &&
+            (previewUrl ? (
+              <div className="bg-neutral-50/50 min-h-[400px] flex items-center justify-center p-6 relative">
+                {isImage && (
+                  <Image
+                    src={previewUrl}
+                    alt={file.originalName}
+                    width={1200}
+                    height={800}
+                    unoptimized
+                    className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm border border-neutral-200 select-none pointer-events-none"
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
+                )}
+                {isVideo && (
+                  <video
+                    src={previewUrl}
+                    controls
+                    controlsList="nodownload"
+                    className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm border border-neutral-200"
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
+                )}
+                {isPdf && <PDFCanvasViewer key={previewUrl} url={previewUrl} />}
+              </div>
+            ) : (
+              <div className="bg-neutral-50/50 py-16 flex flex-col items-center justify-center text-neutral-400 gap-3">
+                <svg
+                  className="w-12 h-12 text-neutral-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+                <p className="text-sm font-medium">
+                  Preview not available for this file type.
+                </p>
+              </div>
+            ))}
         </div>
       </div>
     </main>

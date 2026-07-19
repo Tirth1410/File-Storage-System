@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useSession } from "@/app/lib/auth-client";
 import { useEffect, useState } from "react";
 
@@ -38,7 +37,6 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
   const { data: session, isPending } = useSession();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,17 +54,13 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (!isPending) {
-      if (!session?.user) {
-        router.push("/sign-in");
-      } else {
-        Promise.resolve().then(() => fetchProfileData());
-      }
+    if (session?.user) {
+      Promise.resolve().then(() => fetchProfileData());
     }
-  }, [isPending, session, router]);
+  }, [session]);
 
   if (isPending) return <LoadingScreen message="Loading auth session..." />;
-  if (!session?.user) return <LoadingScreen message="Redirecting..." />;
+  if (!session?.user) return <LoadingScreen message="Loading profile..." />;
 
   const { user } = session;
   const initials = user.name

@@ -4,6 +4,12 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/app/lib/auth-client";
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
+
+const PDFCanvasViewer = dynamic(
+  () => import("@/app/components/shared/PDFCanvasViewer"),
+  { ssr: false },
+);
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
@@ -55,8 +61,6 @@ export default function DashboardPage() {
   // Share state
   const [shareFile, setShareFile] = useState<UploadedFile | null>(null);
 
-  // Success/error feedback
-
   // Custom Alert / Confirm Dialog state
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
@@ -91,36 +95,25 @@ export default function DashboardPage() {
   };
 
   /* ─── data fetching ─── */
-  const fetchProfileData = useCallback(async () => {
-    try {
-      const res = await fetch("/api/profile");
-      if (res.ok) setProfileData(await res.json());
-    } catch (err) {
-      console.error("Error loading profile:", err);
-    }
-  }, []);
-
   const fetchFiles = useCallback(
     async (tab: "own" | "shared" = activeTab) => {
       setFilesLoading(true);
       try {
         const res = await fetch(`/api/files?type=${tab}`);
         if (res.ok) setFiles(await res.json());
-        await fetchProfileData();
+        // Re-fetch profile data after file list updates
+        const profRes = await fetch("/api/profile");
+        if (profRes.ok) setProfileData(await profRes.json());
       } catch (err) {
         console.error("Error loading files:", err);
       } finally {
         setFilesLoading(false);
       }
     },
-    [activeTab, fetchProfileData],
+    [activeTab],
   );
 
   useEffect(() => {
-    if (!isPending && !session?.user) {
-      router.push("/sign-in");
-      return;
-    }
     if (!session?.user) return;
 
     let active = true;
@@ -143,7 +136,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [isPending, session, router, activeTab]);
+  }, [session, activeTab]);
 
   /* ─── file actions ─── */
   const handleDelete = async (fileId: string) => {
@@ -487,7 +480,13 @@ export default function DashboardPage() {
               </div>
             </div>
             {/* Body */}
-            <div className="flex-1 bg-[#FAFAFA] flex items-center justify-center overflow-auto min-h-[300px] max-h-[65vh] p-6">
+            <div
+              className={`flex-1 bg-[#FAFAFA] flex items-center justify-center min-h-[300px] max-h-[65vh] ${
+                previewFile?.mimeType === "application/pdf"
+                  ? "overflow-hidden p-0"
+                  : "overflow-auto p-6"
+              }`}
+            >
               {previewLoading ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
@@ -516,10 +515,10 @@ export default function DashboardPage() {
                     />
                   )}
                   {previewFile.mimeType === "application/pdf" && (
-                    <iframe
-                      src={previewUrl}
-                      className="w-full h-[60vh] border-0 rounded-xl"
-                      title="PDF Preview"
+                    <PDFCanvasViewer
+                      key={previewUrl}
+                      url={previewUrl}
+                      heightClass="h-[65vh] max-h-[65vh]"
                     />
                   )}
                 </>
