@@ -20,6 +20,8 @@ interface UploadedFile {
 interface FileListItemProps {
   file: UploadedFile;
   currentUserId?: string;
+  isSelected?: boolean;
+  onToggleSelect?: (fileId: string) => void;
   onPreview: (file: UploadedFile) => void;
   onDownload: (file: UploadedFile) => void;
   onShare: (file: UploadedFile) => void;
@@ -29,6 +31,8 @@ interface FileListItemProps {
 export function FileListItem({
   file,
   currentUserId,
+  isSelected = false,
+  onToggleSelect,
   onPreview,
   onDownload,
   onShare,
@@ -41,13 +45,27 @@ export function FileListItem({
     file.mimeType === "application/pdf";
 
   return (
-    <div className="flex items-center justify-between py-3.5 px-4 rounded-xl hover:bg-[#F5F5F5] transition-colors border border-transparent hover:border-[#E5E7EB] gap-4">
-      {/* File info */}
-      <div className="flex items-center gap-3 overflow-hidden">
+    <div
+      className={`flex items-center justify-between py-3.5 px-4 rounded-xl transition-all border gap-4 ${
+        isSelected
+          ? "bg-[rgba(0,47,167,0.04)] border-[rgba(0,47,167,0.2)] shadow-sm"
+          : "hover:bg-[#F5F5F5] border-transparent hover:border-[#E5E7EB]"
+      }`}
+    >
+      {/* Selection Checkbox & File Info */}
+      <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(file.id)}
+            className="w-4 h-4 rounded text-[#002FA7] border-[#D1D5DB] focus:ring-[#002FA7] cursor-pointer shrink-0 accent-[#002FA7]"
+          />
+        )}
         <div className="w-10 h-10 bg-white border border-[#E5E7EB] rounded-xl flex items-center justify-center shrink-0 shadow-sm">
           <FileIcon mimeType={file.mimeType} />
         </div>
-        <div className="overflow-hidden">
+        <div className="overflow-hidden min-w-0 flex-1">
           <p
             className="text-sm font-semibold text-[#171717] truncate"
             title={file.originalName}
@@ -196,7 +214,7 @@ function ActionButton({
     <button
       onClick={onClick}
       title={title}
-      className={`p-2 rounded-lg transition-all ${cls}`}
+      className={`p-2 rounded-lg transition-all cursor-pointer ${cls}`}
     >
       {icon}
     </button>

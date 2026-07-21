@@ -296,7 +296,7 @@ export const fileService = {
     });
 
     if (!file) {
-      throw new Error("File not found");
+      return { success: true, message: "File already deleted or not found" };
     }
 
     if (file.ownerUserId !== userId && !isAdmin) {
@@ -304,12 +304,16 @@ export const fileService = {
     }
 
     // 1. Delete object from Cloudflare R2
-    await r2Service.deleteObject(file.objectKey);
+    try {
+      await r2Service.deleteObject(file.objectKey);
+    } catch {
+      // Continue cleanup even if object is already removed from R2
+    }
 
     // 2. Remove all metadata from database and update user's quota
     return await prisma.$transaction(async (tx) => {
       // Cascade deletes the upload sessions referencing this file
-      await tx.file.delete({
+      await tx.file.deleteMany({
         where: { id: fileId },
       });
 
@@ -351,6 +355,8 @@ export const fileService = {
         fileId,
         details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database. Action performed by ${userId}`,
       });
+
+      return { success: true };
     });
   },
 

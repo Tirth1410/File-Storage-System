@@ -25,12 +25,7 @@ export const DELETE = withLogging(
       logger.error("Error deleting file:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Internal server error";
-      const status =
-        errorMessage === "Forbidden"
-          ? 403
-          : errorMessage === "File not found"
-            ? 404
-            : 500;
+      const status = errorMessage === "Forbidden" ? 403 : 500;
       return NextResponse.json({ error: errorMessage }, { status });
     }
   },

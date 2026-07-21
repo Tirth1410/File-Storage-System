@@ -53,6 +53,9 @@ export default function DashboardPage() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [activeTab, setActiveTab] = useState<"own" | "shared">("own");
 
+  // Selection state
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+
   // Preview state
   const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -100,7 +103,14 @@ export default function DashboardPage() {
       setFilesLoading(true);
       try {
         const res = await fetch(`/api/files?type=${tab}`);
-        if (res.ok) setFiles(await res.json());
+        if (res.ok) {
+          const fetchedFiles: UploadedFile[] = await res.json();
+          setFiles(fetchedFiles);
+          // Keep only selected file IDs that still exist
+          setSelectedFileIds((prev) =>
+            prev.filter((id) => fetchedFiles.some((f) => f.id === id)),
+          );
+        }
         // Re-fetch profile data after file list updates
         const profRes = await fetch("/api/profile");
         if (profRes.ok) setProfileData(await profRes.json());
@@ -124,7 +134,11 @@ export default function DashboardPage() {
           fetch(`/api/files?type=${activeTab}`),
           fetch("/api/profile"),
         ]);
-        if (active && filesRes.ok) setFiles(await filesRes.json());
+        if (active && filesRes.ok) {
+          const loadedFiles: UploadedFile[] = await filesRes.json();
+          setFiles(loadedFiles);
+          setSelectedFileIds([]);
+        }
         if (active && profRes.ok) setProfileData(await profRes.json());
       } catch (err) {
         console.error("Dashboard load error:", err);
@@ -138,7 +152,77 @@ export default function DashboardPage() {
     };
   }, [session, activeTab]);
 
-  /* ─── file actions ─── */
+  /* ─── selection handlers ─── */
+  const handleToggleSelect = (fileId: string) => {
+    setSelectedFileIds((prev) =>
+      prev.includes(fileId)
+        ? prev.filter((id) => id !== fileId)
+        : [...prev, fileId],
+    );
+  };
+
+  const isAllSelected =
+    files.length > 0 && files.every((f) => selectedFileIds.includes(f.id));
+
+  const isSomeSelected = selectedFileIds.length > 0 && !isAllSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedFileIds([]);
+    } else {
+      setSelectedFileIds(files.map((f) => f.id));
+    }
+  };
+
+  const handleBatchDelete = () => {
+    const count = selectedFileIds.length;
+    if (count === 0) return;
+
+    setDialogState({
+      isOpen: true,
+      title: `Delete ${count} File${count > 1 ? "s" : ""}`,
+      message: `Are you sure you want to delete ${count} selected file${
+        count > 1 ? "s" : ""
+      }? Storage quota will be released.`,
+      confirmLabel: `Delete ${count} File${count > 1 ? "s" : ""}`,
+      cancelLabel: "Cancel",
+      type: "confirm",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const deletePromises = selectedFileIds.map((id) =>
+            fetch(`/api/files/${id}`, { method: "DELETE" }),
+          );
+          const responses = await Promise.all(deletePromises);
+          const successCount = responses.filter((res) => res.ok).length;
+
+          if (successCount > 0) {
+            toast.success(
+              `${successCount} file${
+                successCount > 1 ? "s" : ""
+              } deleted successfully!`,
+            );
+            setSelectedFileIds([]);
+            fetchFiles();
+          } else {
+            showCustomAlert(
+              "Error",
+              "Failed to delete selected files",
+              "danger",
+            );
+          }
+        } catch {
+          showCustomAlert(
+            "Error",
+            "An error occurred while deleting files",
+            "danger",
+          );
+        }
+      },
+    });
+  };
+
+  /* ─── single file actions ─── */
   const handleDelete = async (fileId: string) => {
     setDialogState({
       isOpen: true,
@@ -154,6 +238,7 @@ export default function DashboardPage() {
           const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
           if (res.ok) {
             toast.success("File deleted successfully!");
+            setSelectedFileIds((prev) => prev.filter((id) => id !== fileId));
             fetchFiles();
           } else {
             const d = await res.json();
@@ -370,6 +455,57 @@ export default function DashboardPage() {
                 }
               >
                 <div className="min-h-[420px] flex flex-col">
+                  {/* Selection Toolbar Header */}
+                  {!filesLoading && files.length > 0 && (
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs">
+                      <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-[#525252] hover:text-[#171717]">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          ref={(input) => {
+                            if (input) input.indeterminate = isSomeSelected;
+                          }}
+                          onChange={handleToggleSelectAll}
+                          className="w-4 h-4 rounded text-[#002FA7] border-[#D1D5DB] focus:ring-[#002FA7] cursor-pointer accent-[#002FA7]"
+                        />
+                        <span>Select All ({files.length})</span>
+                      </label>
+
+                      {selectedFileIds.length > 0 && (
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-semibold text-[#002FA7] bg-[rgba(0,47,167,0.08)] px-2.5 py-0.5 rounded-full border border-[rgba(0,47,167,0.2)]">
+                            {selectedFileIds.length} selected
+                          </span>
+                          <button
+                            onClick={handleBatchDelete}
+                            className="flex items-center gap-1.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold px-3 py-1 rounded-lg transition-all shadow-sm shadow-[#DC2626]/20 cursor-pointer"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                            Delete Selected ({selectedFileIds.length})
+                          </button>
+                          <button
+                            onClick={() => setSelectedFileIds([])}
+                            className="text-[#737373] hover:text-[#171717] font-medium underline"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {filesLoading ? (
                     <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
                       <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
@@ -410,6 +546,8 @@ export default function DashboardPage() {
                           key={file.id}
                           file={file}
                           currentUserId={user.id}
+                          isSelected={selectedFileIds.includes(file.id)}
+                          onToggleSelect={handleToggleSelect}
                           onPreview={handlePreview}
                           onDownload={handleDownload}
                           onShare={setShareFile}
@@ -424,6 +562,8 @@ export default function DashboardPage() {
                     <div className="px-6 py-3 border-t border-[#F5F5F5] flex justify-between items-center">
                       <span className="text-xs text-[#737373]">
                         {files.length} file{files.length !== 1 ? "s" : ""}
+                        {selectedFileIds.length > 0 &&
+                          ` (${selectedFileIds.length} selected)`}
                       </span>
                       <span className="text-xs text-[#A3A3A3] font-mono">
                         Cloudflare R2
