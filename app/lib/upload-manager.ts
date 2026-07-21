@@ -358,8 +358,7 @@ export class UploadManager {
               method: "PUT",
               body: chunk,
               headers: {
-                "Content-Type":
-                  job.file.type || "application/octet-stream",
+                "Content-Type": job.file.type || "application/octet-stream",
               },
               signal: job.abortController?.signal,
             });

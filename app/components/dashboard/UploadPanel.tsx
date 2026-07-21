@@ -156,7 +156,8 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
               Click to select or drag & drop files
             </span>
             <span className="text-xs text-[#737373] block">
-              Supports multiple files with concurrent bounded queue (3 active worker uploads)
+              Supports multiple files with concurrent bounded queue (3 active
+              worker uploads)
             </span>
           </div>
         </div>
@@ -199,10 +200,14 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
           <div className="space-y-1.5">
             <div className="flex justify-between text-[11px] font-mono text-[#737373]">
               <span>
-                Progress: <strong className="text-[#171717]">{stats.overallProgress}%</strong>
+                Progress:{" "}
+                <strong className="text-[#171717]">
+                  {stats.overallProgress}%
+                </strong>
               </span>
               <span>
-                {stats.completed} Done • {stats.active} Active • {stats.waiting} Waiting
+                {stats.completed} Done • {stats.active} Active • {stats.waiting}{" "}
+                Waiting
                 {stats.failed > 0 && ` • ${stats.failed} Failed`}
               </span>
             </div>
@@ -309,11 +314,14 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
                   {job.status === "uploading" && (
                     <div className="flex justify-between items-center text-[10px] text-[#737373] font-mono">
                       <span>
-                        {formatBytes(job.uploadedBytes)} / {formatBytes(job.totalBytes)} ({job.progress}%)
+                        {formatBytes(job.uploadedBytes)} /{" "}
+                        {formatBytes(job.totalBytes)} ({job.progress}%)
                       </span>
                       <span>
                         {job.speedMBs.toFixed(2)} MB/s • ETA:{" "}
-                        {job.etaSeconds > 0 ? `${job.etaSeconds}s` : "finishing..."}
+                        {job.etaSeconds > 0
+                          ? `${job.etaSeconds}s`
+                          : "finishing..."}
                       </span>
                     </div>
                   )}
