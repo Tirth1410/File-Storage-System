@@ -108,7 +108,7 @@ export default function DashboardPage() {
           setFiles(fetchedFiles);
           // Keep only selected file IDs that still exist
           setSelectedFileIds((prev) =>
-            prev.filter((id) => fetchedFiles.some((f) => f.id === id))
+            prev.filter((id) => fetchedFiles.some((f) => f.id === id)),
           );
         }
         // Re-fetch profile data after file list updates
@@ -157,15 +157,14 @@ export default function DashboardPage() {
     setSelectedFileIds((prev) =>
       prev.includes(fileId)
         ? prev.filter((id) => id !== fileId)
-        : [...prev, fileId]
+        : [...prev, fileId],
     );
   };
 
   const isAllSelected =
     files.length > 0 && files.every((f) => selectedFileIds.includes(f.id));
 
-  const isSomeSelected =
-    selectedFileIds.length > 0 && !isAllSelected;
+  const isSomeSelected = selectedFileIds.length > 0 && !isAllSelected;
 
   const handleToggleSelectAll = () => {
     if (isAllSelected) {
@@ -192,7 +191,7 @@ export default function DashboardPage() {
       onConfirm: async () => {
         try {
           const deletePromises = selectedFileIds.map((id) =>
-            fetch(`/api/files/${id}`, { method: "DELETE" })
+            fetch(`/api/files/${id}`, { method: "DELETE" }),
           );
           const responses = await Promise.all(deletePromises);
           const successCount = responses.filter((res) => res.ok).length;
@@ -201,18 +200,22 @@ export default function DashboardPage() {
             toast.success(
               `${successCount} file${
                 successCount > 1 ? "s" : ""
-              } deleted successfully!`
+              } deleted successfully!`,
             );
             setSelectedFileIds([]);
             fetchFiles();
           } else {
-            showCustomAlert("Error", "Failed to delete selected files", "danger");
+            showCustomAlert(
+              "Error",
+              "Failed to delete selected files",
+              "danger",
+            );
           }
         } catch {
           showCustomAlert(
             "Error",
             "An error occurred while deleting files",
-            "danger"
+            "danger",
           );
         }
       },
@@ -465,9 +468,7 @@ export default function DashboardPage() {
                           onChange={handleToggleSelectAll}
                           className="w-4 h-4 rounded text-[#002FA7] border-[#D1D5DB] focus:ring-[#002FA7] cursor-pointer accent-[#002FA7]"
                         />
-                        <span>
-                          Select All ({files.length})
-                        </span>
+                        <span>Select All ({files.length})</span>
                       </label>
 
                       {selectedFileIds.length > 0 && (
