@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Logo } from "@/app/components/shared/Logo";
 import {
   ArrowRight,
   HardDrive,
@@ -20,14 +21,7 @@ export default function Home() {
 
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12 max-w-[1400px] w-full mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 bg-[#002FA7] rounded-sm flex items-center justify-center shadow-sm shadow-[#002FA7]/30">
-            <div className="w-2.5 h-2.5 bg-white rounded-full" />
-          </div>
-          <span className="font-semibold text-xl tracking-tight text-[#171717]">
-            Vault
-          </span>
-        </div>
+        <Logo size="md" />
         <div className="flex items-center gap-8 text-sm font-medium">
           <button
             onClick={() => router.push("/sign-in")}

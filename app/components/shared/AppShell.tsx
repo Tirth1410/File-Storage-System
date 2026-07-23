@@ -8,6 +8,7 @@
 import { useRouter } from "next/navigation";
 import { signOut } from "@/app/lib/auth-client";
 import { useEffect, useRef, useState } from "react";
+import { Logo } from "@/app/components/shared/Logo";
 
 interface NavAction {
   label: string;
@@ -155,39 +156,8 @@ export function AppShell({
           flex-shrink: 0;
           transition: opacity 0.2s ease;
         }
-        .vault-logo:hover { opacity: 0.85; }
+        .vault-logo:hover { opacity: 1; }
 
-        .vault-logo-mark {
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          background: linear-gradient(135deg, #3b6fe8 0%, #002FA7 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 10px rgba(0, 47, 167, 0.3);
-          flex-shrink: 0;
-          transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
-        }
-        .vault-logo:hover .vault-logo-mark {
-          transform: rotate(-8deg) scale(1.08);
-          box-shadow: 0 4px 18px rgba(59, 111, 232, 0.4);
-        }
-
-        .vault-logo-dot {
-          width: 8px;
-          height: 8px;
-          background: #fff;
-          border-radius: 50%;
-        }
-
-        .vault-logo-text {
-          font-size: 15px;
-          font-weight: 700;
-          letter-spacing: -0.4px;
-          color: #171717;
-          line-height: 1;
-        }
 
         /* ── Center nav ── */
         .vault-nav-center {
@@ -368,14 +338,11 @@ export function AppShell({
         <div className="vault-navbar-inner">
           {/* ── Left: Logo ── */}
           <button
-            className="vault-logo"
+            className="vault-logo bg-transparent border-0 p-0 text-left cursor-pointer"
             onClick={() => router.push("/dashboard")}
             aria-label="Go to Dashboard"
           >
-            <div className="vault-logo-mark">
-              <div className="vault-logo-dot" />
-            </div>
-            <span className="vault-logo-text">Vault</span>
+            <Logo size="md" />
           </button>
 
           {/* ── Center: Nav Items ── */}

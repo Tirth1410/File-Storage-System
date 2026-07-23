@@ -1,5 +1,9 @@
 /**
  * Logo — the Vault brand mark used in header & auth screens.
+ *
+ * Mark concept: two geometric bars forming a "V" — a thick primary bar
+ * and a thinner secondary bar creating depth. Pure geometry, no decoration.
+ * The square container with minimal radius gives it a badge-like authority.
  */
 
 interface LogoProps {
@@ -10,9 +14,24 @@ interface LogoProps {
 }
 
 const sizeMap = {
-  sm: { icon: "w-5 h-5", dot: "w-1.5 h-1.5", text: "text-base" },
-  md: { icon: "w-7 h-7", dot: "w-2.5 h-2.5", text: "text-xl" },
-  lg: { icon: "w-9 h-9", dot: "w-3 h-3", text: "text-2xl" },
+  sm: {
+    px: 22,
+    text: "text-sm",
+    gap: "gap-2",
+    letterSpacing: "tracking-[0.06em]",
+  },
+  md: {
+    px: 28,
+    text: "text-base",
+    gap: "gap-2.5",
+    letterSpacing: "tracking-[0.06em]",
+  },
+  lg: {
+    px: 36,
+    text: "text-lg",
+    gap: "gap-3",
+    letterSpacing: "tracking-[0.06em]",
+  },
 };
 
 export function Logo({
@@ -23,19 +42,48 @@ export function Logo({
   const s = sizeMap[size];
   return (
     <div
-      className={`flex items-center gap-2.5 group cursor-pointer ${className}`}
+      className={`flex items-center ${s.gap} group cursor-pointer select-none ${className}`}
     >
+      {/* Icon Mark */}
       <div
-        className={`${s.icon} bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] rounded-md flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:-rotate-6 group-hover:scale-105 group-hover:shadow-[0_4px_18px_rgba(59,111,232,0.5)]`}
-        style={{ boxShadow: "0 2px 10px rgba(0,47,167,0.4)" }}
+        className="flex-shrink-0 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:scale-105"
+        style={{ width: s.px, height: s.px }}
       >
-        <div className={`${s.dot} bg-white rounded-full`} />
+        <svg
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ width: "100%", height: "100%", display: "block" }}
+        >
+          {/* Square container — no gradient, just solid Klein Blue */}
+          <rect width="100" height="100" rx="22" fill="#002FA7" />
+
+          {/*
+            The mark: a "V" built from two parallelogram bars.
+            Primary bar: wide, left-leaning descent   (the heavy stroke)
+            Secondary bar: narrower, right-leaning descent (the light stroke)
+            Together they form a clean structural "V" at the optical center.
+          */}
+
+          {/* Left arm of V — bold bar */}
+          <polygon points="18,22  38,22  55,76  35,76" fill="white" />
+
+          {/* Right arm of V — slightly thinner, stepped down for depth */}
+          <polygon
+            points="46,22  62,22  82,76  66,76"
+            fill="white"
+            fillOpacity="0.45"
+          />
+        </svg>
       </div>
+
+      {/* Wordmark */}
       {showText && (
         <span
-          className={`font-semibold ${s.text} tracking-tight text-[#171717] transition-opacity duration-200 group-hover:opacity-80`}
+          className={`${s.text} ${s.letterSpacing} font-semibold text-[#171717] transition-opacity duration-200 group-hover:opacity-70`}
+          style={{ fontVariantNumeric: "tabular-nums" }}
         >
-          Vault
+          VAULT
         </span>
       )}
     </div>

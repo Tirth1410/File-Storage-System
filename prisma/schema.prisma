@@ -124,7 +124,7 @@ model UploadSession {
 
 model QuotaUsage {
   userId     String   @id @map("user_id")
-  quotaBytes BigInt   @default(2147483648) @map("quota_bytes") // 2 GB default
+  quotaBytes BigInt   @default(209715200) @map("quota_bytes") // 200 MB default
   usedBytes  BigInt   @default(0) @map("used_bytes")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
