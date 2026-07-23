@@ -1,13 +1,13 @@
 import { auth } from "@/app/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
-import { NextRequest, NextResponse } from "next/server";
-import {
-  checkAuthRateLimit,
-  getClientIp,
-  getAuthRateLimitConfig,
-  recordAuthFailure,
-  recordAuthSuccess,
-} from "@/app/lib/auth-rate-limiter";
+import { NextRequest } from "next/server";
+// import {
+//   checkAuthRateLimit,
+//   getClientIp,
+//   getAuthRateLimitConfig,
+//   recordAuthFailure,
+//   recordAuthSuccess,
+// } from "@/app/lib/auth-rate-limiter";
 
 const { GET, POST: defaultPostHandler } = toNextJsHandler(auth);
 
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     return defaultPostHandler(request);
   }
 
+  /* Temporarily commented out rate limiting checks
   const ip = getClientIp(request.headers);
   let email: string | null = null;
 
@@ -60,16 +61,17 @@ export async function POST(request: NextRequest) {
       },
     );
   }
+  */
 
   // 2. Execute Authentication Handler
   const response = await defaultPostHandler(request);
 
   // 3. Update counter based on authentication outcome
-  if (response.ok || response.status === 200) {
-    await recordAuthSuccess(ip, email);
-  } else if (response.status >= 400) {
-    await recordAuthFailure(ip, email);
-  }
+  // if (response.ok || response.status === 200) {
+  //   await recordAuthSuccess(ip, email);
+  // } else if (response.status >= 400) {
+  //   await recordAuthFailure(ip, email);
+  // }
 
   return response;
 }

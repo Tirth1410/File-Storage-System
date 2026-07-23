@@ -4,7 +4,7 @@ export const adminService = {
   async getDashboardStats() {
     // 1. Storage metrics
     const quotaUsages = await prisma.quotaUsage.findMany();
-    const defaultQuota = BigInt(2 * 1024 * 1024 * 1024); // 2 GB default
+    const defaultQuota = BigInt(200 * 1024 * 1024); // 200 MB default
 
     const totalUsers = await prisma.user.count();
 
@@ -158,7 +158,7 @@ export const adminService = {
     if (!quota) {
       quota = {
         userId,
-        quotaBytes: BigInt(2 * 1024 * 1024 * 1024),
+        quotaBytes: BigInt(200 * 1024 * 1024),
         usedBytes: BigInt(0),
         updatedAt: new Date(),
       };

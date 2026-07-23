@@ -24,7 +24,7 @@ export interface AbortUploadInput {
 }
 
 const PART_SIZE_BYTES = 8 * 1024 * 1024; // 8MB default chunk size
-const DEFAULT_QUOTA_BYTES = BigInt(2 * 1024 * 1024 * 1024); // 2 GB
+const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024); // 200 MB
 
 export const fileService = {
   async initiateUpload({

@@ -27,15 +27,17 @@ export const POST = withLogging(
         return NextResponse.json({ error: "Invalid quota" }, { status: 400 });
       }
 
+      const roundedQuotaBytes = Math.round(quotaBytes);
+
       const updated = await prisma.quotaUsage.upsert({
         where: { userId: id },
         create: {
           userId: id,
-          quotaBytes: BigInt(quotaBytes),
+          quotaBytes: BigInt(roundedQuotaBytes),
           usedBytes: BigInt(0),
         },
         update: {
-          quotaBytes: BigInt(quotaBytes),
+          quotaBytes: BigInt(roundedQuotaBytes),
         },
       });
 

@@ -24,7 +24,7 @@ export const GET = withLogging(async () => {
       quota = await prisma.quotaUsage.create({
         data: {
           userId,
-          quotaBytes: BigInt(2 * 1024 * 1024 * 1024),
+          quotaBytes: BigInt(200 * 1024 * 1024),
           usedBytes: BigInt(0),
         },
       });

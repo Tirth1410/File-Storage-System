@@ -8,6 +8,8 @@ const globalForRedis = global as unknown as {
 };
 
 export const createRedisClient = (): Redis => {
+  // Connection setup for redis is temporarily commented out
+  /*
   const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
   const client = new Redis(redisUrl, {
@@ -29,6 +31,28 @@ export const createRedisClient = (): Redis => {
   });
 
   return client;
+  */
+
+  redisLogger.info("Redis connection setup is temporarily commented out. Returning mock client.");
+  const mockPipeline = () => {
+    const chain = {
+      get: () => chain,
+      incr: () => chain,
+      expire: () => chain,
+      del: () => chain,
+      exec: async () => [
+        [null, "0"],
+        [null, "0"],
+        [null, "0"]
+      ]
+    };
+    return chain;
+  };
+
+  return {
+    pipeline: mockPipeline,
+    on: () => {},
+  } as unknown as Redis;
 };
 
 export const redis = globalForRedis.redis || createRedisClient();

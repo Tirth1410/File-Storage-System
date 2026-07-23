@@ -168,7 +168,8 @@ export default function AdminPage() {
   const [selectedUserDetails, setSelectedUserDetails] =
     useState<UserDetailStats | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [newQuotaGB, setNewQuotaGB] = useState<number>(2);
+  const [newQuotaGB, setNewQuotaGB] = useState<number>(0);
+  const [newQuotaMB, setNewQuotaMB] = useState<number>(200);
   const [savingQuota, setSavingQuota] = useState(false);
 
   /* ─── fetching ─── */
@@ -268,9 +269,9 @@ export default function AdminPage() {
         const data = await res.json();
         setSelectedUserDetails(data);
         const quotaBytes = parseFloat(data.storage.quotaBytes);
-        setNewQuotaGB(
-          parseFloat((quotaBytes / (1024 * 1024 * 1024)).toFixed(2)),
-        );
+        const totalMB = Math.round(quotaBytes / (1024 * 1024));
+        setNewQuotaGB(Math.floor(totalMB / 1024));
+        setNewQuotaMB(totalMB % 1024);
       }
     } catch (err) {
       console.error("User detail error:", err);
@@ -280,10 +281,10 @@ export default function AdminPage() {
   };
 
   const handleSaveQuota = async () => {
-    if (!selectedUser || newQuotaGB <= 0) return;
+    if (!selectedUser || (newQuotaGB <= 0 && newQuotaMB <= 0)) return;
     setSavingQuota(true);
     try {
-      const bytes = newQuotaGB * 1024 * 1024 * 1024;
+      const bytes = (newQuotaGB * 1024 + newQuotaMB) * 1024 * 1024;
       const res = await fetch(`/api/admin/users/${selectedUser.id}/quota`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -573,25 +574,43 @@ export default function AdminPage() {
                           Adjust Quota
                         </p>
                         <div className="flex items-end gap-3">
-                          <div className="flex-1">
-                            <label className="block text-xs text-[#737373] mb-1.5 font-medium">
-                              New Quota (GB)
-                            </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={newQuotaGB}
-                              onChange={(e) =>
-                                setNewQuotaGB(parseFloat(e.target.value))
-                              }
-                              className="w-full bg-white border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#002FA7] font-mono text-[#171717]"
-                            />
+                          <div className="flex-1 grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs text-[#737373] mb-1.5 font-medium">
+                                GB
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={newQuotaGB}
+                                onChange={(e) =>
+                                  setNewQuotaGB(parseInt(e.target.value, 10) || 0)
+                                }
+                                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#002FA7] font-mono text-[#171717]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-[#737373] mb-1.5 font-medium">
+                                MB
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="1023"
+                                step="1"
+                                value={newQuotaMB}
+                                onChange={(e) =>
+                                  setNewQuotaMB(parseInt(e.target.value, 10) || 0)
+                                }
+                                className="w-full bg-white border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#002FA7] font-mono text-[#171717]"
+                              />
+                            </div>
                           </div>
                           <button
                             onClick={handleSaveQuota}
-                            disabled={savingQuota || newQuotaGB <= 0}
-                            className="bg-[#002FA7] hover:bg-[#002482] text-white font-bold text-sm py-2 px-4 rounded-lg transition-all disabled:opacity-50 shadow-sm shadow-[#002FA7]/20 cursor-pointer"
+                            disabled={savingQuota || (newQuotaGB <= 0 && newQuotaMB <= 0)}
+                            className="bg-[#002FA7] hover:bg-[#002482] text-white font-bold text-sm py-2 px-4 rounded-lg transition-all disabled:opacity-50 shadow-sm shadow-[#002FA7]/20 cursor-pointer shrink-0"
                           >
                             {savingQuota ? "Saving..." : "Apply"}
                           </button>
