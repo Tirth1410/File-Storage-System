@@ -9,22 +9,11 @@
 
 Always follow these commands to start the project and its services:
 
-## 1. Start the PostgreSQL Database (Docker)
+## 1. PostgreSQL Database (Supabase)
 
-The database runs in a Docker container using the local `Dockerfile` in the project root.
+The project uses Supabase-backed PostgreSQL.
 
-- **Build the database image**:
-  ```bash
-  docker build -t postgresdb .
-  ```
-- **Run the container (if creating for the first time)**:
-  ```bash
-  docker run --name postgresdb-container -p 5432:5432 -d postgresdb
-  ```
-- **Start the container (if it already exists but is stopped)**:
-  ```bash
-  docker start postgresdb-container
-  ```
+- Ensure `.env` contains valid `DATABASE_URL` (pooled connection) and `DIRECT_URL` (direct connection).
 
 ## 2. Install Project Dependencies
 
@@ -32,11 +21,12 @@ The database runs in a Docker container using the local `Dockerfile` in the proj
 bun install
 ```
 
-## 3. Database Migration & Client Generation
+## 3. Database Migration, Client Generation & Admin Seeding
 
 ```bash
-bun prisma migrate dev
+bun prisma db push
 bun prisma generate
+bun run db:seed
 ```
 
 ## 4. Run the Development Server

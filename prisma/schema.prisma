@@ -13,25 +13,25 @@ datasource db {
 }
 
 model User {
-  id              String           @id
-  name            String
-  email           String
-  emailVerified   Boolean
-  image           String?
-  createdAt       DateTime
-  updatedAt       DateTime
-  role            String?
-  banned          Boolean?
-  banReason       String?
-  banExpires      DateTime?        @db.Timestamptz(3)
-  sessions        Session[]
-  accounts        Account[]
-  quotaUsage      QuotaUsage?
-  auditLogs       AuditLog[]
-  filePermissions FilePermission[]
+  id               String           @id
+  name             String
+  email            String
+  emailVerified    Boolean
+  image            String?
+  createdAt        DateTime
+  updatedAt        DateTime
+  role             String?
+  banned           Boolean?
+  banReason        String?
+  banExpires       DateTime?        @db.Timestamptz(3)
+  sessions         Session[]
+  accounts         Account[]
+  quotaUsage       QuotaUsage?
+  auditLogs        AuditLog[]
+  filePermissions  FilePermission[]
   ownedGroups      Group[]          @relation("GroupOwner")
   groupMembers     GroupMember[]
-  sharedGroupFiles GroupFile[] @relation("SharedGroupFiles")
+  sharedGroupFiles GroupFile[]      @relation("SharedGroupFiles")
 
   @@unique([email])
   @@map("user")
@@ -179,17 +179,17 @@ model FilePermission {
 }
 
 model Group {
-  id           String        @id @default(uuid()) @db.Uuid
-  name         String
-  description  String?
-  ownerUserId  String
-  isArchived   Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  
-  owner        User          @relation("GroupOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  members      GroupMember[]
-  groupFiles   GroupFile[]
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  ownerUserId String
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner      User          @relation("GroupOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members    GroupMember[]
+  groupFiles GroupFile[]
 
   @@map("group")
 }
@@ -198,7 +198,7 @@ model GroupMember {
   id       String   @id @default(uuid()) @db.Uuid
   groupId  String   @db.Uuid
   userId   String
-  role     String   // OWNER | ADMIN | MEMBER
+  role     String // OWNER | ADMIN | MEMBER
   joinedAt DateTime @default(now())
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
