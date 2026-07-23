@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { fileService } from "@/app/lib/file-service";
 import { logger, withLogging } from "@/app/lib/logger";
 
 export const POST = withLogging(async (request: Request) => {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const user = getRequestUser(request);
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -32,7 +29,7 @@ export const POST = withLogging(async (request: Request) => {
         filename,
         size,
         mimeType,
-        userId: session.user.id,
+        userId: user.id,
       });
 
       return NextResponse.json(result);

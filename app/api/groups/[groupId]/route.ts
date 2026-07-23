@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { groupService } from "@/app/lib/group-service";
 import { withLogging } from "@/app/lib/logger";
 
@@ -10,19 +9,14 @@ export const GET = withLogging(
     { params }: { params: Promise<{ groupId: string }> },
   ) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       const { groupId } = await params;
-      const group = await groupService.getGroupDetails(
-        groupId,
-        session.user.id,
-      );
+      const group = await groupService.getGroupDetails(groupId, user.id);
 
       const serializedGroup = {
         ...group,
@@ -56,11 +50,9 @@ export const PATCH = withLogging(
     { params }: { params: Promise<{ groupId: string }> },
   ) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
@@ -78,7 +70,7 @@ export const PATCH = withLogging(
         groupId,
         name,
         description,
-        session.user.id,
+        user.id,
       );
       return NextResponse.json(updated);
     } catch (error) {
@@ -96,16 +88,14 @@ export const DELETE = withLogging(
     { params }: { params: Promise<{ groupId: string }> },
   ) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       const { groupId } = await params;
-      const result = await groupService.deleteGroup(groupId, session.user.id);
+      const result = await groupService.deleteGroup(groupId, user.id);
       return NextResponse.json(result);
     } catch (error) {
       const message =

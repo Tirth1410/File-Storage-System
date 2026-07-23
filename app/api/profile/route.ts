@@ -1,20 +1,17 @@
-import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getRequestUser } from "@/app/lib/request-user";
 import prisma from "@/app/lib/prisma";
 import { logger, withLogging } from "@/app/lib/logger";
 
-export const GET = withLogging(async () => {
+export const GET = withLogging(async (request: NextRequest) => {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const user = getRequestUser(request);
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
 
     // Get or upsert quota
     let quota = await prisma.quotaUsage.findUnique({

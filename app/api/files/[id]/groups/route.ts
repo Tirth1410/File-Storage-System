@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { groupService } from "@/app/lib/group-service";
 import { withLogging } from "@/app/lib/logger";
 
 export const GET = withLogging(
   async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
@@ -29,11 +26,9 @@ export const GET = withLogging(
 export const POST = withLogging(
   async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
@@ -56,7 +51,7 @@ export const POST = withLogging(
         groupId,
         allowPreview,
         allowDownload,
-        session.user.id,
+        user.id,
       );
 
       return NextResponse.json(shared);

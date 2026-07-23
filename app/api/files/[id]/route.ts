@@ -1,24 +1,21 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { fileService } from "@/app/lib/file-service";
 import { logger, withLogging } from "@/app/lib/logger";
 
 export const DELETE = withLogging(
   async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       const { id } = await params;
-      const isAdmin = session.user.role === "admin";
+      const isAdmin = user.role === "admin";
 
-      await fileService.deleteFile(id, session.user.id, isAdmin);
+      await fileService.deleteFile(id, user.id, isAdmin);
 
       return NextResponse.json({ success: true });
     } catch (error) {

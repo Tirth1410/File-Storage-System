@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
 import { authorizationService } from "@/app/lib/authorization-service";
@@ -9,9 +8,10 @@ import { logger, withLogging } from "@/app/lib/logger";
 export const GET = withLogging(
   async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
 
       const { id } = await params;
       const { searchParams } = new URL(request.url);
@@ -20,7 +20,7 @@ export const GET = withLogging(
 
       const access = await authorizationService.canAccessFile({
         fileId: id,
-        userId: session?.user?.id,
+        userId: user.id,
         token,
         requiredAccess: download ? "download" : "preview",
       });
@@ -47,8 +47,8 @@ export const GET = withLogging(
         download,
       );
 
-      const logUserId = session?.user?.id || file.ownerUserId;
-      const anonymousNote = !session?.user?.id ? " (via share link)" : "";
+      const logUserId = user.id;
+      const anonymousNote = "";
 
       await auditService.log({
         userId: logUserId,

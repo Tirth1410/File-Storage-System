@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { groupService } from "@/app/lib/group-service";
 import { withLogging } from "@/app/lib/logger";
 
-export const GET = withLogging(async () => {
+export const GET = withLogging(async (request: Request) => {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const user = getRequestUser(request);
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const groups = await groupService.listUserGroups(session.user.id);
+    const groups = await groupService.listUserGroups(user.id);
     return NextResponse.json(groups);
   } catch (error) {
     const message =
@@ -25,11 +22,9 @@ export const GET = withLogging(async () => {
 
 export const POST = withLogging(async (request: Request) => {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const user = getRequestUser(request);
 
-    if (!session || !session.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -41,11 +36,7 @@ export const POST = withLogging(async (request: Request) => {
       );
     }
 
-    const group = await groupService.createGroup(
-      name,
-      description,
-      session.user.id,
-    );
+    const group = await groupService.createGroup(name, description, user.id);
     return NextResponse.json(group);
   } catch (error) {
     const message =

@@ -3,8 +3,7 @@ import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
 import { authorizationService } from "@/app/lib/authorization-service";
-import { auth } from "@/app/lib/auth";
-import { headers } from "next/headers";
+import { getRequestUser } from "@/app/lib/request-user";
 import { logger, withLogging } from "@/app/lib/logger";
 
 export const GET = withLogging(
@@ -13,6 +12,11 @@ export const GET = withLogging(
     { params }: { params: Promise<{ token: string }> },
   ) => {
     try {
+      const user = getRequestUser(request);
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const { token } = await params;
 
       const shareLink = await prisma.shareLink.findUnique({
@@ -27,11 +31,9 @@ export const GET = withLogging(
         );
       }
 
-      const session = await auth.api.getSession({ headers: await headers() });
-
       const access = await authorizationService.canAccessFile({
         fileId: shareLink.fileId,
-        userId: session?.user?.id,
+        userId: user.id,
         token,
         requiredAccess: "read",
       });
@@ -71,14 +73,11 @@ export const GET = withLogging(
         );
       }
 
-      const logUserId = session?.user?.id || file.ownerUserId;
-      const anonymousNote = !session?.user?.id ? " (via share link)" : "";
-
       await auditService.log({
-        userId: logUserId,
+        userId: user.id,
         action: "download_success",
         fileId: file.id,
-        details: `Accessed share link for file: ${file.originalName}${anonymousNote}`,
+        details: `Accessed share link for file: ${file.originalName}`,
       });
 
       return NextResponse.json({

@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { adminService } from "@/app/lib/admin-service";
 import { logger, withLogging } from "@/app/lib/logger";
 
 export const GET = withLogging(
   async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      if (session.user.role !== "admin") {
+      if (user.role !== "admin") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 

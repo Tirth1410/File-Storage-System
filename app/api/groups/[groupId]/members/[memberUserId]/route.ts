@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { groupService } from "@/app/lib/group-service";
 import { withLogging } from "@/app/lib/logger";
 
@@ -10,11 +9,9 @@ export const PATCH = withLogging(
     { params }: { params: Promise<{ groupId: string; memberUserId: string }> },
   ) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
@@ -29,7 +26,7 @@ export const PATCH = withLogging(
         groupId,
         memberUserId,
         role,
-        session.user.id,
+        user.id,
       );
       return NextResponse.json(result);
     } catch (error) {
@@ -52,11 +49,9 @@ export const DELETE = withLogging(
     { params }: { params: Promise<{ groupId: string; memberUserId: string }> },
   ) => {
     try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+      const user = getRequestUser(request);
 
-      if (!session || !session.user) {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
@@ -64,7 +59,7 @@ export const DELETE = withLogging(
       const result = await groupService.removeMember(
         groupId,
         memberUserId,
-        session.user.id,
+        user.id,
       );
       return NextResponse.json(result);
     } catch (error) {

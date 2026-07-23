@@ -585,7 +585,9 @@ export default function AdminPage() {
                                 step="1"
                                 value={newQuotaGB}
                                 onChange={(e) =>
-                                  setNewQuotaGB(parseInt(e.target.value, 10) || 0)
+                                  setNewQuotaGB(
+                                    parseInt(e.target.value, 10) || 0,
+                                  )
                                 }
                                 className="w-full bg-white border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#002FA7] font-mono text-[#171717]"
                               />
@@ -601,7 +603,9 @@ export default function AdminPage() {
                                 step="1"
                                 value={newQuotaMB}
                                 onChange={(e) =>
-                                  setNewQuotaMB(parseInt(e.target.value, 10) || 0)
+                                  setNewQuotaMB(
+                                    parseInt(e.target.value, 10) || 0,
+                                  )
                                 }
                                 className="w-full bg-white border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#002FA7] font-mono text-[#171717]"
                               />
@@ -609,7 +613,10 @@ export default function AdminPage() {
                           </div>
                           <button
                             onClick={handleSaveQuota}
-                            disabled={savingQuota || (newQuotaGB <= 0 && newQuotaMB <= 0)}
+                            disabled={
+                              savingQuota ||
+                              (newQuotaGB <= 0 && newQuotaMB <= 0)
+                            }
                             className="bg-[#002FA7] hover:bg-[#002482] text-white font-bold text-sm py-2 px-4 rounded-lg transition-all disabled:opacity-50 shadow-sm shadow-[#002FA7]/20 cursor-pointer shrink-0"
                           >
                             {savingQuota ? "Saving..." : "Apply"}

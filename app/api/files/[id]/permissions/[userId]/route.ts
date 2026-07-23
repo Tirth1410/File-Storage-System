@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { withLogging } from "@/app/lib/logger";
-import { headers } from "next/headers";
-import { auth } from "@/app/lib/auth";
+import { getRequestUser } from "@/app/lib/request-user";
 import { shareService } from "@/app/lib/share-service";
 import prisma from "@/app/lib/prisma";
 
@@ -11,17 +10,14 @@ export const DELETE = withLogging(
     { params }: { params: Promise<{ id: string; userId: string }> },
   ) => {
     try {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (!session?.user) {
+      const user = getRequestUser(request);
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       const { id: fileId, userId } = await params;
       const file = await prisma.file.findUnique({ where: { id: fileId } });
-      if (
-        !file ||
-        (file.ownerUserId !== session.user.id && session.user.role !== "admin")
-      ) {
+      if (!file || (file.ownerUserId !== user.id && user.role !== "admin")) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 

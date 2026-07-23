@@ -33,7 +33,9 @@ export const createRedisClient = (): Redis => {
   return client;
   */
 
-  redisLogger.info("Redis connection setup is temporarily commented out. Returning mock client.");
+  redisLogger.info(
+    "Redis connection setup is temporarily commented out. Returning mock client.",
+  );
   const mockPipeline = () => {
     const chain = {
       get: () => chain,
@@ -43,8 +45,8 @@ export const createRedisClient = (): Redis => {
       exec: async () => [
         [null, "0"],
         [null, "0"],
-        [null, "0"]
-      ]
+        [null, "0"],
+      ],
     };
     return chain;
   };
