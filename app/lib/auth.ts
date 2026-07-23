@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "@/app/lib/prisma";
 import { admin } from "better-auth/plugins";
+import { APP_URL } from "./config";
 
 const rawEnvVal = process.env.ADMIN_USER_IDS || process.env.ADMIN_USER_ID;
 const adminUserIds = rawEnvVal
@@ -12,6 +13,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  baseURL: APP_URL,
   emailAndPassword: {
     enabled: true,
   },
@@ -23,8 +25,8 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
+    APP_URL,
     "http://localhost:3000",
-    "https://premises-snout-surgery.ngrok-free.dev",
     "https://*.ngrok-free.app",
     "https://*.ngrok.app",
     "https://*.ngrok.io",

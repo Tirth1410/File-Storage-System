@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
+import { APP_URL } from "@/app/lib/config";
 
-// Update baseUrl to your production domain when deploying
-const baseUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+const baseUrl = APP_URL;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
