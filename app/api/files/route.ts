@@ -13,7 +13,7 @@ export const GET = withLogging(async (request: NextRequest) => {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type");
+    const type = searchParams.get("type") === "shared" ? "shared" : "own";
 
     const whereClause: Prisma.FileWhereInput = {
       status: "available",
@@ -23,43 +23,7 @@ export const GET = withLogging(async (request: NextRequest) => {
       whereClause.ownerUserId = user.id;
     } else if (type === "shared") {
       whereClause.ownerUserId = { not: user.id };
-      whereClause.OR = [
-        { permissions: { some: { userId: user.id } } },
-        {
-          groupFiles: {
-            some: {
-              isActive: true,
-              group: {
-                members: {
-                  some: {
-                    userId: user.id,
-                  },
-                },
-              },
-            },
-          },
-        },
-      ];
-    } else {
-      // Default: fetch both owned and shared files
-      whereClause.OR = [
-        { ownerUserId: user.id },
-        { permissions: { some: { userId: user.id } } },
-        {
-          groupFiles: {
-            some: {
-              isActive: true,
-              group: {
-                members: {
-                  some: {
-                    userId: user.id,
-                  },
-                },
-              },
-            },
-          },
-        },
-      ];
+      whereClause.permissions = { some: { userId: user.id } };
     }
 
     const files = await prisma.file.findMany({

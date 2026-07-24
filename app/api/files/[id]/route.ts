@@ -13,7 +13,15 @@ export const DELETE = withLogging(
       }
 
       const { id } = await params;
+      const { searchParams } = new URL(request.url);
+      const context =
+        searchParams.get("context") === "shared" ? "shared" : "own";
       const isAdmin = user.role === "admin";
+
+      if (context === "shared") {
+        const result = await fileService.removeSharedFileAccess(id, user.id);
+        return NextResponse.json(result);
+      }
 
       await fileService.deleteFile(id, user.id, isAdmin);
 
