@@ -6,6 +6,7 @@ import {
   AbortMultipartUploadCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -85,6 +86,41 @@ export const r2Service = {
       Key: key,
     });
     await s3Client.send(command);
+  },
+
+  async deleteObjects(keys: string[]) {
+    const deleted: string[] = [];
+    const errors: { key: string; message: string }[] = [];
+
+    for (let i = 0; i < keys.length; i += 1000) {
+      const batch = keys.slice(i, i + 1000);
+      if (batch.length === 0) continue;
+
+      const command = new DeleteObjectsCommand({
+        Bucket: process.env.R2_BUCKET!,
+        Delete: {
+          Objects: batch.map((key) => ({ Key: key })),
+          Quiet: false,
+        },
+      });
+
+      const response = await s3Client.send(command);
+
+      for (const item of response.Deleted || []) {
+        if (item.Key) deleted.push(item.Key);
+      }
+
+      for (const item of response.Errors || []) {
+        if (item.Key) {
+          errors.push({
+            key: item.Key,
+            message: item.Message || item.Code || "Failed to delete object",
+          });
+        }
+      }
+    }
+
+    return { deleted, errors };
   },
 
   async generatePresignedGetUrl(

@@ -23,23 +23,7 @@ export const GET = withLogging(async (request: NextRequest) => {
       whereClause.ownerUserId = user.id;
     } else if (type === "shared") {
       whereClause.ownerUserId = { not: user.id };
-      whereClause.OR = [
-        { permissions: { some: { userId: user.id } } },
-        {
-          groupFiles: {
-            some: {
-              isActive: true,
-              group: {
-                members: {
-                  some: {
-                    userId: user.id,
-                  },
-                },
-              },
-            },
-          },
-        },
-      ];
+      whereClause.permissions = { some: { userId: user.id } };
     }
 
     const files = await prisma.file.findMany({

@@ -23,8 +23,30 @@ export interface AbortUploadInput {
   userId: string;
 }
 
+export interface BulkDeleteResult {
+  deleted: string[];
+  forbidden: string[];
+  notFound: string[];
+  failed: { id: string; reason: string }[];
+}
+
+export interface SharedRemoveResult {
+  removed: string[];
+  owned: string[];
+  notFound: string[];
+  failed: { id: string; reason: string }[];
+}
+
+export class BulkDeleteValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BulkDeleteValidationError";
+  }
+}
+
 const PART_SIZE_BYTES = 8 * 1024 * 1024; // 8MB default chunk size
 const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024); // 200 MB
+const MAX_BULK_DELETE_FILES = 500;
 
 export const fileService = {
   async initiateUpload({
@@ -358,6 +380,233 @@ export const fileService = {
 
       return { success: true };
     });
+  },
+
+  async removeSharedFileAccess(
+    fileId: string,
+    userId: string,
+  ): Promise<SharedRemoveResult> {
+    return await this.bulkRemoveSharedFileAccess([fileId], userId);
+  },
+
+  async bulkRemoveSharedFileAccess(
+    fileIds: string[],
+    userId: string,
+  ): Promise<SharedRemoveResult> {
+    const uniqueFileIds = Array.from(
+      new Set(fileIds.filter((id): id is string => typeof id === "string")),
+    );
+
+    if (uniqueFileIds.length === 0) {
+      throw new BulkDeleteValidationError("At least one file ID is required");
+    }
+
+    if (uniqueFileIds.length > MAX_BULK_DELETE_FILES) {
+      throw new BulkDeleteValidationError(
+        `Cannot remove more than ${MAX_BULK_DELETE_FILES} files at once`,
+      );
+    }
+
+    const files = await prisma.file.findMany({
+      where: { id: { in: uniqueFileIds } },
+      select: { id: true, ownerUserId: true },
+    });
+
+    const filesById = new Map(files.map((file) => [file.id, file]));
+    const notFound = uniqueFileIds.filter((id) => !filesById.has(id));
+    const owned = files
+      .filter((file) => file.ownerUserId === userId)
+      .map((file) => file.id);
+    const removableIds = files
+      .filter((file) => file.ownerUserId !== userId)
+      .map((file) => file.id);
+
+    if (removableIds.length === 0) {
+      return { removed: [], owned, notFound, failed: [] };
+    }
+
+    const permissions = await prisma.filePermission.findMany({
+      where: {
+        userId,
+        fileId: { in: removableIds },
+      },
+      select: { fileId: true },
+    });
+
+    const removablePermissionIds = permissions.map(
+      (permission) => permission.fileId,
+    );
+    const permissionIdSet = new Set(removablePermissionIds);
+    const failed = removableIds
+      .filter((id) => !permissionIdSet.has(id))
+      .map((id) => ({
+        id,
+        reason: "Direct shared access not found",
+      }));
+
+    if (removablePermissionIds.length === 0) {
+      return { removed: [], owned, notFound, failed };
+    }
+
+    await prisma.filePermission.deleteMany({
+      where: {
+        userId,
+        fileId: { in: removablePermissionIds },
+      },
+    });
+
+    await prisma.auditLog.createMany({
+      data: removablePermissionIds.map((fileId) => ({
+        userId,
+        action: "shared_file_removed",
+        fileId,
+        details: `Removed direct shared access for file ${fileId}`,
+      })),
+    });
+
+    return {
+      removed: removablePermissionIds,
+      owned,
+      notFound,
+      failed,
+    };
+  },
+
+  async bulkDeleteFiles(
+    fileIds: string[],
+    userId: string,
+    isAdmin = false,
+  ): Promise<BulkDeleteResult> {
+    const uniqueFileIds = Array.from(
+      new Set(fileIds.filter((id): id is string => typeof id === "string")),
+    );
+
+    if (uniqueFileIds.length === 0) {
+      throw new BulkDeleteValidationError("At least one file ID is required");
+    }
+
+    if (uniqueFileIds.length > MAX_BULK_DELETE_FILES) {
+      throw new BulkDeleteValidationError(
+        `Cannot delete more than ${MAX_BULK_DELETE_FILES} files at once`,
+      );
+    }
+
+    const files = await prisma.file.findMany({
+      where: { id: { in: uniqueFileIds } },
+    });
+
+    const filesById = new Map(files.map((file) => [file.id, file]));
+    const notFound = uniqueFileIds.filter((id) => !filesById.has(id));
+    const forbidden: string[] = [];
+    const authorizedFiles: typeof files = [];
+
+    for (const file of files) {
+      if (file.ownerUserId !== userId && !isAdmin) {
+        forbidden.push(file.id);
+      } else {
+        authorizedFiles.push(file);
+      }
+    }
+
+    if (authorizedFiles.length === 0) {
+      return { deleted: [], forbidden, notFound, failed: [] };
+    }
+
+    const failed: { id: string; reason: string }[] = [];
+    const objectKeyToFileId = new Map(
+      authorizedFiles.map((file) => [file.objectKey, file.id]),
+    );
+
+    try {
+      const { errors } = await r2Service.deleteObjects(
+        authorizedFiles.map((file) => file.objectKey),
+      );
+
+      for (const error of errors) {
+        const fileId = objectKeyToFileId.get(error.key);
+        if (fileId) {
+          failed.push({ id: fileId, reason: error.message });
+        }
+      }
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : "Failed to delete R2 objects";
+      return {
+        deleted: [],
+        forbidden,
+        notFound,
+        failed: authorizedFiles.map((file) => ({ id: file.id, reason })),
+      };
+    }
+
+    const failedIds = new Set(failed.map((item) => item.id));
+    const filesToDelete = authorizedFiles.filter(
+      (file) => !failedIds.has(file.id),
+    );
+
+    if (filesToDelete.length === 0) {
+      return { deleted: [], forbidden, notFound, failed };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const totalBytesByOwner = new Map<string, bigint>();
+
+      for (const file of filesToDelete) {
+        totalBytesByOwner.set(
+          file.ownerUserId,
+          (totalBytesByOwner.get(file.ownerUserId) || BigInt(0)) +
+            file.sizeBytes,
+        );
+      }
+
+      await tx.file.deleteMany({
+        where: { id: { in: filesToDelete.map((file) => file.id) } },
+      });
+
+      for (const [ownerUserId, totalBytes] of totalBytesByOwner) {
+        await tx.quotaUsage.upsert({
+          where: { userId: ownerUserId },
+          create: {
+            userId: ownerUserId,
+            quotaBytes: DEFAULT_QUOTA_BYTES,
+            usedBytes: BigInt(0),
+          },
+          update: {},
+        });
+
+        const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+          `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+          ownerUserId,
+        );
+
+        if (lockedRows.length > 0) {
+          const usedBytes = BigInt(lockedRows[0].used_bytes);
+          const newUsed =
+            usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
+
+          await tx.quotaUsage.update({
+            where: { userId: ownerUserId },
+            data: { usedBytes: newUsed },
+          });
+        }
+      }
+
+      await tx.auditLog.createMany({
+        data: filesToDelete.map((file) => ({
+          userId,
+          action: "file_deleted",
+          fileId: file.id,
+          details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database via bulk delete. Action performed by ${userId}`,
+        })),
+      });
+    });
+
+    return {
+      deleted: filesToDelete.map((file) => file.id),
+      forbidden,
+      notFound,
+      failed,
+    };
   },
 
   async cleanupExpiredUploads() {

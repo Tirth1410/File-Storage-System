@@ -180,34 +180,93 @@ export default function DashboardPage() {
 
     setDialogState({
       isOpen: true,
-      title: `Delete ${count} File${count > 1 ? "s" : ""}`,
-      message: `Are you sure you want to delete ${count} selected file${
-        count > 1 ? "s" : ""
-      }? Storage quota will be released.`,
-      confirmLabel: `Delete ${count} File${count > 1 ? "s" : ""}`,
+      title:
+        activeTab === "shared"
+          ? `Remove ${count} File${count > 1 ? "s" : ""}`
+          : `Delete ${count} File${count > 1 ? "s" : ""}`,
+      message:
+        activeTab === "shared"
+          ? `Remove ${count} selected file${
+              count > 1 ? "s" : ""
+            } from your Shared tab?`
+          : `Are you sure you want to delete ${count} selected file${
+              count > 1 ? "s" : ""
+            }? Storage quota will be released.`,
+      confirmLabel:
+        activeTab === "shared"
+          ? `Remove ${count} File${count > 1 ? "s" : ""}`
+          : `Delete ${count} File${count > 1 ? "s" : ""}`,
       cancelLabel: "Cancel",
       type: "confirm",
       variant: "danger",
       onConfirm: async () => {
         try {
-          const deletePromises = selectedFileIds.map((id) =>
-            fetch(`/api/files/${id}`, { method: "DELETE" }),
-          );
-          const responses = await Promise.all(deletePromises);
-          const successCount = responses.filter((res) => res.ok).length;
+          const res = await fetch("/api/files/bulk-delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileIds: selectedFileIds,
+              context: activeTab,
+            }),
+          });
 
-          if (successCount > 0) {
-            toast.success(
-              `${successCount} file${
-                successCount > 1 ? "s" : ""
-              } deleted successfully!`,
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            showCustomAlert(
+              "Error",
+              d.error || "Failed to delete selected files",
+              "danger",
             );
-            setSelectedFileIds([]);
+            return;
+          }
+
+          const result:
+            | {
+                deleted: string[];
+                forbidden: string[];
+                notFound: string[];
+                failed: { id: string; reason: string }[];
+              }
+            | {
+                removed: string[];
+                owned: string[];
+                notFound: string[];
+                failed: { id: string; reason: string }[];
+              } = await res.json();
+
+          const successfulIds =
+            "removed" in result ? result.removed : result.deleted;
+
+          if (successfulIds.length > 0) {
+            const skippedCount =
+              ("forbidden" in result
+                ? result.forbidden.length
+                : result.owned.length) +
+              result.notFound.length +
+              result.failed.length;
+            toast.success(
+              skippedCount > 0
+                ? `${successfulIds.length} ${
+                    activeTab === "shared" ? "removed" : "deleted"
+                  }, ${skippedCount} skipped`
+                : `${successfulIds.length} file${
+                    successfulIds.length > 1 ? "s" : ""
+                  } ${
+                    activeTab === "shared"
+                      ? "removed from Shared"
+                      : "deleted successfully"
+                  }!`,
+            );
+            setSelectedFileIds((prev) =>
+              prev.filter((id) => !successfulIds.includes(id)),
+            );
             fetchFiles();
           } else {
             showCustomAlert(
               "Error",
-              "Failed to delete selected files",
+              activeTab === "shared"
+                ? "No selected files were removed"
+                : "No selected files were deleted",
               "danger",
             );
           }
@@ -226,18 +285,44 @@ export default function DashboardPage() {
   const handleDelete = async (fileId: string) => {
     setDialogState({
       isOpen: true,
-      title: "Delete File",
+      title: activeTab === "shared" ? "Remove File" : "Delete File",
       message:
-        "Are you sure you want to delete this file? Its storage quota will be released.",
-      confirmLabel: "Delete",
+        activeTab === "shared"
+          ? "Remove this file from your Shared tab?"
+          : "Are you sure you want to delete this file? Its storage quota will be released.",
+      confirmLabel: activeTab === "shared" ? "Remove" : "Delete",
       cancelLabel: "Cancel",
       type: "confirm",
       variant: "danger",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
+          const res = await fetch(`/api/files/${fileId}?context=${activeTab}`, {
+            method: "DELETE",
+          });
           if (res.ok) {
-            toast.success("File deleted successfully!");
+            if (activeTab === "shared") {
+              const result: {
+                removed: string[];
+                owned: string[];
+                notFound: string[];
+                failed: { id: string; reason: string }[];
+              } = await res.json();
+
+              if (result.removed.length === 0) {
+                showCustomAlert(
+                  "Error",
+                  result.failed[0]?.reason || "File was not removed",
+                  "danger",
+                );
+                return;
+              }
+            }
+
+            toast.success(
+              activeTab === "shared"
+                ? "File removed from Shared"
+                : "File deleted successfully!",
+            );
             setSelectedFileIds((prev) => prev.filter((id) => id !== fileId));
             fetchFiles();
           } else {
@@ -493,7 +578,10 @@ export default function DashboardPage() {
                                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                               />
                             </svg>
-                            Delete Selected ({selectedFileIds.length})
+                            {activeTab === "shared"
+                              ? "Remove Selected"
+                              : "Delete Selected"}{" "}
+                            ({selectedFileIds.length})
                           </button>
                           <button
                             onClick={() => setSelectedFileIds([])}
@@ -552,6 +640,10 @@ export default function DashboardPage() {
                           onDownload={handleDownload}
                           onShare={setShareFile}
                           onDelete={handleDelete}
+                          showDeleteAction={activeTab === "shared"}
+                          deleteTitle={
+                            activeTab === "shared" ? "Remove" : "Delete"
+                          }
                         />
                       ))}
                     </div>
