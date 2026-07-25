@@ -16,23 +16,30 @@ export { GET };
 export async function POST(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Rate limiting applies to authentication & verification endpoints
+  // Rate limiting ONLY applies to authentication endpoints (Sign In & Sign Up)
   const isAuthEndpoint =
     pathname.endsWith("/sign-in/email") ||
     pathname.endsWith("/sign-up/email") ||
-    pathname.endsWith("/send-verification-email") ||
     pathname === "/api/auth/sign-in/email" ||
-    pathname === "/api/auth/sign-up/email" ||
-    pathname === "/api/auth/send-verification-email";
+    pathname === "/api/auth/sign-up/email";
 
   if (!isAuthEndpoint) {
     return defaultPostHandler(request);
   }
 
   const ip = getClientIp(request.headers);
-  const email: string | null = null;
+  let email: string | null = null;
 
-  // 1. Check Rate Limit (IP-based)
+  try {
+    const body = await request.clone().json();
+    if (body && typeof body.email === "string") {
+      email = body.email;
+    }
+  } catch {
+    // If request body is malformed or unparseable, email stays null and rate limiter falls back to IP
+  }
+
+  // 1. Check Rate Limit before password verification occurs
   const limitCheck = await checkAuthRateLimit(ip, email);
 
   if (!limitCheck.allowed) {
@@ -54,7 +61,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 2. Execute Authentication Handler with the original, unconsumed request
+  // 2. Execute Authentication Handler
   const response = await defaultPostHandler(request);
 
   // 3. Update counter based on authentication outcome

@@ -98,17 +98,6 @@ export default function DashboardPage() {
   };
 
   /* ─── data fetching ─── */
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("verified") === "true") {
-        toast.success("Email verified successfully! Welcome to FileStorage.");
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
-      }
-    }
-  }, []);
-
   const fetchFiles = useCallback(
     async (tab: "own" | "shared" = activeTab) => {
       setFilesLoading(true);

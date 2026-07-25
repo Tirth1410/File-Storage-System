@@ -1,104 +1,36 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { signIn } from "@/app/lib/auth-client";
 import { Logo } from "@/app/components/shared/Logo";
 
-function SignInContent() {
+export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [formError, setFormError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Unverified email state handling
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
-  const [resendError, setResendError] = useState<string | null>(null);
-
-  // Derive invalid/expired token error message directly from search params
-  const errorParam = searchParams.get("error");
-  const isTokenError =
-    errorParam === "invalid_token" ||
-    errorParam === "INVALID_TOKEN" ||
-    errorParam === "expired_token";
-
-  const displayError =
-    formError ||
-    (isTokenError
-      ? "Your email verification link is invalid or has expired. Please sign in to resend a new verification email."
-      : null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setFormError(null);
-    setUnverifiedEmail(null);
-    setResendSuccess(null);
-    setResendError(null);
+    setError(null);
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-
     const res = await signIn.email({
-      email,
-      password,
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
     });
 
-    setLoading(false);
-
     if (res.error) {
-      const isUnverified =
-        res.error.status === 403 ||
-        res.error.code === "EMAIL_NOT_VERIFIED" ||
-        res.error.message?.toLowerCase().includes("verify") ||
-        res.error.message?.toLowerCase().includes("verified");
-
-      if (isUnverified) {
-        setUnverifiedEmail(email);
-        setFormError("Email verification is required before signing in.");
-      } else {
-        setFormError(res.error.message || "Invalid email or password.");
-      }
+      setError(res.error.message || "Invalid credentials.");
+      setLoading(false);
     } else {
       router.push("/dashboard");
     }
   }
 
-  const handleResendEmail = async () => {
-    if (!unverifiedEmail) return;
-    setResendLoading(true);
-    setResendSuccess(null);
-    setResendError(null);
-
-    try {
-      const response = await fetch("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: unverifiedEmail }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setResendError(data.error || "Failed to resend verification email.");
-      } else {
-        setResendSuccess(
-          data.message || "Verification email has been sent. Please check your inbox.",
-        );
-      }
-    } catch {
-      setResendError("An error occurred while attempting to resend the verification email.");
-    } finally {
-      setResendLoading(false);
-    }
-  };
-
   const handleGoogle = async () => {
-    setFormError(null);
+    setError(null);
     await signIn.social({ provider: "google", callbackURL: "/dashboard" });
   };
 
@@ -119,66 +51,9 @@ function SignInContent() {
             Welcome back
           </h1>
 
-          {/* Standard Error Notice */}
-          {displayError && !unverifiedEmail && (
+          {error && (
             <div className="mb-5 bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] text-[#DC2626] text-sm rounded-xl px-4 py-3">
-              {displayError}
-            </div>
-          )}
-
-          {/* Unverified Email Warning Box */}
-          {unverifiedEmail && (
-            <div className="mb-5 bg-[rgba(234,179,8,0.08)] border border-[rgba(234,179,8,0.3)] text-[#854D0E] text-xs rounded-xl p-4 space-y-3">
-              <div className="flex items-start gap-2.5">
-                <svg
-                  className="w-5 h-5 text-[#CA8A04] shrink-0 mt-0.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-                <div>
-                  <h4 className="font-bold text-[#713F12]">
-                    Email Verification Required
-                  </h4>
-                  <p className="mt-1 text-[#854D0E] leading-relaxed">
-                    Please verify your email address (<strong>{unverifiedEmail}</strong>) before logging in. Check your inbox for the link.
-                  </p>
-                </div>
-              </div>
-
-              {resendSuccess && (
-                <div className="bg-[rgba(34,197,94,0.12)] border border-[rgba(34,197,94,0.3)] text-[#15803D] text-xs rounded-lg px-3 py-2 font-medium">
-                  {resendSuccess}
-                </div>
-              )}
-
-              {resendError && (
-                <div className="bg-[rgba(220,38,38,0.1)] border border-[rgba(220,38,38,0.25)] text-[#DC2626] text-xs rounded-lg px-3 py-2">
-                  {resendError}
-                </div>
-              )}
-
-              <button
-                onClick={handleResendEmail}
-                disabled={resendLoading}
-                className="w-full bg-[#854D0E] hover:bg-[#713F12] text-white font-semibold rounded-lg px-3 py-2 text-xs transition-all cursor-pointer disabled:opacity-60"
-              >
-                {resendLoading ? (
-                  <span className="flex items-center justify-center gap-1.5">
-                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Sending email...
-                  </span>
-                ) : (
-                  "Resend Verification Email"
-                )}
-              </button>
+              {error}
             </div>
           )}
 
@@ -213,7 +88,7 @@ function SignInContent() {
               id="sign-in-submit"
               type="submit"
               disabled={loading}
-              className="w-full bg-[#002FA7] hover:bg-[#002482] text-[#FFFFFF] font-bold rounded-xl px-4 py-2.5 text-sm transition-all active:scale-[0.98] shadow-sm shadow-[#002FA7]/25 disabled:opacity-60 disabled:cursor-not-allowed mt-2 cursor-pointer"
+              className="w-full bg-[#002FA7] hover:bg-[#002482] text-white font-bold rounded-xl px-4 py-2.5 text-sm transition-all active:scale-[0.98] shadow-sm shadow-[#002FA7]/25 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -238,7 +113,7 @@ function SignInContent() {
           {/* Google */}
           <button
             onClick={handleGoogle}
-            className="w-full flex items-center justify-center gap-2.5 border border-[#E5E7EB] bg-white hover:bg-[#F5F5F5] text-[#171717] font-semibold rounded-xl px-4 py-2.5 text-sm transition-all active:scale-[0.98] cursor-pointer"
+            className="w-full flex items-center justify-center gap-2.5 border border-[#E5E7EB] bg-white hover:bg-[#F5F5F5] text-[#171717] font-semibold rounded-xl px-4 py-2.5 text-sm transition-all active:scale-[0.98]"
           >
             <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
               <path
@@ -278,17 +153,5 @@ function SignInContent() {
         </p>
       </div>
     </main>
-  );
-}
-
-export default function SignInPage() {
-  return (
-    <Suspense fallback={
-      <main className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
-        <div className="w-8 h-8 border-2 border-[#002FA7] border-t-transparent rounded-full animate-spin" />
-      </main>
-    }>
-      <SignInContent />
-    </Suspense>
   );
 }
