@@ -18,6 +18,7 @@ import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { formatBytes } from "@/app/lib/utils";
 import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 import { useProductTour } from "@/app/hooks/useProductTour";
+import { TourKickoffModal } from "@/app/components/shared/TourKickoffModal";
 
 interface Group {
   id: string;
@@ -81,7 +82,7 @@ interface FullGroupDetails {
 export default function GroupsPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
-  useProductTour("groups");
+  const { showModal, startTour, dismissTour } = useProductTour("groups");
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -521,6 +522,14 @@ export default function GroupsPage() {
           setDialogState((prev) => ({ ...prev, isOpen: false }));
         }}
         onCancel={() => setDialogState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <TourKickoffModal
+        isOpen={showModal}
+        title="Welcome to Groups!"
+        description="Take a quick tour to learn how to create groups, invite members, and share files securely."
+        onStart={startTour}
+        onSkip={dismissTour}
       />
 
       <main className="min-h-screen bg-[#FAFAFA]">

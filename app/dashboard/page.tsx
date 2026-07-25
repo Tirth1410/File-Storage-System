@@ -21,6 +21,7 @@ import { UploadPanel } from "@/app/components/dashboard/UploadPanel";
 import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 import { toast } from "sonner";
 import { useProductTour } from "@/app/hooks/useProductTour";
+import { TourKickoffModal } from "@/app/components/shared/TourKickoffModal";
 
 interface UploadedFile {
   id: string;
@@ -48,7 +49,7 @@ interface ProfileData {
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
-  useProductTour("dashboard");
+  const { showModal, startTour, dismissTour } = useProductTour("dashboard");
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
@@ -424,6 +425,14 @@ export default function DashboardPage() {
           setDialogState((prev) => ({ ...prev, isOpen: false }));
         }}
         onCancel={() => setDialogState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <TourKickoffModal
+        isOpen={showModal}
+        title="Welcome to Vault!"
+        description="Take a quick tour to learn how to upload, manage, and share your files."
+        onStart={startTour}
+        onSkip={dismissTour}
       />
 
       <main className="min-h-screen bg-[#FAFAFA]">

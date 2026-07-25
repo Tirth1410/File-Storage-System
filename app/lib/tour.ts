@@ -1,8 +1,8 @@
 import { driver, type DriveStep, type Config } from "driver.js";
 import "driver.js/dist/driver.css";
 
-const STORAGE_KEY_DASHBOARD = "vault_dashboard_tour_completed";
-const STORAGE_KEY_GROUPS = "vault_groups_tour_completed";
+export const STORAGE_KEY_DASHBOARD = "vault_dashboard_tour_completed";
+export const STORAGE_KEY_GROUPS = "vault_groups_tour_completed";
 
 /* ─── localStorage helpers ─── */
 
@@ -15,6 +15,17 @@ export function markTourCompleted(key: string): void {
   localStorage.setItem(key, "true");
 }
 
+/* ─── Cleanup helper ─── */
+
+export function cleanupDriverDom(): void {
+  if (typeof document === "undefined") return;
+  document
+    .querySelectorAll(
+      ".driver-overlay, .driver-overlay-animated, .driver-popover, .driver-fade",
+    )
+    .forEach((el) => el.remove());
+}
+
 /* ─── Shared driver config ─── */
 
 const baseConfig: Partial<Config> = {
@@ -22,12 +33,13 @@ const baseConfig: Partial<Config> = {
   progressText: "{{current}} of {{total}}",
   animate: true,
   smoothScroll: true,
-  allowClose: true,
+  allowClose: false,
   overlayClickBehavior: "close",
   stagePadding: 8,
   stageRadius: 12,
   popoverOffset: 12,
   popoverClass: "vault-tour-popover",
+  showButtons: ["next", "previous"],
   nextBtnText: "Next",
   prevBtnText: "Back",
   doneBtnText: "Finish",
@@ -136,7 +148,7 @@ const groupsSteps: DriveStep[] = [
     popover: {
       title: "Your Groups",
       description:
-        "Click into a group to manage members, view shared files, and adjust permissions.",
+        "Once you create groups, they'll appear here. Click into a group to manage members, view shared files, and adjust permissions.",
       side: "top",
       align: "center",
     },
@@ -151,6 +163,7 @@ export function createDashboardTour() {
     steps: dashboardSteps,
     onDestroyed: () => {
       markTourCompleted(STORAGE_KEY_DASHBOARD);
+      cleanupDriverDom();
     },
   });
 }
@@ -161,6 +174,7 @@ export function createGroupsTour() {
     steps: groupsSteps,
     onDestroyed: () => {
       markTourCompleted(STORAGE_KEY_GROUPS);
+      cleanupDriverDom();
     },
   });
 }
