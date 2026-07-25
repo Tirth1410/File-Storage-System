@@ -81,7 +81,6 @@ export function AppShell({
       onClick: () => router.push("/dashboard"),
     });
     navItems.push({ label: "Groups", onClick: () => router.push("/groups") });
-    navItems.push({ label: "Profile", onClick: () => router.push("/profile") });
   }
 
   const primaryActions = actions.filter((a) => a.variant === "primary");
@@ -220,6 +219,11 @@ export function AppShell({
           border-radius: 40px;
           background: rgba(0, 0, 0, 0.03);
           border: 1px solid rgba(0, 0, 0, 0.05);
+          transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .vault-user-badge:hover {
+          background: rgba(0, 0, 0, 0.06);
+          transform: translateY(-1px);
         }
 
         .vault-avatar {
@@ -381,12 +385,17 @@ export function AppShell({
           <div className="vault-actions">
             {/* User badge */}
             {userName && (
-              <div className="vault-user-badge" data-tour="user-badge">
+              <button
+                className="vault-user-badge bg-transparent border-0 p-0 cursor-pointer"
+                onClick={() => router.push("/profile")}
+                aria-label="Go to Profile"
+                data-tour="user-badge"
+              >
                 <div className="vault-avatar">
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <span className="vault-user-name">{userName}</span>
-              </div>
+              </button>
             )}
 
             {/* Ghost actions */}

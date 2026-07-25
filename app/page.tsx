@@ -25,13 +25,13 @@ export default function Home() {
         <div className="flex items-center gap-8 text-sm font-medium">
           <button
             onClick={() => router.push("/sign-in")}
-            className="text-[#525252] hover:text-[#002FA7] transition-colors"
+            className="text-[#525252] hover:text-[#002FA7] transition-colors cursor-pointer"
           >
             Log in
           </button>
           <button
             onClick={() => router.push("/sign-up")}
-            className="bg-[#002FA7] text-white px-6 py-2.5 rounded-full hover:bg-[#002482] transition-transform hover:scale-105 active:scale-95 shadow-sm"
+            className="bg-[#002FA7] text-white px-6 py-2.5 rounded-full hover:bg-[#002482] transition-transform hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
           >
             Get Started
           </button>
@@ -56,7 +56,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <button
               onClick={() => router.push("/sign-up")}
-              className="group flex items-center gap-2 bg-[#002FA7] text-white px-8 py-4 rounded-full font-medium text-lg hover:bg-[#002482] transition-all hover:shadow-[0_0_30px_-10px_rgba(0,47,167,0.6)]"
+              className="group flex items-center gap-2 bg-[#002FA7] text-white px-8 py-4 rounded-full font-medium text-lg hover:bg-[#002482] transition-all hover:shadow-[0_0_30px_-10px_rgba(0,47,167,0.6)] cursor-pointer"
             >
               Start Storing
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform opacity-90 text-white" />

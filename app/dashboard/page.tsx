@@ -22,6 +22,7 @@ import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 import { toast } from "sonner";
 import { useProductTour } from "@/app/hooks/useProductTour";
 import { TourKickoffModal } from "@/app/components/shared/TourKickoffModal";
+import { RefreshCw } from "lucide-react";
 
 interface UploadedFile {
   id: string;
@@ -413,13 +414,7 @@ export default function DashboardPage() {
                   variant: "primary",
                 },
               ]
-            : [
-                {
-                  label: "My Profile",
-                  onClick: () => router.push("/profile"),
-                  variant: "ghost",
-                },
-              ]
+            : []
         }
       />
 
@@ -547,19 +542,7 @@ export default function DashboardPage() {
                       className="p-1.5 rounded-lg text-[#737373] hover:text-[#002FA7] hover:bg-[rgba(0,47,167,0.06)] transition-all cursor-pointer"
                       title="Refresh"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5"
-                        />
-                      </svg>
+                      <RefreshCw className="w-4 h-4" />
                     </button>
                   </div>
                 }
@@ -613,7 +596,7 @@ export default function DashboardPage() {
                           </button>
                           <button
                             onClick={() => setSelectedFileIds([])}
-                            className="text-[#737373] hover:text-[#171717] font-medium underline"
+                            className="text-[#737373] hover:text-[#171717] font-medium underline cursor-pointer"
                           >
                             Clear
                           </button>

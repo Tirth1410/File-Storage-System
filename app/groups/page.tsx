@@ -499,13 +499,7 @@ export default function GroupsPage() {
                   variant: "primary",
                 },
               ]
-            : [
-                {
-                  label: "My Profile",
-                  onClick: () => router.push("/profile"),
-                  variant: "ghost",
-                },
-              ]
+            : []
         }
       />
 

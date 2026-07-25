@@ -99,7 +99,9 @@ export async function sendVerificationEmailService({
 
     if (!response.ok) {
       const errorMessage =
-        data.message || data.error || `Brevo API returned status ${response.status}`;
+        data.message ||
+        data.error ||
+        `Brevo API returned status ${response.status}`;
       logger.error(
         `Brevo API returned an error while sending verification email to [${to}]: ${errorMessage}`,
         data,

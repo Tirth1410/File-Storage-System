@@ -142,7 +142,10 @@ export default function SignUpPage() {
                 <ol className="list-decimal list-inside space-y-1 pl-1 text-[#737373]">
                   <li>Open your email inbox.</li>
                   <li>Click the verification link in the email.</li>
-                  <li>You will be logged in and redirected to your dashboard automatically.</li>
+                  <li>
+                    You will be logged in and redirected to your dashboard
+                    automatically.
+                  </li>
                 </ol>
               </div>
 
