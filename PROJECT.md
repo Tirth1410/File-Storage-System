@@ -10,15 +10,23 @@ The File Storage System is a production-correct file storage web application des
 
 The system utilizes a **direct-to-storage architecture**, where large file uploads (up to 1 GB) bypass the Next.js server entirely, uploading chunks directly from the client browser to Cloudflare R2 (or any S3-compatible storage) using short-lived presigned URLs. Shared links and permissions-based access are resolved securely via the application backend.
 
+It also integrates a cloud-native **Upstash Redis infrastructure** for session management via `better-auth` secondary storage and Sliding Window Counter rate limiting on authentication routes.
+
 ---
 
 ## 2. Currently Implemented Features
 
 The project is built and fully functional with the following features:
 
+### Upstash Redis Infrastructure
+
+- **Singleton `ioredis` Client**: Centralized, reusable Redis client ([app/lib/redis.ts](file:///b:/file-store/File-Storage-System/app/lib/redis.ts)) connecting to Upstash Redis Cloud over TLS (`REDIS_URL="rediss://..."`). Validates environment configuration, handles connection logging via `Logger.withContext("Redis")`, and preserves hot-reload singletons in development (`globalForRedis`).
+- **Better Auth Redis Session Management**: Configured `secondaryStorage` in Better Auth ([app/lib/auth.ts](file:///b:/file-store/File-Storage-System/app/lib/auth.ts)) mapping `get`, `set`, and `delete` directly to the `ioredis` singleton. Authenticated requests check Redis first, bypassing PostgreSQL queries while preserving database backups (`storeSessionInDatabase: true`).
+- **Redis-Backed Auth Rate Limiting**: Active pre-request rate limiting on authentication routes (`/api/auth/sign-in/email` and `/api/auth/sign-up/email`) using a Sliding Window Counter algorithm ([app/lib/rate-limiter.ts](file:///b:/file-store/File-Storage-System/app/lib/rate-limiter.ts) & [app/lib/auth-rate-limiter.ts](file:///b:/file-store/File-Storage-System/app/lib/auth-rate-limiter.ts)). Enforces `429 Too Many Requests` responses with `Retry-After` headers after exceeding max attempts (default: 5 attempts per 15 minutes).
+
 ### Authentication & Authorization
 
-- **Better Auth Integration**: Utilizes `better-auth` (v1.6.23) for session management and authorization.
+- **Better Auth Integration**: Utilizes `better-auth` (v1.6.23) with Redis secondary storage for session management and authorization.
 - **Authentication Methods**: Supports both standard Email/Password credentials and Google OAuth.
 - **Database Hooks**: Automatically updates user roles to `admin` upon registration or session creation if their ID is specified in the `ADMIN_USER_IDS` environment variable.
 - **Shared Permissions Model**: Restricts access to files. Files can be private, shared via tokenized links, shared directly with other registered users via their email addresses, or shared with groups.
@@ -83,15 +91,17 @@ The project is built and fully functional with the following features:
 ### Core Frameworks
 
 - **Runtime**: Bun (v1.x)
-- **Framework**: Next.js (v16.2.10) using App Router & React (v19.2.4)
+- **Framework**: Next.js (v16.2.10) using App Router (Next 16 `proxy.ts` request handler convention) & React (v19.2.4)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS (v4) using `@tailwindcss/postcss`
 - **Database client**: Prisma ORM (v7.8.0)
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL (Supabase)
 
-### Authentication
+### Authentication & Caching / Rate Limiting
 
-- **Library**: Better Auth (v1.6.23) with `admin` plugin
+- **Auth Engine**: Better Auth (v1.6.23) with `admin` plugin & `secondaryStorage` Redis integration
+- **Redis Driver**: `ioredis` (v5.11.1)
+- **Redis Cloud Provider**: Upstash Redis
 
 ### Object Storage Client
 
@@ -191,11 +201,10 @@ file-storage-system/
 │   └── sign-up/              # Credentials registration page
 │       └── page.tsx
 ├── prisma/                   # Prisma Schema & Database Configuration
-│   ├── configure-r2.ts       # Script to verify R2 bucket existence and configure CORS rules
-│   ├── migrations/           # Database migration files
-│   └── schema.prisma         # Database models definition
+├── proxy.ts                  # Next 16 Request Interceptor (middleware)
 ├── package.json              # Project dependencies and script runner configurations
 ├── bun.lock                  # Bun lockfile
+├── eslint.config.mjs         # ESLint 9 configuration ignoring build/agent artifacts
 └── tsconfig.json             # TypeScript configuration
 ```
 
@@ -373,6 +382,14 @@ erDiagram
 - **GroupMember**: Junction model representing group memberships, containing user roles (`OWNER`, `ADMIN`, `MEMBER`).
 - **GroupFile**: Junction model mapping which files are shared with which groups, along with granular access settings (`allowPreview`, `allowDownload`, `isActive`).
 
+### Redis Key Schemas
+
+| Key Pattern                                           | Type             | Description                                                             | TTL                                  |
+| :---------------------------------------------------- | :--------------- | :---------------------------------------------------------------------- | :----------------------------------- |
+| `<session-token>`                                     | String (JSON)    | Stores `{ session, user }` payload for fast Better Auth session lookups | Session expiration (default: 7 days) |
+| `active-sessions-<userId>`                            | String (JSON)    | Array of active session tokens `[{ token, expiresAt }]` per user        | Max active session TTL               |
+| `ratelimit:auth_ratelimit:<ip>:<email>:<windowIndex>` | String (Integer) | Sliding window failure count counter for authentication rate limiting   | `2 * windowSeconds` (default: 1800s) |
+
 ---
 
 ## 6. Architectural Principles & Critical Workflows
@@ -494,19 +511,23 @@ All major endpoints are wrapped with `withLogging` from [logger.ts](file:///b:/f
 
 The application expects the following configuration in `.env` (refer to `.env.example`):
 
-| Variable Name          | Description                                            | Example Value                                   |
-| :--------------------- | :----------------------------------------------------- | :---------------------------------------------- |
-| `BETTER_AUTH_SECRET`   | Secure secret key for Better Auth session signing      | _High-entropy hash_                             |
-| `BETTER_AUTH_URL`      | Base URL of the running Next.js app                    | `http://localhost:3000`                         |
-| `GOOGLE_CLIENT_ID`     | Google Client ID for OAuth login                       | `76472721...apps.googleusercontent.com`         |
-| `GOOGLE_CLIENT_SECRET` | Google Client Secret for OAuth login                   | `GOCSPX-...`                                    |
-| `DATABASE_URL`         | PostgreSQL database connection string                  | `postgresql://user:pass@localhost:5432/db`      |
-| `ACCESS_KEY`           | Cloudflare R2 Access Key ID                            | `9a84a3c71f45345...`                            |
-| `SECRET_ACCESS_KEY`    | Cloudflare R2 Secret Access Key                        | `42ebd7191d5...`                                |
-| `S3_URL`               | Cloudflare R2 endpoint URL                             | `https://<account-id>.r2.cloudflarestorage.com` |
-| `R2_BUCKET`            | The name of the Cloudflare R2 bucket                   | `file-storage-system`                           |
-| `ADMIN_USER_IDS`       | Comma-separated user IDs seeded as admin on login      | `user-uuid-1,user-uuid-2`                       |
-| `CRON_SECRET`          | Secret token to authenticate the cleanup cron endpoint | `my_cron_secret`                                |
+| Variable Name                    | Description                                               | Example Value                                                     |
+| :------------------------------- | :-------------------------------------------------------- | :---------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`             | Secure secret key for Better Auth session signing         | _High-entropy hash_                                               |
+| `BETTER_AUTH_URL`                | Base URL of the running Next.js app                       | `http://localhost:3000`                                           |
+| `GOOGLE_CLIENT_ID`               | Google Client ID for OAuth login                          | `76472721...apps.googleusercontent.com`                           |
+| `GOOGLE_CLIENT_SECRET`           | Google Client Secret for OAuth login                      | `GOCSPX-...`                                                      |
+| `DATABASE_URL`                   | PostgreSQL pooled connection string (Supabase / local)    | `postgresql://user:pass@localhost:5432/db`                        |
+| `DIRECT_URL`                     | PostgreSQL direct connection string for Prisma migrations | `postgresql://postgres:[PASS]@db.[REF].supabase.co:5432/postgres` |
+| `REDIS_URL`                      | Upstash Redis connection string (TLS enabled)             | `rediss://default:TOKEN@HOST:6379`                                |
+| `AUTH_RATE_LIMIT_MAX_ATTEMPTS`   | Max allowed failed login attempts before blocking         | `5`                                                               |
+| `AUTH_RATE_LIMIT_WINDOW_SECONDS` | Rate limiting sliding window duration in seconds          | `900` (15 minutes)                                                |
+| `ACCESS_KEY`                     | Cloudflare R2 Access Key ID                               | `9a84a3c71f45345...`                                              |
+| `SECRET_ACCESS_KEY`              | Cloudflare R2 Secret Access Key                           | `42ebd7191d5...`                                                  |
+| `S3_URL`                         | Cloudflare R2 endpoint URL                                | `https://<account-id>.r2.cloudflarestorage.com`                   |
+| `R2_BUCKET`                      | The name of the Cloudflare R2 bucket                      | `file-storage-system`                                             |
+| `ADMIN_USER_IDS`                 | Comma-separated user IDs seeded as admin on login         | `user-uuid-1,user-uuid-2`                                         |
+| `CRON_SECRET`                    | Secret token to authenticate the cleanup cron endpoint    | `my_cron_secret`                                                  |
 
 ### Cloudflare R2 CORS Rules
 
@@ -541,8 +562,3 @@ This script checks/creates the bucket and configures CORS to expose the `ETag` h
 - **Format codebase**: `bun run format`
 
 ---
-
-## 9. Removed Obsolete Drafts / Future Roadmap
-
-1. **Redis Cache & Rate Limiting**: The project contains no Redis database integrations or rate-limiting packages (e.g. Upstash). This remains as a future scalability item.
-2. **Advanced Permissions**: Future expansions could support group-based folder organization, nested groups, and inheritance logic.
