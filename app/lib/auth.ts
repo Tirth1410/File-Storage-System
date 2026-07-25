@@ -5,6 +5,8 @@ import { redis } from "@/app/lib/redis";
 import { admin } from "better-auth/plugins";
 import { APP_URL } from "./config";
 
+import { sendVerificationEmailService } from "@/app/lib/email-service";
+
 const rawEnvVal = process.env.ADMIN_USER_IDS || process.env.ADMIN_USER_ID;
 const adminUserIds = rawEnvVal
   ? rawEnvVal.split(",").map((id) => id.trim())
@@ -34,8 +36,32 @@ export const auth = betterAuth({
     storeSessionInDatabase: true,
   },
   baseURL: APP_URL,
+  rateLimit: {
+    enabled: false,
+  },
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
+    customSyntheticUser: ({ coreFields, additionalFields, id }) => ({
+      ...coreFields,
+      role: "user",
+      banned: false,
+      banReason: null,
+      banExpires: null,
+      ...additionalFields,
+      id,
+    }),
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      void sendVerificationEmailService({
+        to: user.email,
+        url,
+        user: { name: user.name },
+      });
+    },
   },
   socialProviders: {
     google: {
