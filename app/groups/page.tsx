@@ -17,6 +17,7 @@ import { SectionCard } from "@/app/components/shared/SectionCard";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { formatBytes } from "@/app/lib/utils";
 import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
+import { useProductTour } from "@/app/hooks/useProductTour";
 
 interface Group {
   id: string;
@@ -80,6 +81,7 @@ interface FullGroupDetails {
 export default function GroupsPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  useProductTour("groups");
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -810,7 +812,10 @@ export default function GroupsPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-[#171717]">
+                  <h1
+                    className="text-2xl font-bold tracking-tight text-[#171717]"
+                    data-tour="groups-title"
+                  >
                     My Groups
                   </h1>
                   <p className="text-sm text-[#737373] mt-0.5">
@@ -819,6 +824,7 @@ export default function GroupsPage() {
                 </div>
                 <button
                   onClick={() => setShowCreateModal(true)}
+                  data-tour="create-group-btn"
                   className="bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 px-4 rounded-xl text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer flex items-center gap-1.5"
                 >
                   <svg
@@ -875,7 +881,10 @@ export default function GroupsPage() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  data-tour="groups-list"
+                >
                   {groups.map((group) => (
                     <div
                       key={group.id}

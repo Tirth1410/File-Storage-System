@@ -20,6 +20,7 @@ import { FileListItem } from "@/app/components/dashboard/FileListItem";
 import { UploadPanel } from "@/app/components/dashboard/UploadPanel";
 import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 import { toast } from "sonner";
+import { useProductTour } from "@/app/hooks/useProductTour";
 
 interface UploadedFile {
   id: string;
@@ -47,6 +48,7 @@ interface ProfileData {
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  useProductTour("dashboard");
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
@@ -468,7 +470,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                <div className="sm:w-72">
+                <div className="sm:w-72" data-tour="storage-bar">
                   <StorageBar
                     usedBytes={profileData.storage.usedBytes}
                     quotaBytes={profileData.storage.quotaBytes}
@@ -501,7 +503,10 @@ export default function DashboardPage() {
                 titleRight={
                   <div className="flex items-center gap-2">
                     {/* Tab Toggle */}
-                    <div className="flex bg-[#F5F5F5] border border-[#E5E7EB] rounded-lg p-0.5">
+                    <div
+                      className="flex bg-[#F5F5F5] border border-[#E5E7EB] rounded-lg p-0.5"
+                      data-tour="file-tabs"
+                    >
                       {(["own", "shared"] as const).map((tab) => (
                         <button
                           key={tab}
@@ -539,7 +544,10 @@ export default function DashboardPage() {
                   </div>
                 }
               >
-                <div className="min-h-[420px] flex flex-col">
+                <div
+                  className="min-h-[420px] flex flex-col"
+                  data-tour="file-list"
+                >
                   {/* Selection Toolbar Header */}
                   {!filesLoading && files.length > 0 && (
                     <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs">

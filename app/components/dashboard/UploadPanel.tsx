@@ -122,6 +122,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        data-tour="upload-zone"
         className={`group block border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
           isDragging
             ? "border-[#002FA7] bg-[rgba(0,47,167,0.06)] scale-[1.01]"

@@ -94,7 +94,7 @@ export function FileListItem({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-1.5 shrink-0">
+      <div className="flex gap-1.5 shrink-0" data-tour="file-actions">
         {canPreview && (
           <ActionButton
             onClick={() => onPreview(file)}

@@ -245,7 +245,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
         </div>
 
         {/* Tab strip */}
-        <div className="flex border-b border-[#E5E7EB]">
+        <div className="flex border-b border-[#E5E7EB]" data-tour="share-tabs">
           {(["links", "users", "groups"] as const).map((tab) => (
             <button
               key={tab}

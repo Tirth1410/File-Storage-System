@@ -335,7 +335,7 @@ export function AppShell({
       `}</style>
 
       <header className={`vault-navbar${scrolled ? " scrolled" : ""}`}>
-        <div className="vault-navbar-inner">
+        <div className="vault-navbar-inner" data-tour="navbar">
           {/* ── Left: Logo ── */}
           <button
             className="vault-logo bg-transparent border-0 p-0 text-left cursor-pointer"
@@ -381,7 +381,7 @@ export function AppShell({
           <div className="vault-actions">
             {/* User badge */}
             {userName && (
-              <div className="vault-user-badge">
+              <div className="vault-user-badge" data-tour="user-badge">
                 <div className="vault-avatar">
                   {userName.charAt(0).toUpperCase()}
                 </div>

@@ -17,3 +17,120 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── Vault Tour (driver.js) Theme ── */
+
+.driver-popover.vault-tour-popover {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  padding: 24px;
+  font-family:
+    "Inter",
+    -apple-system,
+    sans-serif;
+  max-width: 340px;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #171717;
+  margin-bottom: 6px;
+  letter-spacing: -0.2px;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-description {
+  font-size: 13px;
+  color: #525252;
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-footer {
+  border-top: 1px solid #f5f5f5;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-progress-text {
+  font-size: 11px;
+  color: #a3a3a3;
+  font-weight: 500;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-footer-btn {
+  font-family:
+    "Inter",
+    -apple-system,
+    sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-next-btn {
+  background: linear-gradient(135deg, #3b6fe8 0%, #002fa7 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 47, 167, 0.25);
+}
+
+.driver-popover.vault-tour-popover .driver-popover-next-btn:hover {
+  box-shadow: 0 4px 14px rgba(0, 47, 167, 0.35);
+  transform: translateY(-1px);
+}
+
+.driver-popover.vault-tour-popover
+  .driver-popover-next-btn.driver-popover-done-btn {
+  background: linear-gradient(135deg, #3b6fe8 0%, #002fa7 100%);
+  color: #ffffff;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-prev-btn {
+  background: transparent;
+  color: #525252;
+  border: 1px solid #e5e7eb;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-prev-btn:hover {
+  background: #f5f5f5;
+  color: #171717;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-close-btn {
+  color: #a3a3a3;
+  top: 12px;
+  right: 12px;
+}
+
+.driver-popover.vault-tour-popover .driver-popover-close-btn:hover {
+  color: #171717;
+}
+
+/* Arrow colors matched to popover background */
+.driver-popover.vault-tour-popover
+  .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: #ffffff;
+}
+
+.driver-popover.vault-tour-popover
+  .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: #ffffff;
+}
+
+.driver-popover.vault-tour-popover
+  .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: #ffffff;
+}
+
+.driver-popover.vault-tour-popover
+  .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: #ffffff;
+}
