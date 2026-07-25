@@ -2,7 +2,7 @@
 
 A modern file storage web application built with Next.js, Better Auth, and Prisma.
 
-## Prerequisites 
+## Prerequisites
 
 Before starting, ensure you have the following installed:
 

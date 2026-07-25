@@ -87,11 +87,14 @@ function SignInContent() {
         setResendError(data.error || "Failed to resend verification email.");
       } else {
         setResendSuccess(
-          data.message || "Verification email has been sent. Please check your inbox.",
+          data.message ||
+            "Verification email has been sent. Please check your inbox.",
         );
       }
     } catch {
-      setResendError("An error occurred while attempting to resend the verification email.");
+      setResendError(
+        "An error occurred while attempting to resend the verification email.",
+      );
     } finally {
       setResendLoading(false);
     }
@@ -148,7 +151,9 @@ function SignInContent() {
                     Email Verification Required
                   </h4>
                   <p className="mt-1 text-[#854D0E] leading-relaxed">
-                    Please verify your email address (<strong>{unverifiedEmail}</strong>) before logging in. Check your inbox for the link.
+                    Please verify your email address (
+                    <strong>{unverifiedEmail}</strong>) before logging in. Check
+                    your inbox for the link.
                   </p>
                 </div>
               </div>
@@ -283,11 +288,13 @@ function SignInContent() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={
-      <main className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
-        <div className="w-8 h-8 border-2 border-[#002FA7] border-t-transparent rounded-full animate-spin" />
-      </main>
-    }>
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
+          <div className="w-8 h-8 border-2 border-[#002FA7] border-t-transparent rounded-full animate-spin" />
+        </main>
+      }
+    >
       <SignInContent />
     </Suspense>
   );

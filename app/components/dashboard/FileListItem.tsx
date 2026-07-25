@@ -51,7 +51,7 @@ export function FileListItem({
 
   return (
     <div
-      className={`flex items-center justify-between py-3.5 px-4 rounded-xl transition-all border gap-4 ${
+      className={`flex flex-col items-stretch justify-between py-3.5 px-3 rounded-xl transition-all border gap-3 sm:flex-row sm:items-center sm:px-4 sm:gap-4 ${
         isSelected
           ? "bg-[rgba(0,47,167,0.04)] border-[rgba(0,47,167,0.2)] shadow-sm"
           : "hover:bg-[#F5F5F5] border-transparent hover:border-[#E5E7EB]"
@@ -77,7 +77,7 @@ export function FileListItem({
           >
             {file.originalName}
           </p>
-          <div className="flex items-center gap-2 text-xs text-[#737373] font-mono mt-0.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#737373] font-mono mt-0.5">
             <span>{formatBytes(file.sizeBytes)}</span>
             <span>·</span>
             <span>{formatDate(file.createdAt)}</span>
@@ -94,7 +94,10 @@ export function FileListItem({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-1.5 shrink-0">
+      <div
+        className="flex flex-wrap justify-end gap-1.5 shrink-0 sm:flex-nowrap"
+        data-tour="file-actions"
+      >
         {canPreview && (
           <ActionButton
             onClick={() => onPreview(file)}

@@ -20,6 +20,9 @@ import { FileListItem } from "@/app/components/dashboard/FileListItem";
 import { UploadPanel } from "@/app/components/dashboard/UploadPanel";
 import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 import { toast } from "sonner";
+import { useProductTour } from "@/app/hooks/useProductTour";
+import { TourKickoffModal } from "@/app/components/shared/TourKickoffModal";
+import { RefreshCw } from "lucide-react";
 
 interface UploadedFile {
   id: string;
@@ -47,6 +50,7 @@ interface ProfileData {
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  const { showModal, startTour, dismissTour } = useProductTour("dashboard");
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
@@ -162,6 +166,12 @@ export default function DashboardPage() {
       active = false;
     };
   }, [session, activeTab]);
+
+  /* ─── upload success handler ─── */
+  const handleUploadSuccess = useCallback(() => {
+    setActiveTab("own");
+    fetchFiles("own");
+  }, [fetchFiles]);
 
   /* ─── selection handlers ─── */
   const handleToggleSelect = (fileId: string) => {
@@ -405,18 +415,12 @@ export default function DashboardPage() {
           user.role === "admin"
             ? [
                 {
-                  label: "Admin Portal",
+                  label: "Admin",
                   onClick: () => router.push("/admin"),
                   variant: "primary",
                 },
               ]
-            : [
-                {
-                  label: "My Profile",
-                  onClick: () => router.push("/profile"),
-                  variant: "ghost",
-                },
-              ]
+            : []
         }
       />
 
@@ -435,10 +439,18 @@ export default function DashboardPage() {
         onCancel={() => setDialogState((prev) => ({ ...prev, isOpen: false }))}
       />
 
+      <TourKickoffModal
+        isOpen={showModal}
+        title="Welcome to Vault!"
+        description="Take a quick tour to learn how to upload, manage, and share your files."
+        onStart={startTour}
+        onSkip={dismissTour}
+      />
+
       <main className="min-h-screen bg-[#FAFAFA]">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 space-y-6">
+        <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 md:px-10 md:py-8">
           {/* Page title row */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-[#171717]">
                 My Storage
@@ -479,7 +491,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                <div className="sm:w-72">
+                <div className="w-full sm:w-72" data-tour="storage-bar">
                   <StorageBar
                     usedBytes={profileData.storage.usedBytes}
                     quotaBytes={profileData.storage.quotaBytes}
@@ -495,12 +507,7 @@ export default function DashboardPage() {
             {/* Sidebar: Upload */}
             <div className="lg:col-span-1">
               <SectionCard title="Upload File">
-                <UploadPanel
-                  onSuccess={() => {
-                    setActiveTab("own");
-                    fetchFiles("own");
-                  }}
-                />
+                <UploadPanel onSuccess={handleUploadSuccess} />
               </SectionCard>
             </div>
 
@@ -512,7 +519,10 @@ export default function DashboardPage() {
                 titleRight={
                   <div className="flex items-center gap-2">
                     {/* Tab Toggle */}
-                    <div className="flex bg-[#F5F5F5] border border-[#E5E7EB] rounded-lg p-0.5">
+                    <div
+                      className="flex bg-[#F5F5F5] border border-[#E5E7EB] rounded-lg p-0.5"
+                      data-tour="file-tabs"
+                    >
                       {(["own", "shared"] as const).map((tab) => (
                         <button
                           key={tab}
@@ -533,27 +543,18 @@ export default function DashboardPage() {
                       className="p-1.5 rounded-lg text-[#737373] hover:text-[#002FA7] hover:bg-[rgba(0,47,167,0.06)] transition-all cursor-pointer"
                       title="Refresh"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5"
-                        />
-                      </svg>
+                      <RefreshCw className="w-4 h-4" />
                     </button>
                   </div>
                 }
               >
-                <div className="min-h-[420px] flex flex-col">
+                <div
+                  className="min-h-[420px] flex flex-col"
+                  data-tour="file-list"
+                >
                   {/* Selection Toolbar Header */}
                   {!filesLoading && files.length > 0 && (
-                    <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs">
+                    <div className="flex flex-col gap-2 px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs sm:flex-row sm:items-center sm:justify-between">
                       <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-[#525252] hover:text-[#171717]">
                         <input
                           type="checkbox"
@@ -568,7 +569,7 @@ export default function DashboardPage() {
                       </label>
 
                       {selectedFileIds.length > 0 && (
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-2.5">
                           <span className="font-semibold text-[#002FA7] bg-[rgba(0,47,167,0.08)] px-2.5 py-0.5 rounded-full border border-[rgba(0,47,167,0.2)]">
                             {selectedFileIds.length} selected
                           </span>
@@ -596,7 +597,7 @@ export default function DashboardPage() {
                           </button>
                           <button
                             onClick={() => setSelectedFileIds([])}
-                            className="text-[#737373] hover:text-[#171717] font-medium underline"
+                            className="text-[#737373] hover:text-[#171717] font-medium underline cursor-pointer"
                           >
                             Clear
                           </button>
@@ -662,7 +663,7 @@ export default function DashboardPage() {
 
                   {/* Footer */}
                   {!filesLoading && files.length > 0 && (
-                    <div className="px-6 py-3 border-t border-[#F5F5F5] flex justify-between items-center">
+                    <div className="px-4 py-3 border-t border-[#F5F5F5] flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                       <span className="text-xs text-[#737373]">
                         {files.length} file{files.length !== 1 ? "s" : ""}
                         {selectedFileIds.length > 0 &&

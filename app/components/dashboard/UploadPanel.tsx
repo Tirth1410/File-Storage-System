@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { formatBytes } from "@/app/lib/utils";
 import { useUploadManager } from "@/app/hooks/useUploadManager";
 import { UploadJob, UploadStatus } from "@/app/lib/upload-manager";
@@ -9,7 +9,9 @@ interface UploadPanelProps {
   onSuccess?: () => void;
 }
 
-export function UploadPanel({ onSuccess }: UploadPanelProps) {
+export const UploadPanel = memo(function UploadPanel({
+  onSuccess,
+}: UploadPanelProps) {
   const {
     jobs,
     stats,
@@ -17,7 +19,6 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
     retryJob,
     cancelJob,
     cancelAll,
-    clearCompleted,
     removeJob,
     setOnJobComplete,
   } = useUploadManager();
@@ -122,7 +123,8 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`group block border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+        data-tour="upload-zone"
+        className={`group block border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all sm:p-6 ${
           isDragging
             ? "border-[#002FA7] bg-[rgba(0,47,167,0.06)] scale-[1.01]"
             : "border-[#E5E7EB] hover:border-[#002FA7]/40 hover:bg-[rgba(0,47,167,0.02)]"
@@ -155,7 +157,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
             <span className="text-sm font-semibold text-[#171717] block">
               Click to select or drag & drop files
             </span>
-            <span className="text-xs text-[#737373] block">
+            <span className="text-xs text-[#737373] block text-balance">
               Supports multiple files with concurrent bounded queue (3 active
               worker uploads)
             </span>
@@ -164,41 +166,32 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
       </label>
 
       {/* Batch Overview Header */}
-      {stats.total > 0 && (
+      {(stats.active > 0 || stats.waiting > 0) && (
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#171717]">
                 Upload Queue
               </h3>
               <span className="text-xs font-medium text-[#737373] bg-[#F5F5F5] px-2 py-0.5 rounded-full border border-[#E5E7EB]">
-                {stats.total} file{stats.total !== 1 ? "s" : ""}
+                {stats.active + stats.waiting} file
+                {stats.active + stats.waiting !== 1 ? "s" : ""}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              {(stats.active > 0 || stats.waiting > 0) && (
-                <button
-                  onClick={cancelAll}
-                  className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                >
-                  Cancel All
-                </button>
-              )}
-              {stats.completed > 0 && (
-                <button
-                  onClick={clearCompleted}
-                  className="text-xs font-semibold text-[#737373] hover:text-[#171717] bg-[#F5F5F5] hover:bg-[#E5E7EB] border border-[#E5E7EB] px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                >
-                  Clear Completed
-                </button>
-              )}
+              <button
+                onClick={cancelAll}
+                className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel All
+              </button>
             </div>
           </div>
 
           {/* Batch Progress Bar */}
           <div className="space-y-1.5">
-            <div className="flex justify-between text-[11px] font-mono text-[#737373]">
+            <div className="flex flex-col gap-1 text-[11px] font-mono text-[#737373] sm:flex-row sm:justify-between">
               <span>
                 Progress:{" "}
                 <strong className="text-[#171717]">
@@ -223,122 +216,134 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
 
       {/* Per-File Job List */}
       {jobs.length > 0 && (
-        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-          {jobs.map((job: UploadJob) => (
-            <div
-              key={job.id}
-              className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB] space-y-2.5 hover:border-[#D1D5DB] transition-all"
-            >
-              {/* Header row: name, size, badge, actions */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p
-                    className="text-sm font-semibold text-[#171717] truncate"
-                    title={job.file.name}
-                  >
-                    {job.file.name}
-                  </p>
-                  <p className="text-xs text-[#737373] font-mono">
-                    {formatBytes(job.file.size)}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {getStatusBadge(job.status)}
-
-                  {/* Actions */}
-                  {job.status === "waiting" && (
-                    <button
-                      onClick={() => cancelJob(job.id)}
-                      className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
-                      title="Cancel waiting job"
-                    >
-                      Remove
-                    </button>
-                  )}
-
-                  {(job.status === "preparing" ||
-                    job.status === "uploading" ||
-                    job.status === "completing") && (
-                    <button
-                      onClick={() => cancelJob(job.id)}
-                      className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
-                      title="Cancel active upload"
-                    >
-                      Cancel
-                    </button>
-                  )}
-
-                  {(job.status === "failed" || job.status === "cancelled") && (
-                    <button
-                      onClick={() => retryJob(job.id)}
-                      className="text-xs text-[#002FA7] hover:text-[#002482] font-bold px-2 py-0.5 rounded hover:bg-[rgba(0,47,167,0.06)] border border-[#002FA7]/30 transition-colors"
-                      title="Retry upload"
-                    >
-                      Retry
-                    </button>
-                  )}
-
-                  {(job.status === "completed" ||
-                    job.status === "failed" ||
-                    job.status === "cancelled") && (
-                    <button
-                      onClick={() => removeJob(job.id)}
-                      className="text-xs text-[#737373] hover:text-[#171717] p-1 rounded hover:bg-gray-200 transition-colors"
-                      title="Remove from list"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Progress bar for active / completed */}
-              {(job.status === "preparing" ||
+        <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1">
+          {jobs
+            .filter(
+              (job: UploadJob) =>
+                job.status === "waiting" ||
+                job.status === "preparing" ||
                 job.status === "uploading" ||
-                job.status === "completing" ||
-                job.status === "completed") && (
-                <div className="space-y-1">
-                  <div className="w-full h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 rounded-full ${
-                        job.status === "completed"
-                          ? "bg-emerald-500"
-                          : "bg-[#002FA7]"
-                      }`}
-                      style={{ width: `${job.progress}%` }}
-                    />
+                job.status === "completing",
+            )
+            .slice(0, 4)
+            .map((job: UploadJob) => (
+              <div
+                key={job.id}
+                className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB] space-y-2.5 hover:border-[#D1D5DB] transition-all"
+              >
+                {/* Header row: name, size, badge, actions */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="text-sm font-semibold text-[#171717] truncate"
+                      title={job.file.name}
+                    >
+                      {job.file.name}
+                    </p>
+                    <p className="text-xs text-[#737373] font-mono">
+                      {formatBytes(job.file.size)}
+                    </p>
                   </div>
 
-                  {/* Active Stats: speed & ETA */}
-                  {job.status === "uploading" && (
-                    <div className="flex justify-between items-center text-[10px] text-[#737373] font-mono">
-                      <span>
-                        {formatBytes(job.uploadedBytes)} /{" "}
-                        {formatBytes(job.totalBytes)} ({job.progress}%)
-                      </span>
-                      <span>
-                        {job.speedMBs.toFixed(2)} MB/s • ETA:{" "}
-                        {job.etaSeconds > 0
-                          ? `${job.etaSeconds}s`
-                          : "finishing..."}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
+                  <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                    {getStatusBadge(job.status)}
 
-              {/* Error message */}
-              {job.status === "failed" && job.error && (
-                <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 space-y-0.5">
-                  <p className="font-semibold">Error:</p>
-                  <p className="font-mono text-[11px] break-all">{job.error}</p>
+                    {/* Actions */}
+                    {job.status === "waiting" && (
+                      <button
+                        onClick={() => cancelJob(job.id)}
+                        className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-0.5 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                        title="Cancel waiting job"
+                      >
+                        Remove
+                      </button>
+                    )}
+
+                    {(job.status === "preparing" ||
+                      job.status === "uploading" ||
+                      job.status === "completing") && (
+                      <button
+                        onClick={() => cancelJob(job.id)}
+                        className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-0.5 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                        title="Cancel active upload"
+                      >
+                        Cancel
+                      </button>
+                    )}
+
+                    {(job.status === "failed" ||
+                      job.status === "cancelled") && (
+                      <button
+                        onClick={() => retryJob(job.id)}
+                        className="text-xs text-[#002FA7] hover:text-[#002482] font-bold px-2 py-0.5 rounded hover:bg-[rgba(0,47,167,0.06)] border border-[#002FA7]/30 transition-colors cursor-pointer"
+                        title="Retry upload"
+                      >
+                        Retry
+                      </button>
+                    )}
+
+                    {(job.status === "completed" ||
+                      job.status === "failed" ||
+                      job.status === "cancelled") && (
+                      <button
+                        onClick={() => removeJob(job.id)}
+                        className="text-xs text-[#737373] hover:text-[#171717] p-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                        title="Remove from list"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Progress bar for active / completed */}
+                {(job.status === "preparing" ||
+                  job.status === "uploading" ||
+                  job.status === "completing" ||
+                  job.status === "completed") && (
+                  <div className="space-y-1">
+                    <div className="w-full h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 rounded-full ${
+                          job.status === "completed"
+                            ? "bg-emerald-500"
+                            : "bg-[#002FA7]"
+                        }`}
+                        style={{ width: `${job.progress}%` }}
+                      />
+                    </div>
+
+                    {/* Active Stats: speed & ETA */}
+                    {job.status === "uploading" && (
+                      <div className="flex flex-col gap-1 text-[10px] text-[#737373] font-mono sm:flex-row sm:items-center sm:justify-between">
+                        <span>
+                          {formatBytes(job.uploadedBytes)} /{" "}
+                          {formatBytes(job.totalBytes)} ({job.progress}%)
+                        </span>
+                        <span>
+                          {job.speedMBs.toFixed(2)} MB/s • ETA:{" "}
+                          {job.etaSeconds > 0
+                            ? `${job.etaSeconds}s`
+                            : "finishing..."}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Error message */}
+                {job.status === "failed" && job.error && (
+                  <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 space-y-0.5">
+                    <p className="font-semibold">Error:</p>
+                    <p className="font-mono text-[11px] break-all">
+                      {job.error}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
         </div>
       )}
     </div>
   );
-}
+});

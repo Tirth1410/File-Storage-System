@@ -184,7 +184,7 @@ export default function SharedFilePage({
             {allowDownload && downloadUrl && (
               <button
                 onClick={handleDownload}
-                className="bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] hover:brightness-110 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_4px_14px_rgba(59,111,232,0.3)] shrink-0 w-full md:w-auto flex items-center justify-center gap-2"
+                className="bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] hover:brightness-110 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_4px_14px_rgba(59,111,232,0.3)] shrink-0 w-full md:w-auto flex items-center justify-center gap-2 cursor-pointer"
               >
                 <svg
                   className="w-5 h-5"

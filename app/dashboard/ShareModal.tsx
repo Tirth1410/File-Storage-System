@@ -166,7 +166,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-100 transition-colors bg-neutral-950 border border-neutral-800 w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            className="text-neutral-400 hover:text-neutral-100 transition-colors bg-neutral-950 border border-neutral-800 w-8 h-8 rounded-full flex items-center justify-center shrink-0 cursor-pointer"
           >
             ✕
           </button>
@@ -175,7 +175,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
         <div className="flex border-b border-neutral-800">
           <button
             onClick={() => setActiveTab("links")}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+            className={`flex-1 py-3 text-sm font-semibold transition-colors cursor-pointer ${
               activeTab === "links"
                 ? "text-indigo-400 border-b-2 border-indigo-400 bg-neutral-800/30"
                 : "text-neutral-500 hover:text-neutral-300"
@@ -185,7 +185,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
           </button>
           <button
             onClick={() => setActiveTab("users")}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+            className={`flex-1 py-3 text-sm font-semibold transition-colors cursor-pointer ${
               activeTab === "users"
                 ? "text-indigo-400 border-b-2 border-indigo-400 bg-neutral-800/30"
                 : "text-neutral-500 hover:text-neutral-300"
@@ -207,7 +207,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   Generate New Link
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
-                  <label className="flex items-center gap-2 text-sm text-neutral-400">
+                  <label className="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={allowPreview}
@@ -216,7 +216,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                     />
                     Allow Preview
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-neutral-400">
+                  <label className="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={allowDownload}
@@ -245,7 +245,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   </div>
                   <button
                     onClick={generateLink}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
                   >
                     Generate Link
                   </button>
@@ -294,7 +294,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                         </button>
                         <button
                           onClick={() => deleteLink(link.id)}
-                          className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors bg-red-950/20"
+                          className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors bg-red-950/20 cursor-pointer"
                           title="Delete Link"
                         >
                           <svg
@@ -345,7 +345,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   </div>
                   <button
                     type="submit"
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
                   >
                     Add User
                   </button>
@@ -381,7 +381,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                       </div>
                       <button
                         onClick={() => removePermission(perm.userId)}
-                        className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors bg-red-950/20"
+                        className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors bg-red-950/20 cursor-pointer"
                         title="Remove Access"
                       >
                         Remove

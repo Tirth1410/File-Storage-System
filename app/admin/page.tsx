@@ -320,7 +320,7 @@ export default function AdminPage() {
       />
 
       <main className="min-h-screen bg-[#FAFAFA]">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 space-y-8">
+        <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 md:px-10 md:py-8 md:space-y-8">
           {/* Page title */}
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[#171717]">
@@ -491,15 +491,15 @@ export default function AdminPage() {
 
       {/* User Detail Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-2xl max-h-[calc(100vh-24px)] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Modal Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-[#E5E7EB]">
-              <div>
+            <div className="flex justify-between items-center gap-3 px-4 py-4 border-b border-[#E5E7EB] sm:px-6">
+              <div className="min-w-0">
                 <h3 className="text-base font-bold text-[#171717]">
                   {selectedUser.name || "User"} Account
                 </h3>
-                <p className="text-xs text-[#737373] font-mono mt-0.5">
+                <p className="text-xs text-[#737373] font-mono mt-0.5 truncate">
                   {selectedUser.id}
                 </p>
               </div>
@@ -515,7 +515,7 @@ export default function AdminPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FAFAFA]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[#FAFAFA] sm:p-6">
               {loadingDetails ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
@@ -573,7 +573,7 @@ export default function AdminPage() {
                         <p className="text-xs font-bold text-[#171717] uppercase tracking-wide mb-3">
                           Adjust Quota
                         </p>
-                        <div className="flex items-end gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                           <div className="flex-1 grid grid-cols-2 gap-2">
                             <div>
                               <label className="block text-xs text-[#737373] mb-1.5 font-medium">
