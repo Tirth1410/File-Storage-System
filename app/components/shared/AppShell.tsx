@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "@/app/lib/auth-client";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/app/components/shared/Logo";
+import { Menu, X } from "lucide-react";
 
 interface NavAction {
   label: string;
@@ -37,6 +38,7 @@ export function AppShell({
 }: AppShellProps) {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState<{
     left: number;
     width: number;
@@ -86,6 +88,22 @@ export function AppShell({
   const primaryActions = actions.filter((a) => a.variant === "primary");
   const ghostActions = actions.filter((a) => a.variant !== "primary");
 
+  const navigateAndClose = (onClick: () => void) => {
+    setMenuOpen(false);
+    onClick();
+  };
+
+  const handleSignOut = () => {
+    setMenuOpen(false);
+    signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/sign-in");
+        },
+      },
+    });
+  };
+
   return (
     <>
       {/* ── Styles injected once ── */}
@@ -102,6 +120,7 @@ export function AppShell({
           display: flex;
           justify-content: center;
           padding: 14px 16px;
+          box-sizing: border-box;
           pointer-events: none;
           transition: padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -117,9 +136,10 @@ export function AppShell({
           justify-content: space-between;
           gap: 8px;
           width: 100%;
-          max-width: 900px;
+          max-width: min(900px, calc(100vw - 20px));
           height: 56px;
           padding: 0 20px;
+          box-sizing: border-box;
           border-radius: 28px;
           background: rgba(255, 255, 255, 0.75);
           border: 1px solid rgba(0, 0, 0, 0.08);
@@ -153,6 +173,7 @@ export function AppShell({
           cursor: pointer;
           text-decoration: none;
           flex-shrink: 0;
+          min-width: 0;
           transition: opacity 0.2s ease;
         }
         .vault-logo:hover { opacity: 1; }
@@ -164,6 +185,7 @@ export function AppShell({
           display: flex;
           align-items: center;
           gap: 2px;
+          min-width: 0;
         }
 
         .vault-nav-indicator {
@@ -208,7 +230,14 @@ export function AppShell({
           display: flex;
           align-items: center;
           gap: 8px;
+          min-width: 0;
           flex-shrink: 0;
+        }
+
+        .vault-mobile-controls,
+        .vault-mobile-menu,
+        .vault-mobile-dismiss {
+          display: none;
         }
 
         .vault-user-badge {
@@ -329,12 +358,140 @@ export function AppShell({
         }
 
         /* ── Responsive ── */
-        @media (max-width: 640px) {
-          .vault-navbar { padding: 10px 10px; }
-          .vault-navbar-inner { padding: 0 14px; max-width: 100%; }
+        .vault-navbar-spacer {
+          height: 84px;
+        }
+
+        @media (max-width: 760px) {
+          .vault-navbar { padding: 8px 8px; }
+          .vault-navbar.scrolled { padding: 6px 8px; }
+
+          .vault-navbar-inner {
+            height: 56px;
+            min-height: 52px;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 24px;
+            overflow: hidden;
+          }
+
+          .vault-navbar.scrolled .vault-navbar-inner {
+            height: 52px;
+            min-height: 48px;
+          }
+
+          .vault-logo-text {
+            max-width: 86px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .vault-nav-center,
+          .vault-actions {
+            display: none;
+          }
+
+          .vault-mobile-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+          }
+
+          .vault-mobile-icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            background: rgba(255, 255, 255, 0.72);
+            color: #171717;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+          }
+
+          .vault-mobile-icon-btn:hover {
+            background: rgba(0, 0, 0, 0.04);
+            transform: translateY(-1px);
+          }
+
+          .vault-mobile-dismiss {
+            display: block;
+            position: fixed;
+            inset: 0;
+            z-index: 48;
+            background: transparent;
+            border: 0;
+            padding: 0;
+            cursor: default;
+          }
+
+          .vault-mobile-menu {
+            pointer-events: all;
+            display: block;
+            position: fixed;
+            top: 70px;
+            right: 8px;
+            z-index: 52;
+            width: min(168px, calc(100vw - 16px));
+            padding: 8px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow:
+              0 14px 40px rgba(0, 0, 0, 0.12),
+              0 1px 0 rgba(255, 255, 255, 0.8) inset;
+            backdrop-filter: blur(22px) saturate(1.6);
+            -webkit-backdrop-filter: blur(22px) saturate(1.6);
+          }
+
+          .vault-navbar.scrolled ~ .vault-mobile-menu {
+            top: 62px;
+          }
+
+          .vault-mobile-menu-list {
+            display: grid;
+            gap: 4px;
+          }
+
+          .vault-mobile-menu-item {
+            width: 100%;
+            min-height: 42px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 0;
+            background: transparent;
+            color: #171717;
+            font-size: 14px;
+            font-weight: 650;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+          }
+
+          .vault-mobile-menu-item:hover {
+            background: rgba(0, 0, 0, 0.04);
+          }
+
+          .vault-mobile-menu-item.primary {
+            color: #002FA7;
+            background: rgba(0, 47, 167, 0.07);
+          }
+
+          .vault-mobile-menu-item.danger {
+            color: #DC2626;
+            background: rgba(220, 38, 38, 0.07);
+          }
+
+          .vault-navbar-spacer {
+            height: 80px;
+          }
+        }
+
+        @media (max-width: 380px) {
           .vault-logo-text { display: none; }
-          .vault-user-name { display: none; }
-          .vault-user-badge { padding: 4px; }
         }
       `}</style>
 
@@ -343,7 +500,10 @@ export function AppShell({
           {/* ── Left: Logo ── */}
           <button
             className="vault-logo bg-transparent border-0 p-0 text-left cursor-pointer"
-            onClick={() => router.push("/dashboard")}
+            onClick={() => {
+              setMenuOpen(false);
+              router.push("/dashboard");
+            }}
             aria-label="Go to Dashboard"
           >
             <Logo size="md" />
@@ -381,7 +541,7 @@ export function AppShell({
             </nav>
           )}
 
-          {/* ── Right: User + Actions ── */}
+          {/* ── Right: User + Actions (desktop) ── */}
           <div className="vault-actions">
             {/* User badge */}
             {userName && (
@@ -432,28 +592,108 @@ export function AppShell({
                 {(actions.length > 0 || userName) && (
                   <div className="vault-sep" />
                 )}
-                <button
-                  className="vault-btn-ghost"
-                  onClick={() =>
-                    signOut({
-                      fetchOptions: {
-                        onSuccess: () => {
-                          router.push("/sign-in");
-                        },
-                      },
-                    })
-                  }
-                >
+                <button className="vault-btn-ghost" onClick={handleSignOut}>
                   Sign Out
                 </button>
               </>
             )}
           </div>
+
+          {/* ── Right: User + Menu (mobile) ── */}
+          <div className="vault-mobile-controls">
+            {userName && (
+              <button
+                className="vault-user-badge bg-transparent border-0 p-0 cursor-pointer"
+                onClick={() => {
+                  setMenuOpen(false);
+                  router.push("/profile");
+                }}
+                aria-label="Go to Profile"
+              >
+                <div className="vault-avatar">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+              </button>
+            )}
+            <button
+              className="vault-mobile-icon-btn"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label={
+                menuOpen ? "Close navigation menu" : "Open navigation menu"
+              }
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
         </div>
       </header>
 
+      {menuOpen && (
+        <>
+          <button
+            className="vault-mobile-dismiss"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Close navigation menu"
+            tabIndex={-1}
+          />
+          <div className="vault-mobile-menu" role="menu">
+            <div className="vault-mobile-menu-list">
+              {userName && (
+                <button
+                  className="vault-mobile-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    router.push("/profile");
+                  }}
+                >
+                  Profile
+                </button>
+              )}
+              {navItems.map((item) => (
+                <button
+                  key={item.label}
+                  className="vault-mobile-menu-item"
+                  onClick={() => navigateAndClose(item.onClick)}
+                >
+                  {item.label}
+                </button>
+              ))}
+              {primaryActions.map((action) => (
+                <button
+                  key={action.label}
+                  className="vault-mobile-menu-item primary"
+                  onClick={() => navigateAndClose(action.onClick)}
+                >
+                  {action.label}
+                </button>
+              ))}
+              {ghostActions.map((action) => (
+                <button
+                  key={action.label}
+                  className={`vault-mobile-menu-item ${
+                    action.variant === "danger" ? "danger" : ""
+                  }`}
+                  onClick={() => navigateAndClose(action.onClick)}
+                >
+                  {action.label}
+                </button>
+              ))}
+              {showSignOut && (
+                <button
+                  className="vault-mobile-menu-item danger"
+                  onClick={handleSignOut}
+                >
+                  Sign Out
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Spacer so page content clears the fixed navbar */}
-      <div style={{ height: "84px" }} />
+      <div className="vault-navbar-spacer" />
     </>
   );
 }

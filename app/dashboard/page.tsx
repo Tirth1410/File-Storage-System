@@ -167,6 +167,12 @@ export default function DashboardPage() {
     };
   }, [session, activeTab]);
 
+  /* ─── upload success handler ─── */
+  const handleUploadSuccess = useCallback(() => {
+    setActiveTab("own");
+    fetchFiles("own");
+  }, [fetchFiles]);
+
   /* ─── selection handlers ─── */
   const handleToggleSelect = (fileId: string) => {
     setSelectedFileIds((prev) =>
@@ -409,7 +415,7 @@ export default function DashboardPage() {
           user.role === "admin"
             ? [
                 {
-                  label: "Admin Portal",
+                  label: "Admin",
                   onClick: () => router.push("/admin"),
                   variant: "primary",
                 },
@@ -442,9 +448,9 @@ export default function DashboardPage() {
       />
 
       <main className="min-h-screen bg-[#FAFAFA]">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 space-y-6">
+        <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 md:px-10 md:py-8">
           {/* Page title row */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-[#171717]">
                 My Storage
@@ -485,7 +491,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                <div className="sm:w-72" data-tour="storage-bar">
+                <div className="w-full sm:w-72" data-tour="storage-bar">
                   <StorageBar
                     usedBytes={profileData.storage.usedBytes}
                     quotaBytes={profileData.storage.quotaBytes}
@@ -501,12 +507,7 @@ export default function DashboardPage() {
             {/* Sidebar: Upload */}
             <div className="lg:col-span-1">
               <SectionCard title="Upload File">
-                <UploadPanel
-                  onSuccess={() => {
-                    setActiveTab("own");
-                    fetchFiles("own");
-                  }}
-                />
+                <UploadPanel onSuccess={handleUploadSuccess} />
               </SectionCard>
             </div>
 
@@ -553,7 +554,7 @@ export default function DashboardPage() {
                 >
                   {/* Selection Toolbar Header */}
                   {!filesLoading && files.length > 0 && (
-                    <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs">
+                    <div className="flex flex-col gap-2 px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs sm:flex-row sm:items-center sm:justify-between">
                       <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-[#525252] hover:text-[#171717]">
                         <input
                           type="checkbox"
@@ -568,7 +569,7 @@ export default function DashboardPage() {
                       </label>
 
                       {selectedFileIds.length > 0 && (
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-2.5">
                           <span className="font-semibold text-[#002FA7] bg-[rgba(0,47,167,0.08)] px-2.5 py-0.5 rounded-full border border-[rgba(0,47,167,0.2)]">
                             {selectedFileIds.length} selected
                           </span>
@@ -662,7 +663,7 @@ export default function DashboardPage() {
 
                   {/* Footer */}
                   {!filesLoading && files.length > 0 && (
-                    <div className="px-6 py-3 border-t border-[#F5F5F5] flex justify-between items-center">
+                    <div className="px-4 py-3 border-t border-[#F5F5F5] flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                       <span className="text-xs text-[#737373]">
                         {files.length} file{files.length !== 1 ? "s" : ""}
                         {selectedFileIds.length > 0 &&

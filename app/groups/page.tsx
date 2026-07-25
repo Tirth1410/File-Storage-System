@@ -494,7 +494,7 @@ export default function GroupsPage() {
           user.role === "admin"
             ? [
                 {
-                  label: "Admin Portal",
+                  label: "Admin",
                   onClick: () => router.push("/admin"),
                   variant: "primary",
                 },
@@ -527,7 +527,7 @@ export default function GroupsPage() {
       />
 
       <main className="min-h-screen bg-[#FAFAFA]">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8 space-y-6">
+        <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 md:px-10 md:py-8">
           {activeGroup ? (
             /* ──── GROUP DETAILED VIEW ──── */
             <div className="space-y-6">
@@ -540,10 +540,10 @@ export default function GroupsPage() {
               </button>
 
               {/* Group Detail Header */}
-              <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold tracking-tight text-[#171717]">
+              <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 sm:p-6">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-2xl font-bold tracking-tight text-[#171717] break-words">
                       {activeGroup.name}
                     </h1>
                     <StatusBadge
@@ -560,7 +560,7 @@ export default function GroupsPage() {
                     {new Date(activeGroup.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {activeGroup.currentUserRole === "OWNER" && (
                     <button
                       onClick={() => {
@@ -588,7 +588,7 @@ export default function GroupsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main section: tab content */}
                 <div className="lg:col-span-2 space-y-6">
-                  <div className="flex border-b border-[#E5E7EB] gap-4">
+                  <div className="flex overflow-x-auto border-b border-[#E5E7EB] gap-4">
                     <button
                       onClick={() => setDetailsTab("files")}
                       className={`pb-3 text-sm font-bold border-b-2 px-1 transition-all cursor-pointer ${
@@ -632,7 +632,7 @@ export default function GroupsPage() {
                           {groupDetails.groupFiles.map((gf) => (
                             <div
                               key={gf.id}
-                              className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-[#FAFAFA] transition-colors"
+                              className="px-4 py-4 flex flex-col items-stretch justify-between gap-3 hover:bg-[#FAFAFA] transition-colors sm:flex-row sm:items-center sm:px-6 sm:gap-4"
                             >
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-[#171717] truncate">
@@ -644,7 +644,7 @@ export default function GroupsPage() {
                                     gf.sharedByUser.email}
                                 </p>
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap justify-end gap-2">
                                 {gf.allowPreview && (
                                   <button
                                     onClick={() =>
@@ -700,28 +700,28 @@ export default function GroupsPage() {
                         return (
                           <div
                             key={m.id}
-                            className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-[#FAFAFA] transition-colors"
+                            className="px-4 py-4 flex flex-col items-stretch justify-between gap-3 hover:bg-[#FAFAFA] transition-colors sm:flex-row sm:items-center sm:px-6 sm:gap-4"
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
                               <div className="w-9 h-9 bg-[rgba(0,47,167,0.1)] text-[#002FA7] rounded-full flex items-center justify-center font-bold text-xs uppercase shrink-0">
                                 {m.user.name?.[0] || m.user.email[0]}
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                 <p className="text-sm font-bold text-[#171717]">
                                   {m.user.name || "Unknown"} {isSelf && "(You)"}
                                 </p>
-                                <p className="text-xs text-[#737373] mt-0.5">
+                                <p className="text-xs text-[#737373] mt-0.5 truncate">
                                   {m.user.email}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center justify-end gap-3">
                               <StatusBadge
                                 variant={getRoleBadgeVariant(m.role)}
                                 label={m.role}
                               />
                               {canManage && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center justify-end gap-2">
                                   {activeGroup.currentUserRole === "OWNER" && (
                                     <select
                                       value={m.role}
@@ -813,7 +813,7 @@ export default function GroupsPage() {
           ) : (
             /* ──── GROUPS GRID LIST ──── */
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h1
                     className="text-2xl font-bold tracking-tight text-[#171717]"
@@ -828,7 +828,7 @@ export default function GroupsPage() {
                 <button
                   onClick={() => setShowCreateModal(true)}
                   data-tour="create-group-btn"
-                  className="bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 px-4 rounded-xl text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer flex items-center gap-1.5"
+                  className="self-start bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 px-4 rounded-xl text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer flex items-center gap-1.5 sm:self-auto"
                 >
                   <svg
                     className="w-4 h-4"
@@ -895,7 +895,7 @@ export default function GroupsPage() {
                     >
                       <div>
                         <div className="flex justify-between items-start gap-2">
-                          <h3 className="text-base font-bold text-[#171717] truncate">
+                          <h3 className="text-base font-bold text-[#171717] truncate min-w-0">
                             {group.name}
                           </h3>
                           <StatusBadge
@@ -932,7 +932,7 @@ export default function GroupsPage() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-[#E5E7EB]">
+            <div className="flex justify-between items-center gap-3 px-4 py-4 border-b border-[#E5E7EB] sm:px-6">
               <h3 className="text-sm font-bold text-[#171717]">
                 Create New Group
               </h3>
@@ -946,7 +946,7 @@ export default function GroupsPage() {
                 ✕
               </button>
             </div>
-            <form onSubmit={handleCreateGroup} className="p-6 space-y-4">
+            <form onSubmit={handleCreateGroup} className="p-4 space-y-4 sm:p-6">
               {createError && (
                 <p className="text-xs text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] p-3 rounded-lg">
                   {createError}
@@ -998,9 +998,9 @@ export default function GroupsPage() {
 
       {/* ──── GROUP SETTINGS EDIT MODAL ──── */}
       {showSettingsModal && activeGroup && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-[#E5E7EB]">
+            <div className="flex justify-between items-center gap-3 px-4 py-4 border-b border-[#E5E7EB] sm:px-6">
               <h3 className="text-sm font-bold text-[#171717]">
                 Edit Group Settings
               </h3>
@@ -1014,7 +1014,7 @@ export default function GroupsPage() {
                 ✕
               </button>
             </div>
-            <form onSubmit={handleUpdateGroup} className="p-6 space-y-4">
+            <form onSubmit={handleUpdateGroup} className="p-4 space-y-4 sm:p-6">
               {editError && (
                 <p className="text-xs text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] p-3 rounded-lg">
                   {editError}
@@ -1043,7 +1043,7 @@ export default function GroupsPage() {
                 />
               </div>
               <div className="pt-2 flex flex-col gap-2">
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => setShowSettingsModal(false)}
@@ -1073,16 +1073,16 @@ export default function GroupsPage() {
 
       {/* ──── FILE PREVIEW MODAL ──── */}
       {previewFile && (
-        <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-4xl max-h-[calc(100vh-24px)] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-[#E5E7EB]">
-              <div className="overflow-hidden">
+            <div className="flex justify-between items-center gap-3 px-4 py-4 border-b border-[#E5E7EB] sm:px-6">
+              <div className="min-w-0 overflow-hidden">
                 <h3 className="text-sm font-bold text-[#171717] truncate">
                   {previewFile.originalName}
                 </h3>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {previewAllowDownload && (
                   <button
                     onClick={() => handleFileDownload(previewFile)}

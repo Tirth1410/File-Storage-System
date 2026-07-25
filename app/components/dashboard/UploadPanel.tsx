@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { formatBytes } from "@/app/lib/utils";
 import { useUploadManager } from "@/app/hooks/useUploadManager";
 import { UploadJob, UploadStatus } from "@/app/lib/upload-manager";
@@ -9,7 +9,9 @@ interface UploadPanelProps {
   onSuccess?: () => void;
 }
 
-export function UploadPanel({ onSuccess }: UploadPanelProps) {
+export const UploadPanel = memo(function UploadPanel({
+  onSuccess,
+}: UploadPanelProps) {
   const {
     jobs,
     stats,
@@ -122,7 +124,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         data-tour="upload-zone"
-        className={`group block border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+        className={`group block border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all sm:p-6 ${
           isDragging
             ? "border-[#002FA7] bg-[rgba(0,47,167,0.06)] scale-[1.01]"
             : "border-[#E5E7EB] hover:border-[#002FA7]/40 hover:bg-[rgba(0,47,167,0.02)]"
@@ -155,7 +157,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
             <span className="text-sm font-semibold text-[#171717] block">
               Click to select or drag & drop files
             </span>
-            <span className="text-xs text-[#737373] block">
+            <span className="text-xs text-[#737373] block text-balance">
               Supports multiple files with concurrent bounded queue (3 active
               worker uploads)
             </span>
@@ -166,8 +168,8 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
       {/* Batch Overview Header */}
       {(stats.active > 0 || stats.waiting > 0) && (
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#171717]">
                 Upload Queue
               </h3>
@@ -189,7 +191,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
 
           {/* Batch Progress Bar */}
           <div className="space-y-1.5">
-            <div className="flex justify-between text-[11px] font-mono text-[#737373]">
+            <div className="flex flex-col gap-1 text-[11px] font-mono text-[#737373] sm:flex-row sm:justify-between">
               <span>
                 Progress:{" "}
                 <strong className="text-[#171717]">
@@ -230,7 +232,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
                 className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB] space-y-2.5 hover:border-[#D1D5DB] transition-all"
               >
                 {/* Header row: name, size, badge, actions */}
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <p
                       className="text-sm font-semibold text-[#171717] truncate"
@@ -243,7 +245,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
                     {getStatusBadge(job.status)}
 
                     {/* Actions */}
@@ -313,7 +315,7 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
 
                     {/* Active Stats: speed & ETA */}
                     {job.status === "uploading" && (
-                      <div className="flex justify-between items-center text-[10px] text-[#737373] font-mono">
+                      <div className="flex flex-col gap-1 text-[10px] text-[#737373] font-mono sm:flex-row sm:items-center sm:justify-between">
                         <span>
                           {formatBytes(job.uploadedBytes)} /{" "}
                           {formatBytes(job.totalBytes)} ({job.progress}%)
@@ -344,4 +346,4 @@ export function UploadPanel({ onSuccess }: UploadPanelProps) {
       )}
     </div>
   );
-}
+});

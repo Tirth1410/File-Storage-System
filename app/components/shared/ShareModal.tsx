@@ -226,13 +226,13 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-2xl max-h-[calc(100vh-24px)] sm:max-h-[85vh] flex flex-col shadow-xl overflow-hidden">
         {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-[#E5E7EB]">
-          <div>
+        <div className="flex justify-between items-center gap-3 px-4 py-4 border-b border-[#E5E7EB] sm:px-6">
+          <div className="min-w-0">
             <h3 className="text-base font-bold text-[#171717]">Share File</h3>
-            <p className="text-sm text-[#737373] truncate max-w-[300px]">
+            <p className="text-sm text-[#737373] truncate max-w-[220px] sm:max-w-[300px]">
               {file.originalName}
             </p>
           </div>
@@ -245,12 +245,15 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
         </div>
 
         {/* Tab strip */}
-        <div className="flex border-b border-[#E5E7EB]" data-tour="share-tabs">
+        <div
+          className="flex overflow-x-auto border-b border-[#E5E7EB]"
+          data-tour="share-tabs"
+        >
           {(["links", "users", "groups"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors cursor-pointer ${
+              className={`min-w-max flex-1 px-3 py-3 text-xs font-semibold transition-colors cursor-pointer sm:text-sm ${
                 activeTab === tab
                   ? "text-[#002FA7] border-b-2 border-[#002FA7] bg-[rgba(0,47,167,0.03)]"
                   : "text-[#525252] hover:text-[#171717]"
@@ -266,7 +269,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto p-6 bg-[#FAFAFA] space-y-6">
+        <div className="flex-1 overflow-auto p-4 bg-[#FAFAFA] space-y-6 sm:p-6">
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
@@ -274,11 +277,11 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
           ) : activeTab === "links" ? (
             <div className="space-y-6">
               {/* Generate Form */}
-              <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] space-y-4">
+              <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] space-y-4 sm:p-5">
                 <h4 className="text-sm font-bold text-[#171717]">
                   Generate New Link
                 </h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                   {[
                     {
                       label: "Allow Preview",
@@ -305,7 +308,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                     </label>
                   ))}
                 </div>
-                <div className="flex gap-3 items-end">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <label className="block text-xs text-[#737373] mb-1 font-medium">
                       Expiration (optional)
@@ -324,7 +327,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   </div>
                   <button
                     onClick={generateLink}
-                    className="bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer"
+                    className="w-full bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer sm:w-auto"
                   >
                     Generate
                   </button>
@@ -344,13 +347,13 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   links.map((link) => (
                     <div
                       key={link.id}
-                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex items-center justify-between gap-4"
+                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4"
                     >
                       <div className="flex-1 overflow-hidden">
                         <span className="text-xs font-mono text-[#171717] truncate block">
                           {window.location.origin}/s/{link.token}
                         </span>
-                        <div className="flex gap-3 mt-1.5 text-[10px] text-[#737373] font-mono">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[10px] text-[#737373] font-mono">
                           <span>
                             Preview: {link.allowPreview ? "Yes" : "No"}
                           </span>
@@ -365,7 +368,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex items-center justify-end gap-2 shrink-0 sm:gap-3">
                         <button
                           onClick={() => copyToClipboard(link.token, link.id)}
                           className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
@@ -406,7 +409,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
               {/* Add User Form */}
               <form
                 onSubmit={addPermission}
-                className="bg-white p-5 rounded-xl border border-[#E5E7EB] space-y-4"
+                className="bg-white p-4 rounded-xl border border-[#E5E7EB] space-y-4 sm:p-5"
               >
                 <h4 className="text-sm font-bold text-[#171717]">
                   Share with a User
@@ -416,7 +419,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                     {permError}
                   </p>
                 )}
-                <div className="flex gap-3 items-end">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <label className="block text-xs text-[#737373] mb-1 font-medium">
                       User Email
@@ -432,7 +435,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   </div>
                   <button
                     type="submit"
-                    className="bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer"
+                    className="w-full bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer sm:w-auto"
                   >
                     Add User
                   </button>
@@ -452,24 +455,24 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   permissions.map((perm) => (
                     <div
                       key={perm.userId}
-                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex items-center justify-between gap-4"
+                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 bg-[rgba(0,47,167,0.1)] text-[#002FA7] rounded-full flex items-center justify-center font-bold text-xs uppercase">
                           {perm.user.name?.[0] || perm.user.email[0]}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-semibold text-[#171717]">
                             {perm.user.name || "Unknown"}
                           </p>
-                          <p className="text-xs text-[#737373]">
+                          <p className="text-xs text-[#737373] truncate">
                             {perm.user.email} · {perm.permission}
                           </p>
                         </div>
                       </div>
                       <button
                         onClick={() => removePermission(perm.userId)}
-                        className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] px-3 py-1 rounded-lg hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
+                        className="self-end text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] px-3 py-1 rounded-lg hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer sm:self-auto"
                       >
                         Remove
                       </button>
@@ -483,7 +486,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
               {/* Share with Group Form */}
               <form
                 onSubmit={shareWithGroup}
-                className="bg-white p-5 rounded-xl border border-[#E5E7EB] space-y-4"
+                className="bg-white p-4 rounded-xl border border-[#E5E7EB] space-y-4 sm:p-5"
               >
                 <h4 className="text-sm font-bold text-[#171717]">
                   Share with a Group
@@ -511,7 +514,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                       ))}
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                     <label className="flex items-center gap-2 text-sm text-[#525252] cursor-pointer">
                       <input
                         type="checkbox"
@@ -555,13 +558,13 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                   sharedGroups.map((sg) => (
                     <div
                       key={sg.groupId}
-                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex items-center justify-between gap-4"
+                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4"
                     >
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-[#171717]">
                           {sg.group.name}
                         </p>
-                        <div className="flex gap-3 mt-1 text-[10px] text-[#737373] font-mono">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10px] text-[#737373] font-mono">
                           <span>Preview: {sg.allowPreview ? "Yes" : "No"}</span>
                           <span>
                             Download: {sg.allowDownload ? "Yes" : "No"}
@@ -571,7 +574,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                       </div>
                       <button
                         onClick={() => unshareFromGroup(sg.groupId)}
-                        className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] px-3 py-1 rounded-lg hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
+                        className="self-end text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] px-3 py-1 rounded-lg hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer sm:self-auto"
                       >
                         Remove
                       </button>
