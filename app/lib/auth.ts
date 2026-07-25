@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "@/app/lib/prisma";
+import { redis } from "@/app/lib/redis";
 import { admin } from "better-auth/plugins";
 import { APP_URL } from "./config";
 
@@ -13,6 +14,25 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  secondaryStorage: {
+    get: async (key: string) => {
+      const value = await redis.get(key);
+      return value;
+    },
+    set: async (key: string, value: string, ttl?: number) => {
+      if (ttl) {
+        await redis.set(key, value, "EX", ttl);
+      } else {
+        await redis.set(key, value);
+      }
+    },
+    delete: async (key: string) => {
+      await redis.del(key);
+    },
+  },
+  session: {
+    storeSessionInDatabase: true,
+  },
   baseURL: APP_URL,
   emailAndPassword: {
     enabled: true,

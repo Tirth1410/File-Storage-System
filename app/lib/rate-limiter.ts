@@ -152,9 +152,10 @@ export class RateLimiterService {
   /**
    * Resets (clears) the failure counters for the key across windows.
    */
-  async reset(key: string): Promise<void> {
+  async reset(key: string, windowSeconds: number = 900): Promise<void> {
     const fullKey = this.formatKey(key);
-    const { currentWindowIndex, previousWindowIndex } = this.getWindowInfo(900);
+    const { currentWindowIndex, previousWindowIndex } =
+      this.getWindowInfo(windowSeconds);
 
     const currentKey = `${fullKey}:${currentWindowIndex}`;
     const previousKey = `${fullKey}:${previousWindowIndex}`;
