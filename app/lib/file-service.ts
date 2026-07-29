@@ -8,6 +8,7 @@ export interface InitiateUploadInput {
   size: number;
   mimeType: string;
   userId: string;
+  folderId?: string | null;
 }
 
 export interface CompleteUploadInput {
@@ -54,6 +55,7 @@ export const fileService = {
     size,
     mimeType,
     userId,
+    folderId,
   }: InitiateUploadInput) {
     // Generate file ID and key beforehand
     const fileId = crypto.randomUUID();
@@ -105,6 +107,7 @@ export const fileService = {
           data: {
             id: fileId,
             ownerUserId: userId,
+            folderId: folderId ?? null,
             bucket: process.env.R2_BUCKET!,
             objectKey,
             originalName: filename,

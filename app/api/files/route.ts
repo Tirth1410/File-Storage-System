@@ -14,6 +14,7 @@ export const GET = withLogging(async (request: NextRequest) => {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") === "shared" ? "shared" : "own";
+    const folderId = searchParams.get("folderId");
 
     const whereClause: Prisma.FileWhereInput = {
       status: "available",
@@ -21,6 +22,9 @@ export const GET = withLogging(async (request: NextRequest) => {
 
     if (type === "own") {
       whereClause.ownerUserId = user.id;
+      if (searchParams.has("folderId")) {
+        whereClause.folderId = folderId;
+      }
     } else if (type === "shared") {
       whereClause.ownerUserId = { not: user.id };
       whereClause.permissions = { some: { userId: user.id } };
