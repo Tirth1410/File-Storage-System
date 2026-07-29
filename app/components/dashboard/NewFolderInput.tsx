@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { FolderPlus, X, Check } from "lucide-react";
+import { toast } from "sonner";
 
 interface NewFolderInputProps {
   parentFolderId: string | null;
@@ -46,10 +47,10 @@ export function NewFolderInput({
         onCreated();
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Failed to create folder");
+        toast.error(data.error || "Failed to create folder");
       }
     } catch {
-      alert("Failed to create folder");
+      toast.error("Failed to create folder");
     } finally {
       setCreating(false);
     }

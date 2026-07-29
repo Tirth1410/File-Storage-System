@@ -20,6 +20,7 @@ export async function proxy(request: NextRequest) {
   ];
   const protectedApiPaths = [
     "/api/files",
+    "/api/folders",
     "/api/groups",
     "/api/profile",
     "/api/admin",
@@ -170,6 +171,7 @@ export const config = {
     "/admin/:path*",
     "/s/:path*",
     "/api/files/:path*",
+    "/api/folders/:path*",
     "/api/groups/:path*",
     "/api/profile/:path*",
     "/api/admin/:path*",
