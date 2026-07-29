@@ -6,21 +6,21 @@ const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024);
 
 function getDescendantCteSql(): string {
   return `WITH RECURSIVE subtree AS (
-    SELECT id, parent_folder_id FROM folder WHERE id = $1
+    SELECT id, "parentFolderId" FROM folder WHERE id = $1
     UNION ALL
-    SELECT f.id, f.parent_folder_id FROM folder f
-    INNER JOIN subtree s ON f.parent_folder_id = s.id
+    SELECT f.id, f."parentFolderId" FROM folder f
+    INNER JOIN subtree s ON f."parentFolderId" = s.id
   )
   SELECT id FROM subtree`;
 }
 
 function getBreadcrumbCteSql(): string {
   return `WITH RECURSIVE path AS (
-    SELECT id, name, parent_folder_id, 0 AS depth FROM folder WHERE id = $1
+    SELECT id, name, "parentFolderId", 0 AS depth FROM folder WHERE id = $1
     UNION ALL
-    SELECT f.id, f.name, f.parent_folder_id, p.depth - 1
+    SELECT f.id, f.name, f."parentFolderId", p.depth - 1
     FROM folder f
-    INNER JOIN path p ON f.id = p.parent_folder_id
+    INNER JOIN path p ON f.id = p."parentFolderId"
   )
   SELECT id, name FROM path ORDER BY depth`;
 }

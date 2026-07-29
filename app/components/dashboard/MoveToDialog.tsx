@@ -1,12 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Folder, ChevronRight, ChevronDown, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Folder,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Home,
+  Loader2,
+} from "lucide-react";
 
 interface FolderNode {
   id: string;
   name: string;
   parentFolderId: string | null;
+}
+
+interface BreadcrumbItem {
+  id: string;
+  name: string;
 }
 
 interface MoveToDialogProps {
@@ -25,13 +37,11 @@ export function MoveToDialog({
   onClose,
 }: MoveToDialogProps) {
   const [rootFolders, setRootFolders] = useState<FolderNode[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(),
-  );
-  const [childrenMap, setChildrenMap] = useState<Map<string, FolderNode[]>>(
-    new Map(),
-  );
+  const [currentView, setCurrentView] = useState<string | null>(null);
+  const [currentFolders, setCurrentFolders] = useState<FolderNode[]>([]);
+  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingContents, setLoadingContents] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(currentFolderId);
 
   useEffect(() => {
@@ -43,89 +53,47 @@ export function MoveToDialog({
       .finally(() => setLoading(false));
   }, []);
 
-  async function fetchChildren(folderId: string) {
-    if (childrenMap.has(folderId)) return;
+  const loadContents = useCallback(async (folderId: string | null) => {
+    setLoadingContents(true);
     try {
-      const res = await fetch(`/api/folders/contents?folderId=${folderId}`);
-      if (res.ok) {
-        const { folders } = await res.json();
-        setChildrenMap((prev) => new Map(prev).set(folderId, folders));
-      }
-    } catch {}
-  }
+      const params = folderId ? `?folderId=${folderId}` : "";
+      const [contentsRes, breadcrumbRes] = await Promise.all([
+        fetch(`/api/folders/contents${params}`),
+        folderId
+          ? fetch(`/api/folders/${folderId}/breadcrumb`)
+          : Promise.resolve(null),
+      ]);
 
-  function toggleExpand(folderId: string) {
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(folderId)) {
-        next.delete(folderId);
+      if (contentsRes.ok) {
+        const { folders } = await contentsRes.json();
+        setCurrentFolders(folders || []);
+      }
+
+      if (breadcrumbRes && breadcrumbRes.ok) {
+        setBreadcrumb(await breadcrumbRes.json());
       } else {
-        next.add(folderId);
-        fetchChildren(folderId);
+        setBreadcrumb([]);
       }
-      return next;
-    });
+    } catch {
+    } finally {
+      setLoadingContents(false);
+    }
+  }, []);
+
+  function handleNavigate(folderId: string | null) {
+    setCurrentView(folderId);
+    setSelectedId(folderId);
+    loadContents(folderId);
   }
 
-  function renderFolderTree(
-    folders: FolderNode[],
-    depth: number = 0,
-  ): React.ReactNode {
-    const filtered = folders.filter((f) => f.id !== excludeFolderId);
-    return filtered.map((folder) => {
-      const children = childrenMap.get(folder.id);
-      const hasChildren = children !== undefined ? children.length > 0 : false;
-      const isExpanded = expandedFolders.has(folder.id);
-      const isSelected = selectedId === folder.id;
-
-      return (
-        <div key={folder.id}>
-          <div
-            className={`flex items-center gap-2 py-2 px-2 rounded-lg cursor-pointer transition-all ${
-              isSelected
-                ? "bg-[rgba(0,47,167,0.08)] text-[#002FA7]"
-                : "hover:bg-[#F5F5F5] text-[#171717]"
-            }`}
-            style={{ paddingLeft: `${12 + depth * 20}px` }}
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleExpand(folder.id);
-              }}
-              className="w-5 h-5 flex items-center justify-center shrink-0 text-[#A3A3A3] hover:text-[#525252] cursor-pointer"
-            >
-              {hasChildren || children === undefined ? (
-                isExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )
-              ) : null}
-            </button>
-            <button
-              onClick={() => setSelectedId(folder.id)}
-              className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
-            >
-              <Folder className="w-4 h-4 shrink-0 text-[#002FA7]" />
-              <span className="text-sm truncate">{folder.name}</span>
-            </button>
-          </div>
-          {isExpanded && children && children.length > 0 && (
-            <div>{renderFolderTree(children, depth + 1)}</div>
-          )}
-          {isExpanded && children && children.length === 0 && (
-            <div
-              className="text-xs text-[#A3A3A3] py-1"
-              style={{ paddingLeft: `${32 + (depth + 1) * 20}px` }}
-            >
-              Empty folder
-            </div>
-          )}
-        </div>
-      );
-    });
+  function handleSelect(folderId: string | null) {
+    setSelectedId(folderId);
+    handleNavigate(folderId);
   }
+
+  const filteredFolders = currentFolders.filter(
+    (f) => f.id !== excludeFolderId,
+  );
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -140,48 +108,112 @@ export function MoveToDialog({
           </button>
         </div>
 
+        {/* Breadcrumb */}
+        <div className="px-4 pt-3 pb-1 overflow-x-auto">
+          <nav className="flex items-center gap-1 text-xs text-[#737373] whitespace-nowrap">
+            <button
+              onClick={() => handleNavigate(null)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors cursor-pointer font-medium hover:text-[#002FA7] ${
+                currentView === null
+                  ? "bg-[rgba(0,47,167,0.08)] text-[#002FA7]"
+                  : ""
+              }`}
+              title="My Files"
+            >
+              <Home className="w-3.5 h-3.5" />
+              My Files
+            </button>
+            {breadcrumb.map((item) => (
+              <div key={item.id} className="flex items-center gap-1">
+                <ChevronRight className="w-3.5 h-3.5 text-[#A3A3A3] shrink-0" />
+                <button
+                  onClick={() => handleNavigate(item.id)}
+                  className={`px-2 py-1 rounded-md truncate max-w-[140px] transition-colors cursor-pointer hover:text-[#002FA7] ${
+                    currentView === item.id
+                      ? "bg-[rgba(0,47,167,0.08)] text-[#002FA7] font-medium"
+                      : ""
+                  }`}
+                  title={item.name}
+                >
+                  {item.name}
+                </button>
+              </div>
+            ))}
+          </nav>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin text-[#002FA7]" />
+            </div>
+          ) : loadingContents ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-[#002FA7]" />
             </div>
           ) : (
             <>
-              <button
-                onClick={() => setSelectedId(null)}
-                className={`w-full flex items-center gap-2 py-2 px-2 rounded-lg cursor-pointer transition-all mb-1 ${
-                  selectedId === null
-                    ? "bg-[rgba(0,47,167,0.08)] text-[#002FA7]"
-                    : "hover:bg-[#F5F5F5] text-[#171717]"
-                }`}
-              >
-                <Folder className="w-4 h-4 shrink-0 text-[#002FA7]" />
-                <span className="text-sm font-medium">Root (My Files)</span>
-              </button>
-              {rootFolders.length > 0 ? (
-                renderFolderTree(rootFolders)
-              ) : (
+              {filteredFolders.length > 0 ? (
+                <div className="space-y-0.5">
+                  {filteredFolders.map((folder) => {
+                    const isSelected = selectedId === folder.id;
+                    return (
+                      <div
+                        key={folder.id}
+                        onClick={() => handleSelect(folder.id)}
+                        onDoubleClick={() => onSelect(folder.id)}
+                        className={`flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-all ${
+                          isSelected
+                            ? "bg-[rgba(0,47,167,0.08)] text-[#002FA7] ring-1 ring-[rgba(0,47,167,0.2)]"
+                            : "hover:bg-[#F5F5F5] text-[#171717]"
+                        }`}
+                      >
+                        <Folder className="w-5 h-5 shrink-0 text-[#002FA7]" />
+                        <span className="text-sm truncate font-medium">
+                          {folder.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : currentView === null ? (
                 <p className="text-xs text-[#A3A3A3] text-center py-8">
                   No folders yet. Create one first.
+                </p>
+              ) : (
+                <p className="text-xs text-[#A3A3A3] text-center py-8">
+                  This folder is empty
                 </p>
               )}
             </>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB]">
+        <div className="flex justify-between items-center gap-2 px-6 py-4 border-t border-[#E5E7EB]">
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-[#525252] bg-white border border-[#E5E7EB] rounded-lg hover:bg-[#F5F5F5] transition-all cursor-pointer"
+            onClick={() => setSelectedId(null)}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              selectedId === null
+                ? "bg-[rgba(0,47,167,0.08)] text-[#002FA7]"
+                : "text-[#737373] hover:text-[#171717] hover:bg-[#F5F5F5]"
+            }`}
           >
-            Cancel
+            Root
           </button>
-          <button
-            onClick={() => onSelect(selectedId)}
-            className="px-4 py-2 text-sm font-semibold text-white bg-[#002FA7] rounded-lg hover:bg-[#002482] transition-all cursor-pointer"
-          >
-            Move Here
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-semibold text-[#525252] bg-white border border-[#E5E7EB] rounded-lg hover:bg-[#F5F5F5] transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSelect(selectedId)}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[#002FA7] rounded-lg hover:bg-[#002482] transition-all cursor-pointer"
+            >
+              Move Here
+            </button>
+          </div>
         </div>
       </div>
     </div>
