@@ -7,10 +7,12 @@ import { UploadJob, UploadStatus } from "@/app/lib/upload-manager";
 
 interface UploadPanelProps {
   onSuccess?: () => void;
+  folderId?: string | null;
 }
 
 export const UploadPanel = memo(function UploadPanel({
   onSuccess,
+  folderId,
 }: UploadPanelProps) {
   const {
     jobs,
@@ -40,7 +42,7 @@ export const UploadPanel = memo(function UploadPanel({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFiles = Array.from(e.target.files);
-      addFiles(selectedFiles);
+      addFiles(selectedFiles, folderId);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -65,7 +67,7 @@ export const UploadPanel = memo(function UploadPanel({
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files);
-      addFiles(droppedFiles);
+      addFiles(droppedFiles, folderId);
     }
   };
 

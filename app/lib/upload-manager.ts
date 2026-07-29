@@ -17,6 +17,7 @@ export interface UploadJob {
   speedMBs: number;
   etaSeconds: number;
   error: string | null;
+  folderId?: string | null;
   uploadId?: string;
   objectKey?: string;
   abortController?: AbortController;
@@ -140,7 +141,7 @@ export class UploadManager {
     return this.statsSnapshot;
   }
 
-  public addFiles(files: File[]): void {
+  public addFiles(files: File[], folderId?: string | null): void {
     const newJobs: UploadJob[] = files.map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       file,
@@ -151,6 +152,7 @@ export class UploadManager {
       speedMBs: 0,
       etaSeconds: 0,
       error: null,
+      folderId: folderId ?? undefined,
     }));
 
     this.jobs.push(...newJobs);
@@ -298,6 +300,7 @@ export class UploadManager {
           filename: job.file.name,
           size: job.file.size,
           mimeType: job.file.type || "application/octet-stream",
+          folderId: job.folderId,
         }),
         signal: job.abortController.signal,
       });

@@ -4,10 +4,7 @@ import { folderService } from "@/app/lib/folder-service";
 import { withLogging } from "@/app/lib/logger";
 
 export const PATCH = withLogging(
-  async (
-    request: Request,
-    { params }: { params: Promise<{ id: string }> },
-  ) => {
+  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
       const user = getRequestUser(request);
       if (!user) {
@@ -47,10 +44,7 @@ export const PATCH = withLogging(
 );
 
 export const DELETE = withLogging(
-  async (
-    request: Request,
-    { params }: { params: Promise<{ id: string }> },
-  ) => {
+  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
       const user = getRequestUser(request);
       if (!user) {

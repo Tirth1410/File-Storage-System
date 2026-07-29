@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "@/app/lib/auth-client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, startTransition } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
@@ -17,7 +17,11 @@ import { StorageBar } from "@/app/components/shared/StorageBar";
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { ShareModal } from "@/app/components/shared/ShareModal";
 import { FileListItem } from "@/app/components/dashboard/FileListItem";
+import { FolderListItem } from "@/app/components/dashboard/FolderListItem";
 import { UploadPanel } from "@/app/components/dashboard/UploadPanel";
+import { BreadcrumbNav } from "@/app/components/dashboard/BreadcrumbNav";
+import { NewFolderInput } from "@/app/components/dashboard/NewFolderInput";
+import { MoveToDialog } from "@/app/components/dashboard/MoveToDialog";
 import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 import { toast } from "sonner";
 import { useProductTour } from "@/app/hooks/useProductTour";
@@ -32,6 +36,20 @@ interface UploadedFile {
   status: string;
   createdAt: string;
   ownerUserId: string;
+}
+
+interface FolderData {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  parentFolderId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BreadcrumbItem {
+  id: string;
+  name: string;
 }
 
 interface ProfileData {
@@ -53,22 +71,32 @@ export default function DashboardPage() {
   const { showModal, startTour, dismissTour } = useProductTour("dashboard");
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [folders, setFolders] = useState<FolderData[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [activeTab, setActiveTab] = useState<"own" | "shared">("own");
 
-  // Selection state
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [currentFolderPath, setCurrentFolderPath] = useState<BreadcrumbItem[]>(
+    [],
+  );
+
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
 
-  // Preview state
   const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Share state
   const [shareFile, setShareFile] = useState<UploadedFile | null>(null);
 
-  // Custom Alert / Confirm Dialog state
+  const [renameTarget, setRenameTarget] = useState<FolderData | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const [moveTarget, setMoveTarget] = useState<{
+    type: "folder" | "file";
+    id: string;
+  } | null>(null);
+
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
     title: string;
@@ -101,7 +129,22 @@ export default function DashboardPage() {
     });
   };
 
-  /* ─── data fetching ─── */
+  const navigateToFolder = useCallback(
+    (folderId: string | null) => {
+      const params = new URLSearchParams(window.location.search);
+      if (folderId) {
+        params.set("folderId", folderId);
+      } else {
+        params.delete("folderId");
+      }
+      const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+      window.history.pushState({}, "", newUrl);
+      setCurrentFolderId(folderId);
+      setCurrentFolderPath([]);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -110,75 +153,93 @@ export default function DashboardPage() {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
       }
+      const folderIdFromUrl = urlParams.get("folderId");
+      if (folderIdFromUrl) {
+        startTransition(() => {
+          setCurrentFolderId(folderIdFromUrl);
+        });
+      }
     }
   }, []);
 
-  const fetchFiles = useCallback(
-    async (tab: "own" | "shared" = activeTab) => {
-      setFilesLoading(true);
-      try {
-        const res = await fetch(`/api/files?type=${tab}`);
-        if (res.ok) {
-          const fetchedFiles: UploadedFile[] = await res.json();
-          setFiles(fetchedFiles);
-          // Keep only selected file IDs that still exist
-          setSelectedFileIds((prev) =>
-            prev.filter((id) => fetchedFiles.some((f) => f.id === id)),
-          );
-        }
-        // Re-fetch profile data after file list updates
-        const profRes = await fetch("/api/profile");
-        if (profRes.ok) setProfileData(await profRes.json());
-      } catch (err) {
-        console.error("Error loading files:", err);
-      } finally {
-        setFilesLoading(false);
-      }
-    },
-    [activeTab],
-  );
-
   useEffect(() => {
-    if (!session?.user) return;
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const folderId = params.get("folderId");
+      setCurrentFolderId(folderId);
+      setCurrentFolderPath([]);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
-    let active = true;
-    const load = async () => {
-      setFilesLoading(true);
-      try {
-        const [filesRes, profRes] = await Promise.all([
-          fetch(`/api/files?type=${activeTab}`),
+  const fetchContents = useCallback(async () => {
+    if (!session?.user) return;
+    setFilesLoading(true);
+    try {
+      if (activeTab === "own") {
+        const params = new URLSearchParams();
+        if (currentFolderId) {
+          params.set("folderId", currentFolderId);
+        }
+        const qs = params.toString();
+        const [contentsRes, breadcrumbRes, profRes] = await Promise.all([
+          fetch(`/api/folders/contents${qs ? "?" + qs : ""}`),
+          currentFolderId
+            ? fetch(`/api/folders/${currentFolderId}/breadcrumb`)
+            : Promise.resolve(null),
           fetch("/api/profile"),
         ]);
-        if (active && filesRes.ok) {
-          const loadedFiles: UploadedFile[] = await filesRes.json();
-          setFiles(loadedFiles);
+
+        if (contentsRes.ok) {
+          const data = await contentsRes.json();
+          setFolders(data.folders);
+          setFiles(data.files);
           setSelectedFileIds([]);
         }
-        if (active && profRes.ok) setProfileData(await profRes.json());
-      } catch (err) {
-        console.error("Dashboard load error:", err);
-      } finally {
-        if (active) setFilesLoading(false);
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, [session, activeTab]);
 
-  /* ─── upload success handler ─── */
+        if (breadcrumbRes && breadcrumbRes.ok) {
+          setCurrentFolderPath(await breadcrumbRes.json());
+        } else if (!currentFolderId) {
+          setCurrentFolderPath([]);
+        }
+
+        if (profRes.ok) setProfileData(await profRes.json());
+      } else {
+        const [filesRes, profRes] = await Promise.all([
+          fetch("/api/files?type=shared"),
+          fetch("/api/profile"),
+        ]);
+        if (filesRes.ok) {
+          setFiles(await filesRes.json());
+          setFolders([]);
+          setSelectedFileIds([]);
+        }
+        if (profRes.ok) setProfileData(await profRes.json());
+      }
+    } catch (err) {
+      console.error("Error loading contents:", err);
+    } finally {
+      setFilesLoading(false);
+    }
+  }, [session, activeTab, currentFolderId]);
+
+  useEffect(() => {
+    startTransition(() => {
+      fetchContents();
+    });
+  }, [fetchContents]);
+
   const handleUploadSuccess = useCallback(() => {
     setActiveTab("own");
-    fetchFiles("own");
-  }, [fetchFiles]);
+    fetchContents();
+  }, [fetchContents]);
 
-  /* ─── selection handlers ─── */
-  const handleToggleSelect = (fileId: string) => {
+  const handleToggleSelect = (id: string) => {
     setSelectedFileIds((prev) =>
-      prev.includes(fileId)
-        ? prev.filter((id) => id !== fileId)
-        : [...prev, fileId],
+      prev.includes(id)
+        ? prev.filter((fid) => fid !== id)
+        : [...prev, id],
     );
   };
 
@@ -281,7 +342,7 @@ export default function DashboardPage() {
             setSelectedFileIds((prev) =>
               prev.filter((id) => !successfulIds.includes(id)),
             );
-            fetchFiles();
+            fetchContents();
           } else {
             showCustomAlert(
               "Error",
@@ -302,8 +363,7 @@ export default function DashboardPage() {
     });
   };
 
-  /* ─── single file actions ─── */
-  const handleDelete = async (fileId: string) => {
+  const handleDeleteFile = async (fileId: string) => {
     setDialogState({
       isOpen: true,
       title: activeTab === "shared" ? "Remove File" : "Delete File",
@@ -317,9 +377,10 @@ export default function DashboardPage() {
       variant: "danger",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/files/${fileId}?context=${activeTab}`, {
-            method: "DELETE",
-          });
+          const res = await fetch(
+            `/api/files/${fileId}?context=${activeTab}`,
+            { method: "DELETE" },
+          );
           if (res.ok) {
             if (activeTab === "shared") {
               const result: {
@@ -345,7 +406,7 @@ export default function DashboardPage() {
                 : "File deleted successfully!",
             );
             setSelectedFileIds((prev) => prev.filter((id) => id !== fileId));
-            fetchFiles();
+            fetchContents();
           } else {
             const d = await res.json();
             showCustomAlert("Error", d.error || "Delete failed", "danger");
@@ -401,7 +462,106 @@ export default function DashboardPage() {
     }
   };
 
-  /* ─── guards ─── */
+  const handleDeleteFolder = (folderId: string) => {
+    const folder = folders.find((f) => f.id === folderId);
+    setDialogState({
+      isOpen: true,
+      title: "Delete Folder",
+      message: `Are you sure you want to delete "${folder?.name || "this folder"}" and all its contents? This will permanently delete all files and subfolders inside it, and storage quota will be released.`,
+      confirmLabel: "Delete Folder",
+      cancelLabel: "Cancel",
+      type: "confirm",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/folders/${folderId}`, {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            toast.success("Folder deleted successfully!");
+            fetchContents();
+          } else {
+            const d = await res.json().catch(() => ({}));
+            showCustomAlert("Error", d.error || "Delete failed", "danger");
+          }
+        } catch {
+          showCustomAlert("Error", "An error occurred", "danger");
+        }
+      },
+    });
+  };
+
+  const handleRenameFolder = (folder: FolderData) => {
+    setRenameTarget(folder);
+    setRenameValue(folder.name);
+  };
+
+  const submitRename = async () => {
+    if (!renameTarget || !renameValue.trim()) return;
+    try {
+      const res = await fetch(`/api/folders/${renameTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+      if (res.ok) {
+        toast.success("Folder renamed!");
+        setRenameTarget(null);
+        fetchContents();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        showCustomAlert("Error", d.error || "Rename failed", "danger");
+      }
+    } catch {
+      showCustomAlert("Error", "An error occurred", "danger");
+    }
+  };
+
+  const handleMoveFolder = (folder: FolderData) => {
+    setMoveTarget({ type: "folder", id: folder.id });
+  };
+
+  const handleMoveFile = (file: UploadedFile) => {
+    setMoveTarget({ type: "file", id: file.id });
+  };
+
+  const submitMove = async (targetFolderId: string | null) => {
+    if (!moveTarget) return;
+    try {
+      const url =
+        moveTarget.type === "folder"
+          ? `/api/folders/${moveTarget.id}/move`
+          : `/api/files/${moveTarget.id}/move`;
+      const body =
+        moveTarget.type === "folder"
+          ? { newParentFolderId: targetFolderId }
+          : { targetFolderId };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        toast.success(
+          moveTarget.type === "folder"
+            ? "Folder moved successfully!"
+            : "File moved successfully!",
+        );
+        setMoveTarget(null);
+        fetchContents();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        showCustomAlert("Error", d.error || "Move failed", "danger");
+      }
+    } catch {
+      showCustomAlert("Error", "An error occurred", "danger");
+    }
+  };
+
+  const allItems = [...folders, ...files];
+  const totalItems = allItems.length;
+
   if (isPending) return <LoadingScreen message="Verifying session..." />;
   if (!session?.user) return <LoadingScreen message="Redirecting..." />;
 
@@ -446,6 +606,60 @@ export default function DashboardPage() {
         onStart={startTour}
         onSkip={dismissTour}
       />
+
+      {/* Rename Inline Dialog */}
+      {renameTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+            <h3 className="text-sm font-bold text-[#171717] mb-4">
+              Rename Folder
+            </h3>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitRename();
+                if (e.key === "Escape") setRenameTarget(null);
+              }}
+              className="w-full px-3 py-2 text-sm border border-[#D1D5DB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#002FA7] focus:border-transparent mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setRenameTarget(null)}
+                className="px-4 py-2 text-sm font-semibold text-[#525252] bg-white border border-[#E5E7EB] rounded-lg hover:bg-[#F5F5F5] transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRename}
+                disabled={!renameValue.trim()}
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#002FA7] rounded-lg hover:bg-[#002482] transition-all cursor-pointer disabled:opacity-50"
+              >
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Dialog */}
+      {moveTarget && (
+        <MoveToDialog
+          title={
+            moveTarget.type === "folder"
+              ? "Move Folder To..."
+              : "Move File To..."
+          }
+          currentFolderId={currentFolderId}
+          excludeFolderId={
+            moveTarget.type === "folder" ? moveTarget.id : null
+          }
+          onSelect={submitMove}
+          onClose={() => setMoveTarget(null)}
+        />
+      )}
 
       <main className="min-h-screen bg-[#FAFAFA]">
         <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 md:px-10 md:py-8">
@@ -507,17 +721,33 @@ export default function DashboardPage() {
             {/* Sidebar: Upload */}
             <div className="lg:col-span-1">
               <SectionCard title="Upload File">
-                <UploadPanel onSuccess={handleUploadSuccess} />
+                <UploadPanel
+                  onSuccess={handleUploadSuccess}
+                  folderId={currentFolderId}
+                />
               </SectionCard>
             </div>
 
             {/* Main: File List */}
             <div className="lg:col-span-2">
               <SectionCard
-                title={activeTab === "own" ? "My Files" : "Shared with Me"}
+                title={
+                  activeTab === "own"
+                    ? currentFolderId
+                      ? ""
+                      : "My Files"
+                    : "Shared with Me"
+                }
                 noPadding
                 titleRight={
                   <div className="flex items-center gap-2">
+                    {/* Breadcrumb (shown in own tab) */}
+                    {activeTab === "own" && (
+                      <BreadcrumbNav
+                        items={currentFolderPath}
+                        onNavigate={navigateToFolder}
+                      />
+                    )}
                     {/* Tab Toggle */}
                     <div
                       className="flex bg-[#F5F5F5] border border-[#E5E7EB] rounded-lg p-0.5"
@@ -526,7 +756,12 @@ export default function DashboardPage() {
                       {(["own", "shared"] as const).map((tab) => (
                         <button
                           key={tab}
-                          onClick={() => setActiveTab(tab)}
+                          onClick={() => {
+                            setActiveTab(tab);
+                            if (tab === "shared") {
+                              navigateToFolder(null);
+                            }
+                          }}
                           className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                             activeTab === tab
                               ? "bg-white text-[#002FA7] shadow-sm border border-[#E5E7EB]"
@@ -537,9 +772,16 @@ export default function DashboardPage() {
                         </button>
                       ))}
                     </div>
+                    {/* New Folder (own tab only) */}
+                    {activeTab === "own" && (
+                      <NewFolderInput
+                        parentFolderId={currentFolderId}
+                        onCreated={fetchContents}
+                      />
+                    )}
                     {/* Refresh */}
                     <button
-                      onClick={() => fetchFiles(activeTab)}
+                      onClick={() => fetchContents()}
                       className="p-1.5 rounded-lg text-[#737373] hover:text-[#002FA7] hover:bg-[rgba(0,47,167,0.06)] transition-all cursor-pointer"
                       title="Refresh"
                     >
@@ -553,7 +795,7 @@ export default function DashboardPage() {
                   data-tour="file-list"
                 >
                   {/* Selection Toolbar Header */}
-                  {!filesLoading && files.length > 0 && (
+                  {!filesLoading && totalItems > 0 && (
                     <div className="flex flex-col gap-2 px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs sm:flex-row sm:items-center sm:justify-between">
                       <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-[#525252] hover:text-[#171717]">
                         <input
@@ -565,7 +807,7 @@ export default function DashboardPage() {
                           onChange={handleToggleSelectAll}
                           className="w-4 h-4 rounded text-[#002FA7] border-[#D1D5DB] focus:ring-[#002FA7] cursor-pointer accent-[#002FA7]"
                         />
-                        <span>Select All ({files.length})</span>
+                        <span>Select All ({totalItems})</span>
                       </label>
 
                       {selectedFileIds.length > 0 && (
@@ -611,7 +853,7 @@ export default function DashboardPage() {
                       <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
                       <p className="text-sm text-[#737373]">Loading files...</p>
                     </div>
-                  ) : files.length === 0 ? (
+                  ) : totalItems === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-6">
                       <div className="w-14 h-14 bg-[#F5F5F5] border border-[#E5E7EB] rounded-2xl flex items-center justify-center mb-4">
                         <svg
@@ -635,12 +877,25 @@ export default function DashboardPage() {
                       </h3>
                       <p className="text-xs text-[#737373] max-w-xs">
                         {activeTab === "own"
-                          ? "Upload a file from the panel on the left to get started."
+                          ? "Upload a file from the panel on the left, or create a folder to get started."
                           : "Files shared with you by other users will appear here."}
                       </p>
                     </div>
                   ) : (
                     <div className="divide-y divide-[#F5F5F5] px-2 py-2">
+                      {activeTab === "own" &&
+                        folders.map((folder) => (
+                          <FolderListItem
+                            key={folder.id}
+                            folder={folder}
+                            isSelected={selectedFileIds.includes(folder.id)}
+                            onToggleSelect={handleToggleSelect}
+                            onNavigate={(id) => navigateToFolder(id)}
+                            onRename={handleRenameFolder}
+                            onDelete={handleDeleteFolder}
+                            onMove={handleMoveFolder}
+                          />
+                        ))}
                       {files.map((file) => (
                         <FileListItem
                           key={file.id}
@@ -651,7 +906,10 @@ export default function DashboardPage() {
                           onPreview={handlePreview}
                           onDownload={handleDownload}
                           onShare={setShareFile}
-                          onDelete={handleDelete}
+                          onDelete={handleDeleteFile}
+                          onMove={
+                            activeTab === "own" ? handleMoveFile : undefined
+                          }
                           showDeleteAction={activeTab === "shared"}
                           deleteTitle={
                             activeTab === "shared" ? "Remove" : "Delete"
@@ -662,10 +920,10 @@ export default function DashboardPage() {
                   )}
 
                   {/* Footer */}
-                  {!filesLoading && files.length > 0 && (
+                  {!filesLoading && totalItems > 0 && (
                     <div className="px-4 py-3 border-t border-[#F5F5F5] flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                       <span className="text-xs text-[#737373]">
-                        {files.length} file{files.length !== 1 ? "s" : ""}
+                        {totalItems} item{totalItems !== 1 ? "s" : ""}
                         {selectedFileIds.length > 0 &&
                           ` (${selectedFileIds.length} selected)`}
                       </span>
@@ -685,7 +943,6 @@ export default function DashboardPage() {
       {previewFile && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-[#E5E7EB] rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            {/* Header */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-[#E5E7EB]">
               <div className="overflow-hidden">
                 <h3 className="text-sm font-bold text-[#171717] truncate">
@@ -723,7 +980,6 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
-            {/* Body */}
             <div
               className={`flex-1 bg-[#FAFAFA] flex items-center justify-center min-h-[300px] max-h-[65vh] ${
                 previewFile?.mimeType === "application/pdf"

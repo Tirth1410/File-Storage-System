@@ -51,7 +51,9 @@ export const folderService = {
       },
     });
     if (existing) {
-      throw new Error("A folder with this name already exists in this location");
+      throw new Error(
+        "A folder with this name already exists in this location",
+      );
     }
 
     const folder = await prisma.folder.create({
@@ -133,7 +135,9 @@ export const folderService = {
       },
     });
     if (existing) {
-      throw new Error("A folder with this name already exists in this location");
+      throw new Error(
+        "A folder with this name already exists in this location",
+      );
     }
 
     const updated = await prisma.folder.update({
@@ -182,7 +186,10 @@ export const folderService = {
           throw new Error(`Failed to delete from R2: ${keys}`);
         }
       } catch (err) {
-        if (err instanceof Error && err.message.startsWith("Failed to delete from R2")) {
+        if (
+          err instanceof Error &&
+          err.message.startsWith("Failed to delete from R2")
+        ) {
           throw err;
         }
       }
@@ -212,7 +219,8 @@ export const folderService = {
 
         if (lockedRows.length > 0) {
           const usedBytes = BigInt(lockedRows[0].used_bytes);
-          const newUsed = usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
+          const newUsed =
+            usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
 
           await tx.quotaUsage.update({
             where: { userId: folder.ownerUserId },
@@ -282,7 +290,9 @@ export const folderService = {
       );
       const descendantIds = descendantRows.map((r) => r.id);
       if (descendantIds.includes(newParentFolderId)) {
-        throw new Error("Cannot move a folder into itself or one of its descendants");
+        throw new Error(
+          "Cannot move a folder into itself or one of its descendants",
+        );
       }
     }
 
@@ -295,7 +305,9 @@ export const folderService = {
       },
     });
     if (existing) {
-      throw new Error("A folder with this name already exists in the target location");
+      throw new Error(
+        "A folder with this name already exists in the target location",
+      );
     }
 
     const updated = await prisma.folder.update({

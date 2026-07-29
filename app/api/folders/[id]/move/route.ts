@@ -4,10 +4,7 @@ import { folderService } from "@/app/lib/folder-service";
 import { withLogging } from "@/app/lib/logger";
 
 export const POST = withLogging(
-  async (
-    request: Request,
-    { params }: { params: Promise<{ id: string }> },
-  ) => {
+  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
       const user = getRequestUser(request);
       if (!user) {
@@ -29,7 +26,8 @@ export const POST = withLogging(
       const status =
         message === "Forbidden"
           ? 403
-          : message === "Folder not found" || message === "Target folder not found"
+          : message === "Folder not found" ||
+              message === "Target folder not found"
             ? 404
             : message.includes("already exists")
               ? 409

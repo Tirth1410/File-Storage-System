@@ -51,8 +51,7 @@ export function MoveToDialog({
         const { folders } = await res.json();
         setChildrenMap((prev) => new Map(prev).set(folderId, folders));
       }
-    } catch {
-    }
+    } catch {}
   }
 
   function toggleExpand(folderId: string) {
