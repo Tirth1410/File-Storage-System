@@ -129,21 +129,18 @@ export default function DashboardPage() {
     });
   };
 
-  const navigateToFolder = useCallback(
-    (folderId: string | null) => {
-      const params = new URLSearchParams(window.location.search);
-      if (folderId) {
-        params.set("folderId", folderId);
-      } else {
-        params.delete("folderId");
-      }
-      const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
-      window.history.pushState({}, "", newUrl);
-      setCurrentFolderId(folderId);
-      setCurrentFolderPath([]);
-    },
-    [],
-  );
+  const navigateToFolder = useCallback((folderId: string | null) => {
+    const params = new URLSearchParams(window.location.search);
+    if (folderId) {
+      params.set("folderId", folderId);
+    } else {
+      params.delete("folderId");
+    }
+    const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+    window.history.pushState({}, "", newUrl);
+    setCurrentFolderId(folderId);
+    setCurrentFolderPath([]);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -237,9 +234,7 @@ export default function DashboardPage() {
 
   const handleToggleSelect = (id: string) => {
     setSelectedFileIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((fid) => fid !== id)
-        : [...prev, id],
+      prev.includes(id) ? prev.filter((fid) => fid !== id) : [...prev, id],
     );
   };
 
@@ -377,10 +372,9 @@ export default function DashboardPage() {
       variant: "danger",
       onConfirm: async () => {
         try {
-          const res = await fetch(
-            `/api/files/${fileId}?context=${activeTab}`,
-            { method: "DELETE" },
-          );
+          const res = await fetch(`/api/files/${fileId}?context=${activeTab}`, {
+            method: "DELETE",
+          });
           if (res.ok) {
             if (activeTab === "shared") {
               const result: {
@@ -653,9 +647,7 @@ export default function DashboardPage() {
               : "Move File To..."
           }
           currentFolderId={currentFolderId}
-          excludeFolderId={
-            moveTarget.type === "folder" ? moveTarget.id : null
-          }
+          excludeFolderId={moveTarget.type === "folder" ? moveTarget.id : null}
           onSelect={submitMove}
           onClose={() => setMoveTarget(null)}
         />
