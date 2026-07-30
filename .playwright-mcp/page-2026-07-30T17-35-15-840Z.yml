@@ -1,0 +1,39 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5] [cursor=pointer]: VAULT
+      - generic [ref=e12]:
+        - button "Log in" [ref=e13] [cursor=pointer]
+        - button "Get Started" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]: System Operational
+        - heading "Storage designed for absolute precision." [level=1] [ref=e19]
+        - paragraph [ref=e20]: A minimalist, high-performance file platform that gets out of your way. Fast uploads, strict privacy, and zero clutter.
+        - button "Start Storing" [ref=e22] [cursor=pointer]
+      - generic [ref=e27]:
+        - generic [ref=e28]: ~/vault/projects/q3
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e43]:
+              - generic [ref=e44]: Q3_Financial_Report.pdf
+              - generic [ref=e45]: PDF
+            - generic [ref=e46]: 2.4 MB
+          - generic [ref=e47]:
+            - generic [ref=e52]:
+              - generic [ref=e53]: branding_assets_v2.zip
+              - generic [ref=e54]: ARCHIVE
+            - generic [ref=e55]: 148 MB
+          - generic [ref=e56]:
+            - generic [ref=e61]:
+              - generic [ref=e62]: database_backup.sql
+              - generic [ref=e63]: DATA
+            - generic [ref=e64]: 12 GB
+          - generic [ref=e65]:
+            - generic [ref=e71]:
+              - generic [ref=e72]: private_keys.pem
+              - generic [ref=e73]: SECURE
+            - generic [ref=e74]: 4 KB
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e80] [cursor=pointer]
+  - alert [ref=e84]

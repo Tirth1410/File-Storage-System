@@ -19,7 +19,10 @@ export const POST = withLogging(
         targetFolderId || null,
         user.id,
       );
-      return NextResponse.json(updated);
+      return NextResponse.json({
+        ...updated,
+        sizeBytes: updated.sizeBytes.toString(),
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Internal Server Error";

@@ -1,0 +1,53 @@
+- generic [ref=e1]:
+  - banner:
+    - generic [ref=e313]:
+      - button "Go to Dashboard" [ref=e314] [cursor=pointer]:
+        - generic [ref=e315]: VAULT
+      - navigation [ref=e322]:
+        - button "Dashboard" [ref=e323] [cursor=pointer]
+        - button "Groups" [ref=e324] [cursor=pointer]
+      - generic [ref=e325]:
+        - button "Go to Profile" [ref=e326] [cursor=pointer]:
+          - generic [ref=e327]: B
+          - generic [ref=e328]: Bhaumil Panchal
+        - button "Sign Out" [ref=e330] [cursor=pointer]
+  - main [ref=e345]:
+    - generic [ref=e347]:
+      - button "← Back to Groups" [ref=e387] [cursor=pointer]
+      - generic [ref=e355]:
+        - generic [ref=e388]:
+          - generic [ref=e389]:
+            - heading "Test Group" [level=1] [ref=e390]
+            - generic [ref=e391]: OWNER
+          - paragraph [ref=e392]: This is a test group for QA audit
+          - paragraph [ref=e393]: Owned by Bhaumil Panchal (You) · Created 7/30/2026
+        - button "Group Settings" [ref=e395] [cursor=pointer]
+      - generic [ref=e396]:
+        - generic [ref=e397]:
+          - generic [ref=e398]:
+            - button "Files (0)" [ref=e399] [cursor=pointer]
+            - button "Members (1)" [active] [ref=e400] [cursor=pointer]
+          - generic [ref=e401]:
+            - heading "Group Members" [level=2] [ref=e419]
+            - generic [ref=e420]:
+              - generic [ref=e421]:
+                - generic [ref=e422]: B
+                - generic [ref=e423]:
+                  - paragraph [ref=e424]: Bhaumil Panchal (You)
+                  - paragraph [ref=e425]: 22bce217@nirmauni.ac.in
+              - generic [ref=e426]: OWNER
+        - generic [ref=e407]:
+          - heading "Invite Member" [level=2] [ref=e409]
+          - generic [ref=e411]:
+            - generic [ref=e412]:
+              - generic [ref=e413]: Email Address
+              - textbox "collaborator@example.com" [ref=e414]
+            - generic [ref=e415]:
+              - generic [ref=e416]: Role
+              - combobox [ref=e417]:
+                - option "MEMBER (Can view and download shared files)" [selected]
+                - option "ADMIN (Can manage files and members)"
+            - button "Send Invitation" [ref=e418] [cursor=pointer]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e80] [cursor=pointer]
+  - alert [ref=e84]: Groups · Vault

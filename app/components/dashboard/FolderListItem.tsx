@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import {
   Folder,
   Pencil,
@@ -29,7 +29,7 @@ interface FolderListItemProps {
   onMove?: (folder: FolderData) => void;
 }
 
-export function FolderListItem({
+export const FolderListItem = memo(function FolderListItem({
   folder,
   isSelected = false,
   onToggleSelect,
@@ -106,7 +106,7 @@ export function FolderListItem({
       </DropdownMenu>
     </div>
   );
-}
+});
 
 /* ─── Dropdown Menu Components ─── */
 

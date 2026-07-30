@@ -1,0 +1,27 @@
+- generic [active] [ref=f3e1]:
+  - main [ref=f3e397]:
+    - generic [ref=f3e398]:
+      - generic [ref=f3e399]:
+        - generic [ref=f3e400] [cursor=pointer]: VAULT
+        - paragraph [ref=f3e407]: Sign in to your secure file storage
+      - generic [ref=f3e408]:
+        - heading "Welcome back" [level=1] [ref=f3e409]
+        - generic [ref=f3e431]: Invalid email or password
+        - generic [ref=f3e410]:
+          - generic [ref=f3e411]:
+            - generic [ref=f3e412]: Email Address
+            - textbox "you@example.com" [ref=f3e413]: 22bce217@nirmauni.ac.in
+          - generic [ref=f3e414]:
+            - generic [ref=f3e415]: Password
+            - textbox "••••••••" [ref=f3e416]: wrongpassword
+          - button "Sign In" [ref=f3e417] [cursor=pointer]
+        - generic [ref=f3e418]: or
+        - button "Continue with Google" [ref=f3e422] [cursor=pointer]
+        - paragraph [ref=f3e428]:
+          - text: Don't have an account?
+          - link "Sign Up" [ref=f3e429] [cursor=pointer]:
+            - /url: /sign-up
+      - paragraph [ref=f3e430]: Secured with Cloudflare R2 · End-to-end authenticated
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f3e11] [cursor=pointer]
+  - alert [ref=f3e15]

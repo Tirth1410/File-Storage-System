@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { formatBytes, formatDate } from "@/app/lib/utils";
 import { FileIcon } from "./FileIcon";
 import {
@@ -36,7 +36,7 @@ interface FileListItemProps {
   deleteTitle?: string;
 }
 
-export function FileListItem({
+export const FileListItem = memo(function FileListItem({
   file,
   currentUserId,
   isSelected = false,
@@ -139,7 +139,7 @@ export function FileListItem({
       </DropdownMenu>
     </div>
   );
-}
+});
 
 /* ─── Dropdown Menu Components ─── */
 

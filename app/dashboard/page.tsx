@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "@/app/lib/auth-client";
-import { useEffect, useState, useCallback, startTransition } from "react";
+import { useEffect, useState, useCallback, startTransition, useRef } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
@@ -75,6 +75,7 @@ export default function DashboardPage() {
   const [filesLoading, setFilesLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [activeTab, setActiveTab] = useState<"own" | "shared">("own");
+  const hasFetchedProfile = useRef(false);
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [currentFolderPath, setCurrentFolderPath] = useState<BreadcrumbItem[]>(
@@ -170,7 +171,15 @@ export default function DashboardPage() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const fetchContents = useCallback(async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!session?.user) return;
+    try {
+      const res = await fetch("/api/profile");
+      if (res.ok) setProfileData(await res.json());
+    } catch { /* ignore */ }
+  }, [session]);
+
+  const fetchContents = useCallback(async (skipProfile = false) => {
     if (!session?.user) return;
     setFilesLoading(true);
     try {
@@ -185,8 +194,8 @@ export default function DashboardPage() {
           currentFolderId
             ? fetch(`/api/folders/${currentFolderId}/breadcrumb`)
             : Promise.resolve(null),
-          fetch("/api/profile"),
-        ]);
+          ...(!skipProfile ? [fetch("/api/profile")] : []),
+        ] as const);
 
         if (contentsRes.ok) {
           const data = await contentsRes.json();
@@ -201,18 +210,18 @@ export default function DashboardPage() {
           setCurrentFolderPath([]);
         }
 
-        if (profRes.ok) setProfileData(await profRes.json());
+        if (profRes && profRes.ok) setProfileData(await profRes.json());
       } else {
         const [filesRes, profRes] = await Promise.all([
           fetch("/api/files?type=shared"),
-          fetch("/api/profile"),
-        ]);
+          ...(!skipProfile ? [fetch("/api/profile")] : []),
+        ] as const);
         if (filesRes.ok) {
           setFiles(await filesRes.json());
           setFolders([]);
           setSelectedFileIds([]);
         }
-        if (profRes.ok) setProfileData(await profRes.json());
+        if (profRes && profRes.ok) setProfileData(await profRes.json());
       }
     } catch (err) {
       console.error("Error loading contents:", err);
@@ -223,20 +232,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     startTransition(() => {
-      fetchContents();
+      const isInitial = !hasFetchedProfile.current;
+      if (isInitial) hasFetchedProfile.current = true;
+      fetchContents(!isInitial);
     });
   }, [fetchContents]);
 
   const handleUploadSuccess = useCallback(() => {
     setActiveTab("own");
     fetchContents();
-  }, [fetchContents]);
+    fetchProfile();
+  }, [fetchContents, fetchProfile]);
 
-  const handleToggleSelect = (id: string) => {
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedFileIds((prev) =>
       prev.includes(id) ? prev.filter((fid) => fid !== id) : [...prev, id],
     );
-  };
+  }, []);
 
   const isAllSelected =
     files.length > 0 && files.every((f) => selectedFileIds.includes(f.id));
@@ -338,6 +350,7 @@ export default function DashboardPage() {
               prev.filter((id) => !successfulIds.includes(id)),
             );
             fetchContents();
+            fetchProfile();
           } else {
             showCustomAlert(
               "Error",
@@ -358,7 +371,7 @@ export default function DashboardPage() {
     });
   };
 
-  const handleDeleteFile = async (fileId: string) => {
+  const handleDeleteFile = useCallback(async (fileId: string) => {
     setDialogState({
       isOpen: true,
       title: activeTab === "shared" ? "Remove File" : "Delete File",
@@ -401,6 +414,7 @@ export default function DashboardPage() {
             );
             setSelectedFileIds((prev) => prev.filter((id) => id !== fileId));
             fetchContents();
+            fetchProfile();
           } else {
             const d = await res.json();
             showCustomAlert("Error", d.error || "Delete failed", "danger");
@@ -414,9 +428,9 @@ export default function DashboardPage() {
         }
       },
     });
-  };
+  }, [activeTab, fetchContents, fetchProfile]);
 
-  const handleDownload = async (file: UploadedFile) => {
+  const handleDownload = useCallback(async (file: UploadedFile) => {
     try {
       const res = await fetch(
         `/api/files/${file.id}/download-url?download=true`,
@@ -435,9 +449,9 @@ export default function DashboardPage() {
     } catch {
       showCustomAlert("Error", "Error downloading file", "danger");
     }
-  };
+  }, []);
 
-  const handlePreview = async (file: UploadedFile) => {
+  const handlePreview = useCallback(async (file: UploadedFile) => {
     setPreviewFile(file);
     setPreviewUrl(null);
     setPreviewLoading(true);
@@ -454,7 +468,7 @@ export default function DashboardPage() {
     } finally {
       setPreviewLoading(false);
     }
-  };
+  }, []);
 
   const handleDeleteFolder = (folderId: string) => {
     const folder = folders.find((f) => f.id === folderId);
@@ -474,6 +488,7 @@ export default function DashboardPage() {
           if (res.ok) {
             toast.success("Folder deleted successfully!");
             fetchContents();
+            fetchProfile();
           } else {
             const d = await res.json().catch(() => ({}));
             showCustomAlert("Error", d.error || "Delete failed", "danger");
@@ -485,10 +500,10 @@ export default function DashboardPage() {
     });
   };
 
-  const handleRenameFolder = (folder: FolderData) => {
+  const handleRenameFolder = useCallback((folder: FolderData) => {
     setRenameTarget(folder);
     setRenameValue(folder.name);
-  };
+  }, []);
 
   const submitRename = async () => {
     if (!renameTarget || !renameValue.trim()) return;
@@ -511,13 +526,13 @@ export default function DashboardPage() {
     }
   };
 
-  const handleMoveFolder = (folder: FolderData) => {
+  const handleMoveFolder = useCallback((folder: FolderData) => {
     setMoveTarget({ type: "folder", id: folder.id });
-  };
+  }, []);
 
-  const handleMoveFile = (file: UploadedFile) => {
+  const handleMoveFile = useCallback((file: UploadedFile) => {
     setMoveTarget({ type: "file", id: file.id });
-  };
+  }, []);
 
   const submitMove = async (targetFolderId: string | null) => {
     if (!moveTarget) return;
@@ -760,7 +775,7 @@ export default function DashboardPage() {
                     )}
                     {/* Refresh */}
                     <button
-                      onClick={() => fetchContents()}
+                      onClick={() => { fetchContents(false); fetchProfile(); }}
                       className="p-1.5 rounded-lg text-[#737373] hover:text-[#002FA7] hover:bg-[rgba(0,47,167,0.06)] transition-all cursor-pointer"
                       title="Refresh"
                     >
@@ -985,22 +1000,28 @@ export default function DashboardPage() {
               ) : previewUrl ? (
                 <>
                   {previewFile.mimeType.startsWith("image/") && (
-                    <Image
-                      src={previewUrl}
-                      alt={previewFile.originalName}
-                      width={800}
-                      height={600}
-                      unoptimized
-                      className="max-w-full max-h-full object-contain rounded-xl"
-                    />
+                    <div className="flex items-center justify-center w-full h-full" style={{ aspectRatio: "800/600" }}>
+                      <Image
+                        src={previewUrl}
+                        alt={previewFile.originalName}
+                        width={800}
+                        height={600}
+                        unoptimized
+                        className="max-w-full max-h-full object-contain rounded-xl"
+                      />
+                    </div>
                   )}
                   {previewFile.mimeType.startsWith("video/") && (
-                    <video
-                      src={previewUrl}
-                      controls
-                      autoPlay
-                      className="max-w-full max-h-full object-contain rounded-xl"
-                    />
+                    <div className="flex items-center justify-center w-full h-full" style={{ aspectRatio: "16/9" }}>
+                      <video
+                        src={previewUrl}
+                        controls
+                        autoPlay
+                        width={800}
+                        height={450}
+                        className="max-w-full max-h-full object-contain rounded-xl"
+                      />
+                    </div>
                   )}
                   {previewFile.mimeType === "application/pdf" && (
                     <PDFCanvasViewer

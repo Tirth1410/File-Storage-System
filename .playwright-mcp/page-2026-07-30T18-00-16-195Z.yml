@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - main [ref=e85]:
+    - generic [ref=e86]:
+      - generic [ref=e87]:
+        - generic [ref=e88] [cursor=pointer]: VAULT
+        - paragraph [ref=e95]: Sign in to your secure file storage
+      - generic [ref=e96]:
+        - heading "Welcome back" [level=1] [ref=e97]
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - generic [ref=e100]: Email Address
+            - textbox "you@example.com" [ref=e101]
+          - generic [ref=e102]:
+            - generic [ref=e103]: Password
+            - textbox "••••••••" [ref=e104]
+          - button "Sign In" [ref=e105] [cursor=pointer]
+        - generic [ref=e106]: or
+        - button "Continue with Google" [ref=e110] [cursor=pointer]
+        - paragraph [ref=e116]:
+          - text: Don't have an account?
+          - link "Sign Up" [ref=e117] [cursor=pointer]:
+            - /url: /sign-up
+      - paragraph [ref=e118]: Secured with Cloudflare R2 · End-to-end authenticated
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e80] [cursor=pointer]
+  - alert [ref=e84]: Sign In · Vault

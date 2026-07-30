@@ -1,0 +1,32 @@
+- generic [active] [ref=f4e1]:
+  - main [ref=f4e2]:
+    - generic [ref=f4e3]:
+      - generic [ref=f4e4]:
+        - generic [ref=f4e5] [cursor=pointer]: VAULT
+        - paragraph [ref=f4e12]: Create your secure file storage account
+      - generic [ref=f4e13]:
+        - heading "Get started" [level=1] [ref=f4e14]
+        - generic [ref=f4e15]:
+          - generic [ref=f4e16]:
+            - generic [ref=f4e17]: Full Name
+            - textbox "Jane Doe" [ref=f4e18]
+          - generic [ref=f4e19]:
+            - generic [ref=f4e20]: Email Address
+            - textbox "you@example.com" [ref=f4e21]
+          - generic [ref=f4e22]:
+            - generic [ref=f4e23]: Password
+            - textbox "Min. 8 characters" [ref=f4e24]
+          - generic [ref=f4e25]:
+            - generic [ref=f4e26]: Confirm Password
+            - textbox "Re-enter your password" [ref=f4e27]
+          - button "Create Account" [ref=f4e28] [cursor=pointer]
+        - generic [ref=f4e29]: or
+        - button "Continue with Google" [ref=f4e33] [cursor=pointer]
+        - paragraph [ref=f4e39]:
+          - text: Already have an account?
+          - link "Sign In" [ref=f4e40] [cursor=pointer]:
+            - /url: /sign-in
+      - paragraph [ref=f4e41]: Secured with Cloudflare R2 · End-to-end authenticated
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f4e47] [cursor=pointer]
+  - alert [ref=f4e51]

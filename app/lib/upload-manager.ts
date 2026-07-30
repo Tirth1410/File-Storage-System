@@ -53,6 +53,9 @@ export class UploadManager {
 
   private jobsSnapshot: UploadJob[] = [];
   private statsSnapshot: UploadBatchStats = DEFAULT_STATS;
+  private notifyTimer: ReturnType<typeof setTimeout> | null = null;
+  private notifyPending = false;
+  private readonly NOTIFY_THROTTLE_MS = 100;
 
   constructor(concurrency = 3) {
     this.concurrency = concurrency;
@@ -129,6 +132,21 @@ export class UploadManager {
   }
 
   private notify() {
+    if (this.notifyTimer === null) {
+      this.flushNotify();
+      this.notifyTimer = setTimeout(() => {
+        this.notifyTimer = null;
+        if (this.notifyPending) {
+          this.notifyPending = false;
+          this.flushNotify();
+        }
+      }, this.NOTIFY_THROTTLE_MS);
+    } else {
+      this.notifyPending = true;
+    }
+  }
+
+  private flushNotify() {
     this.updateSnapshots();
     this.listeners.forEach((listener) => listener());
   }

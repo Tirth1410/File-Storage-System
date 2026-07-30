@@ -1,0 +1,4 @@
+- generic [active] [ref=f10e1]:
+  - paragraph [ref=f10e5]: Verifying session...
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f10e11] [cursor=pointer]

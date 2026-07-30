@@ -1,0 +1,64 @@
+- generic [active] [ref=f3e1]:
+  - banner:
+    - generic [ref=f3e16]:
+      - button "Go to Dashboard" [ref=f3e17] [cursor=pointer]:
+        - generic [ref=f3e18]: VAULT
+      - navigation [ref=f3e25]:
+        - button "Dashboard" [ref=f3e26] [cursor=pointer]
+        - button "Groups" [ref=f3e27] [cursor=pointer]
+      - generic [ref=f3e28]:
+        - button "Go to Profile" [ref=f3e29] [cursor=pointer]:
+          - generic [ref=f3e30]: B
+          - generic [ref=f3e31]: Bhaumil Panchal
+        - button "Sign Out" [ref=f3e33] [cursor=pointer]
+  - main [ref=f3e35]:
+    - generic [ref=f3e36]:
+      - generic [ref=f3e38]:
+        - heading "My Storage" [level=1] [ref=f3e39]
+        - paragraph [ref=f3e40]: Upload, manage and share your files
+      - generic [ref=f3e42]:
+        - generic [ref=f3e47]:
+          - paragraph [ref=f3e48]: Storage
+          - paragraph [ref=f3e49]: 0 files
+        - generic [ref=f3e53]:
+          - generic [ref=f3e54]: 0% used
+          - generic [ref=f3e55]: 200 MB total
+      - generic [ref=f3e56]:
+        - generic [ref=f3e58]:
+          - heading "Upload File" [level=2] [ref=f3e60]
+          - generic [ref=f3e68] [cursor=pointer]:
+            - generic [ref=f3e69]: Click to select or drag & drop files
+            - generic [ref=f3e70]: Supports multiple files with concurrent bounded queue (3 active worker uploads)
+        - generic [ref=f3e72]:
+          - generic [ref=f3e73]:
+            - heading "My Files" [level=2] [ref=f3e74]
+            - generic [ref=f3e76]:
+              - generic [ref=f3e77]:
+                - button "My Files" [ref=f3e78] [cursor=pointer]
+                - button "Shared" [ref=f3e79] [cursor=pointer]
+              - button "New Folder" [ref=f3e80] [cursor=pointer]
+              - button "Refresh" [ref=f3e83] [cursor=pointer]
+          - generic [ref=f3e89]:
+            - navigation [ref=f3e91]:
+              - button "My Files" [ref=f3e92] [cursor=pointer]
+            - generic [ref=f3e97]:
+              - generic [ref=f3e99] [cursor=pointer]:
+                - checkbox "Select All (1)" [ref=f3e100]
+                - generic [ref=f3e101]: Select All (1)
+              - generic [ref=f3e103]:
+                - generic [ref=f3e104]:
+                  - checkbox [ref=f3e105] [cursor=pointer]
+                  - button [ref=f3e106] [cursor=pointer]
+                  - button "vault Folder · 7/30/2026" [ref=f3e109] [cursor=pointer]:
+                    - paragraph [ref=f3e110]: vault
+                    - generic [ref=f3e111]:
+                      - generic [ref=f3e112]: Folder
+                      - generic [ref=f3e113]: ·
+                      - generic [ref=f3e114]: 7/30/2026
+                - button "More actions" [ref=f3e116] [cursor=pointer]
+              - generic [ref=f3e121]:
+                - generic [ref=f3e122]: 1 item
+                - generic [ref=f3e123]: Cloudflare R2
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f3e11] [cursor=pointer]
+  - alert [ref=f3e15]

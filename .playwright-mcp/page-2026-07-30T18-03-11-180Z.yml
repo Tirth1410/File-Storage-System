@@ -1,0 +1,72 @@
+- generic [ref=e1]:
+  - banner:
+    - generic [ref=e119]:
+      - button "Go to Dashboard" [ref=e120] [cursor=pointer]:
+        - generic [ref=e121]: VAULT
+      - generic [ref=e260]:
+        - button "Go to Profile" [ref=e261] [cursor=pointer]:
+          - generic [ref=e262]: B
+        - button "Open navigation menu" [ref=e263] [cursor=pointer]
+  - generic [ref=e307]:
+    - heading "Rename Folder" [level=3] [ref=e308]
+    - textbox [active] [ref=e309]: test-folder
+    - generic [ref=e310]:
+      - button "Cancel" [ref=e311] [cursor=pointer]
+      - button "Rename" [ref=e312] [cursor=pointer]
+  - main [ref=e151]:
+    - generic [ref=e152]:
+      - generic [ref=e154]:
+        - heading "My Storage" [level=1] [ref=e155]
+        - paragraph [ref=e156]: Upload, manage and share your files
+      - generic [ref=e203]:
+        - generic [ref=e208]:
+          - paragraph [ref=e209]: Storage
+          - paragraph [ref=e210]: 0 files
+        - generic [ref=e214]:
+          - generic [ref=e215]: 0% used
+          - generic [ref=e216]: 200 MB total
+      - generic [ref=e157]:
+        - generic [ref=e159]:
+          - heading "Upload File" [level=2] [ref=e161]
+          - generic [ref=e169] [cursor=pointer]:
+            - generic [ref=e170]: Click to select or drag & drop files
+            - generic [ref=e171]: Supports multiple files with concurrent bounded queue (3 active worker uploads)
+        - generic [ref=e173]:
+          - generic [ref=e174]:
+            - heading "My Files" [level=2] [ref=e175]
+            - generic [ref=e177]:
+              - generic [ref=e178]:
+                - button "My Files" [ref=e179] [cursor=pointer]
+                - button "Shared" [ref=e180] [cursor=pointer]
+              - button "New Folder" [ref=e265] [cursor=pointer]
+              - button "Refresh" [ref=e184] [cursor=pointer]
+          - generic [ref=e190]:
+            - navigation [ref=e192]:
+              - button "My Files" [ref=e193] [cursor=pointer]
+              - button "vault" [ref=e245] [cursor=pointer]
+            - generic [ref=e198]:
+              - generic [ref=e270] [cursor=pointer]:
+                - checkbox "Select All (1)" [ref=e271]
+                - generic [ref=e272]: Select All (1)
+              - generic [ref=e273]:
+                - generic [ref=e274]:
+                  - checkbox [ref=e275] [cursor=pointer]
+                  - button [ref=e276] [cursor=pointer]
+                  - button "test-folder Folder · 7/30/2026" [ref=e279] [cursor=pointer]:
+                    - paragraph [ref=e280]: test-folder
+                    - generic [ref=e281]:
+                      - generic [ref=e282]: Folder
+                      - generic [ref=e283]: ·
+                      - generic [ref=e284]: 7/30/2026
+                - generic [ref=e285]:
+                  - button "More actions" [ref=e286] [cursor=pointer]
+                  - generic [ref=e294]:
+                    - button "Move" [ref=e295] [cursor=pointer]
+                    - button "Rename" [ref=e298] [cursor=pointer]
+                    - button "Delete" [ref=e302] [cursor=pointer]
+              - generic [ref=e291]:
+                - generic [ref=e292]: 1 item
+                - generic [ref=e293]: Cloudflare R2
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e80] [cursor=pointer]
+  - alert [ref=e84]: Dashboard · Vault
