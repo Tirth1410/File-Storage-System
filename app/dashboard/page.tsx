@@ -723,23 +723,10 @@ export default function DashboardPage() {
             {/* Main: File List */}
             <div className="lg:col-span-2">
               <SectionCard
-                title={
-                  activeTab === "own"
-                    ? currentFolderId
-                      ? ""
-                      : "My Files"
-                    : "Shared with Me"
-                }
+                title={activeTab === "own" ? "My Files" : "Shared with Me"}
                 noPadding
                 titleRight={
                   <div className="flex items-center gap-2">
-                    {/* Breadcrumb (shown in own tab) */}
-                    {activeTab === "own" && (
-                      <BreadcrumbNav
-                        items={currentFolderPath}
-                        onNavigate={navigateToFolder}
-                      />
-                    )}
                     {/* Tab Toggle */}
                     <div
                       className="flex bg-[#F5F5F5] border border-[#E5E7EB] rounded-lg p-0.5"
@@ -782,6 +769,15 @@ export default function DashboardPage() {
                   </div>
                 }
               >
+                {/* Breadcrumb — separate row beneath header */}
+                {activeTab === "own" && (
+                  <div className="px-4 py-2.5 border-b border-[#E5E7EB] bg-[#FAFAFA]">
+                    <BreadcrumbNav
+                      items={currentFolderPath}
+                      onNavigate={navigateToFolder}
+                    />
+                  </div>
+                )}
                 <div
                   className="min-h-[420px] flex flex-col"
                   data-tour="file-list"

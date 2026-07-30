@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  Folder,
-  ChevronRight,
-  ChevronDown,
-  X,
-  Home,
-  Loader2,
-} from "lucide-react";
+import { Folder, ChevronRight, X, Home, Loader2 } from "lucide-react";
 
 interface FolderNode {
   id: string;
@@ -36,22 +29,12 @@ export function MoveToDialog({
   onSelect,
   onClose,
 }: MoveToDialogProps) {
-  const [rootFolders, setRootFolders] = useState<FolderNode[]>([]);
   const [currentView, setCurrentView] = useState<string | null>(null);
   const [currentFolders, setCurrentFolders] = useState<FolderNode[]>([]);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingContents, setLoadingContents] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(currentFolderId);
-
-  useEffect(() => {
-    fetch("/api/folders")
-      .then((res) => res.ok && res.json())
-      .then((folders) => {
-        if (folders) setRootFolders(folders);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const loadContents = useCallback(async (folderId: string | null) => {
     setLoadingContents(true);
@@ -79,6 +62,14 @@ export function MoveToDialog({
       setLoadingContents(false);
     }
   }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      await loadContents(null);
+      setLoading(false);
+    };
+    init();
+  }, [loadContents]);
 
   function handleNavigate(folderId: string | null) {
     setCurrentView(folderId);
