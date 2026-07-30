@@ -78,7 +78,8 @@ export function AppShell({
 
   useEffect(() => {
     return () => {
-      if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
+      if (hoverRafRef.current !== null)
+        cancelAnimationFrame(hoverRafRef.current);
     };
   }, []);
 
@@ -115,8 +116,6 @@ export function AppShell({
 
   return (
     <>
-
-
       <header className={`vault-navbar${scrolled ? " scrolled" : ""}`}>
         <div className="vault-navbar-inner" data-tour="navbar">
           {/* ── Left: Logo ── */}

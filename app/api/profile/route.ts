@@ -34,44 +34,51 @@ export const GET = withLogging(async (request: NextRequest) => {
         : 0;
 
     // Run independent queries in parallel
-    const [totalUploadedFiles, totalDownloads, recentUploads, recentDownloadsLogs] =
-      await Promise.all([
-        prisma.file.count({
-          where: { ownerUserId: userId, status: "available" },
-        }),
-        prisma.auditLog.count({
-          where: { userId, action: "download_success" },
-        }),
-        prisma.file.findMany({
-          where: { ownerUserId: userId, status: "available" },
-          orderBy: { createdAt: "desc" },
-          take: 5,
-          select: {
-            id: true,
-            originalName: true,
-            sizeBytes: true,
-            createdAt: true,
-          },
-        }),
-        prisma.auditLog.findMany({
-          where: { userId, action: "download_success" },
-          orderBy: { createdAt: "desc" },
-          take: 5,
-        }),
-      ]);
+    const [
+      totalUploadedFiles,
+      totalDownloads,
+      recentUploads,
+      recentDownloadsLogs,
+    ] = await Promise.all([
+      prisma.file.count({
+        where: { ownerUserId: userId, status: "available" },
+      }),
+      prisma.auditLog.count({
+        where: { userId, action: "download_success" },
+      }),
+      prisma.file.findMany({
+        where: { ownerUserId: userId, status: "available" },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          originalName: true,
+          sizeBytes: true,
+          createdAt: true,
+        },
+      }),
+      prisma.auditLog.findMany({
+        where: { userId, action: "download_success" },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+    ]);
 
     // Resolve download file names
     const recentDownloadFileIds = recentDownloadsLogs
       .map((l) => l.fileId)
       .filter(Boolean) as string[];
-    const downloadFiles = recentDownloadFileIds.length > 0
-      ? await prisma.file.findMany({
-          where: { id: { in: recentDownloadFileIds } },
-          select: { id: true, originalName: true },
-        })
-      : [];
+    const downloadFiles =
+      recentDownloadFileIds.length > 0
+        ? await prisma.file.findMany({
+            where: { id: { in: recentDownloadFileIds } },
+            select: { id: true, originalName: true },
+          })
+        : [];
 
-    const downloadFileMap = new Map(downloadFiles.map((f) => [f.id, f.originalName]));
+    const downloadFileMap = new Map(
+      downloadFiles.map((f) => [f.id, f.originalName]),
+    );
     const recentDownloads = recentDownloadsLogs.map((log) => ({
       id: log.id,
       fileId: log.fileId,

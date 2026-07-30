@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "@/app/lib/auth-client";
-import { useEffect, useState, useCallback, startTransition, useRef } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  startTransition,
+  useRef,
+} from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
@@ -176,59 +182,64 @@ export default function DashboardPage() {
     try {
       const res = await fetch("/api/profile");
       if (res.ok) setProfileData(await res.json());
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [session]);
 
-  const fetchContents = useCallback(async (skipProfile = false) => {
-    if (!session?.user) return;
-    setFilesLoading(true);
-    try {
-      if (activeTab === "own") {
-        const params = new URLSearchParams();
-        if (currentFolderId) {
-          params.set("folderId", currentFolderId);
-        }
-        const qs = params.toString();
-        const [contentsRes, breadcrumbRes, profRes] = await Promise.all([
-          fetch(`/api/folders/contents${qs ? "?" + qs : ""}`),
-          currentFolderId
-            ? fetch(`/api/folders/${currentFolderId}/breadcrumb`)
-            : Promise.resolve(null),
-          ...(!skipProfile ? [fetch("/api/profile")] : []),
-        ] as const);
+  const fetchContents = useCallback(
+    async (skipProfile = false) => {
+      if (!session?.user) return;
+      setFilesLoading(true);
+      try {
+        if (activeTab === "own") {
+          const params = new URLSearchParams();
+          if (currentFolderId) {
+            params.set("folderId", currentFolderId);
+          }
+          const qs = params.toString();
+          const [contentsRes, breadcrumbRes, profRes] = await Promise.all([
+            fetch(`/api/folders/contents${qs ? "?" + qs : ""}`),
+            currentFolderId
+              ? fetch(`/api/folders/${currentFolderId}/breadcrumb`)
+              : Promise.resolve(null),
+            ...(!skipProfile ? [fetch("/api/profile")] : []),
+          ] as const);
 
-        if (contentsRes.ok) {
-          const data = await contentsRes.json();
-          setFolders(data.folders);
-          setFiles(data.files);
-          setSelectedFileIds([]);
-        }
+          if (contentsRes.ok) {
+            const data = await contentsRes.json();
+            setFolders(data.folders);
+            setFiles(data.files);
+            setSelectedFileIds([]);
+          }
 
-        if (breadcrumbRes && breadcrumbRes.ok) {
-          setCurrentFolderPath(await breadcrumbRes.json());
-        } else if (!currentFolderId) {
-          setCurrentFolderPath([]);
-        }
+          if (breadcrumbRes && breadcrumbRes.ok) {
+            setCurrentFolderPath(await breadcrumbRes.json());
+          } else if (!currentFolderId) {
+            setCurrentFolderPath([]);
+          }
 
-        if (profRes && profRes.ok) setProfileData(await profRes.json());
-      } else {
-        const [filesRes, profRes] = await Promise.all([
-          fetch("/api/files?type=shared"),
-          ...(!skipProfile ? [fetch("/api/profile")] : []),
-        ] as const);
-        if (filesRes.ok) {
-          setFiles(await filesRes.json());
-          setFolders([]);
-          setSelectedFileIds([]);
+          if (profRes && profRes.ok) setProfileData(await profRes.json());
+        } else {
+          const [filesRes, profRes] = await Promise.all([
+            fetch("/api/files?type=shared"),
+            ...(!skipProfile ? [fetch("/api/profile")] : []),
+          ] as const);
+          if (filesRes.ok) {
+            setFiles(await filesRes.json());
+            setFolders([]);
+            setSelectedFileIds([]);
+          }
+          if (profRes && profRes.ok) setProfileData(await profRes.json());
         }
-        if (profRes && profRes.ok) setProfileData(await profRes.json());
+      } catch (err) {
+        console.error("Error loading contents:", err);
+      } finally {
+        setFilesLoading(false);
       }
-    } catch (err) {
-      console.error("Error loading contents:", err);
-    } finally {
-      setFilesLoading(false);
-    }
-  }, [session, activeTab, currentFolderId]);
+    },
+    [session, activeTab, currentFolderId],
+  );
 
   useEffect(() => {
     startTransition(() => {
@@ -371,64 +382,70 @@ export default function DashboardPage() {
     });
   };
 
-  const handleDeleteFile = useCallback(async (fileId: string) => {
-    setDialogState({
-      isOpen: true,
-      title: activeTab === "shared" ? "Remove File" : "Delete File",
-      message:
-        activeTab === "shared"
-          ? "Remove this file from your Shared tab?"
-          : "Are you sure you want to delete this file? Its storage quota will be released.",
-      confirmLabel: activeTab === "shared" ? "Remove" : "Delete",
-      cancelLabel: "Cancel",
-      type: "confirm",
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/files/${fileId}?context=${activeTab}`, {
-            method: "DELETE",
-          });
-          if (res.ok) {
-            if (activeTab === "shared") {
-              const result: {
-                removed: string[];
-                owned: string[];
-                notFound: string[];
-                failed: { id: string; reason: string }[];
-              } = await res.json();
-
-              if (result.removed.length === 0) {
-                showCustomAlert(
-                  "Error",
-                  result.failed[0]?.reason || "File was not removed",
-                  "danger",
-                );
-                return;
-              }
-            }
-
-            toast.success(
-              activeTab === "shared"
-                ? "File removed from Shared"
-                : "File deleted successfully!",
+  const handleDeleteFile = useCallback(
+    async (fileId: string) => {
+      setDialogState({
+        isOpen: true,
+        title: activeTab === "shared" ? "Remove File" : "Delete File",
+        message:
+          activeTab === "shared"
+            ? "Remove this file from your Shared tab?"
+            : "Are you sure you want to delete this file? Its storage quota will be released.",
+        confirmLabel: activeTab === "shared" ? "Remove" : "Delete",
+        cancelLabel: "Cancel",
+        type: "confirm",
+        variant: "danger",
+        onConfirm: async () => {
+          try {
+            const res = await fetch(
+              `/api/files/${fileId}?context=${activeTab}`,
+              {
+                method: "DELETE",
+              },
             );
-            setSelectedFileIds((prev) => prev.filter((id) => id !== fileId));
-            fetchContents();
-            fetchProfile();
-          } else {
-            const d = await res.json();
-            showCustomAlert("Error", d.error || "Delete failed", "danger");
+            if (res.ok) {
+              if (activeTab === "shared") {
+                const result: {
+                  removed: string[];
+                  owned: string[];
+                  notFound: string[];
+                  failed: { id: string; reason: string }[];
+                } = await res.json();
+
+                if (result.removed.length === 0) {
+                  showCustomAlert(
+                    "Error",
+                    result.failed[0]?.reason || "File was not removed",
+                    "danger",
+                  );
+                  return;
+                }
+              }
+
+              toast.success(
+                activeTab === "shared"
+                  ? "File removed from Shared"
+                  : "File deleted successfully!",
+              );
+              setSelectedFileIds((prev) => prev.filter((id) => id !== fileId));
+              fetchContents();
+              fetchProfile();
+            } else {
+              const d = await res.json();
+              showCustomAlert("Error", d.error || "Delete failed", "danger");
+            }
+          } catch {
+            showCustomAlert(
+              "Error",
+              "An error occurred while deleting",
+              "danger",
+            );
           }
-        } catch {
-          showCustomAlert(
-            "Error",
-            "An error occurred while deleting",
-            "danger",
-          );
-        }
-      },
-    });
-  }, [activeTab, fetchContents, fetchProfile]);
+        },
+      });
+    },
+    [activeTab, fetchContents, fetchProfile],
+  );
 
   const handleDownload = useCallback(async (file: UploadedFile) => {
     try {
@@ -775,7 +792,10 @@ export default function DashboardPage() {
                     )}
                     {/* Refresh */}
                     <button
-                      onClick={() => { fetchContents(false); fetchProfile(); }}
+                      onClick={() => {
+                        fetchContents(false);
+                        fetchProfile();
+                      }}
                       className="p-1.5 rounded-lg text-[#737373] hover:text-[#002FA7] hover:bg-[rgba(0,47,167,0.06)] transition-all cursor-pointer"
                       title="Refresh"
                     >
@@ -1000,7 +1020,10 @@ export default function DashboardPage() {
               ) : previewUrl ? (
                 <>
                   {previewFile.mimeType.startsWith("image/") && (
-                    <div className="flex items-center justify-center w-full h-full" style={{ aspectRatio: "800/600" }}>
+                    <div
+                      className="flex items-center justify-center w-full h-full"
+                      style={{ aspectRatio: "800/600" }}
+                    >
                       <Image
                         src={previewUrl}
                         alt={previewFile.originalName}
@@ -1012,7 +1035,10 @@ export default function DashboardPage() {
                     </div>
                   )}
                   {previewFile.mimeType.startsWith("video/") && (
-                    <div className="flex items-center justify-center w-full h-full" style={{ aspectRatio: "16/9" }}>
+                    <div
+                      className="flex items-center justify-center w-full h-full"
+                      style={{ aspectRatio: "16/9" }}
+                    >
                       <video
                         src={previewUrl}
                         controls
