@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import { Folder, Pencil, Trash2, ArrowRightToLine } from "lucide-react";
 import { formatDate } from "@/app/lib/utils";
 import {
@@ -13,7 +14,6 @@ interface FolderListItemProps {
   folder: FolderData;
   isSelected?: boolean;
   onToggleSelect?: (folderId: string) => void;
-  onNavigate: (folderId: string) => void;
   onRename?: (folder: FolderData) => void;
   onDelete?: (folderId: string) => void;
   onMove?: (folder: FolderData) => void;
@@ -23,11 +23,12 @@ export const FolderListItem = memo(function FolderListItem({
   folder,
   isSelected = false,
   onToggleSelect,
-  onNavigate,
   onRename,
   onDelete,
   onMove,
 }: FolderListItemProps) {
+  const folderHref = `/dashboard?folderId=${encodeURIComponent(folder.id)}`;
+
   return (
     <div
       className={`flex flex-col items-stretch justify-between py-3.5 px-3 rounded-xl transition-all border gap-3 sm:flex-row sm:items-center sm:px-4 sm:gap-4 ${
@@ -45,15 +46,17 @@ export const FolderListItem = memo(function FolderListItem({
             className="w-4 h-4 rounded text-[#002FA7] border-[#D1D5DB] focus:ring-[#002FA7] cursor-pointer shrink-0 accent-[#002FA7]"
           />
         )}
-        <button
-          onClick={() => onNavigate(folder.id)}
+        <Link
+          href={folderHref}
           className="w-10 h-10 bg-[rgba(0,47,167,0.08)] border border-[rgba(0,47,167,0.2)] rounded-xl flex items-center justify-center shrink-0 shadow-sm cursor-pointer hover:bg-[rgba(0,47,167,0.12)] transition-all"
+          aria-label={`Open folder ${folder.name}`}
         >
           <Folder className="w-5 h-5 text-[#002FA7]" />
-        </button>
-        <button
-          onClick={() => onNavigate(folder.id)}
-          className="overflow-hidden min-w-0 flex-1 text-left cursor-pointer"
+        </Link>
+        <Link
+          href={folderHref}
+          className="overflow-hidden min-w-0 flex-1 text-left cursor-pointer no-underline"
+          aria-label={`Open folder ${folder.name}`}
         >
           <p
             className="text-sm font-semibold text-[#171717] truncate"
@@ -66,7 +69,7 @@ export const FolderListItem = memo(function FolderListItem({
             <span>·</span>
             <span>{formatDate(folder.updatedAt)}</span>
           </div>
-        </button>
+        </Link>
       </div>
 
       {/* 3-dot Actions Menu */}

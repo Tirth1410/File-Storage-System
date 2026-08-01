@@ -5,9 +5,10 @@
  */
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { signOut } from "@/app/lib/auth-client";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Logo } from "@/app/components/shared/Logo";
 import { Menu, X } from "lucide-react";
 import "./AppShell.css";
@@ -27,6 +28,7 @@ export function AppShell({
   showSignOut = true,
 }: AppShellProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState<{
@@ -35,8 +37,18 @@ export function AppShell({
     opacity: number;
   }>({ left: 0, width: 0, opacity: 0 });
   const navRef = useRef<HTMLDivElement>(null);
-  const actionRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const actionRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const hoverRafRef = useRef<number | null>(null);
+
+  /* ── Active nav item derived from the current pathname ── */
+  const activeLabel = useMemo(() => {
+    if (!pathname) return null;
+    if (pathname.startsWith("/admin")) return "Admin";
+    if (pathname.startsWith("/group")) return "Groups";
+    if (pathname.startsWith("/dashboard")) return "Dashboard";
+    if (pathname.startsWith("/profile")) return "Profile";
+    return null;
+  }, [pathname]);
 
   /* ── Scroll listener ── */
   useEffect(() => {
@@ -73,30 +85,14 @@ export function AppShell({
   }, []);
 
   /* ── Nav items: primary tabs ── */
-  const navItems: Array<{
-    label: string;
-    onClick: () => void;
-    admin?: boolean;
-  }> = [];
+  const navItems: Array<{ label: string; href: string }> = [];
   if (userName) {
-    navItems.push({
-      label: "Dashboard",
-      onClick: () => router.push("/dashboard"),
-    });
-    navItems.push({ label: "Groups", onClick: () => router.push("/groups") });
+    navItems.push({ label: "Dashboard", href: "/dashboard" });
+    navItems.push({ label: "Groups", href: "/groups" });
   }
   if (isAdmin) {
-    navItems.push({
-      label: "Admin",
-      onClick: () => router.push("/admin"),
-      admin: true,
-    });
+    navItems.push({ label: "Admin", href: "/admin" });
   }
-
-  const navigateAndClose = (onClick: () => void) => {
-    setMenuOpen(false);
-    onClick();
-  };
 
   const handleSignOut = () => {
     setMenuOpen(false);
@@ -114,16 +110,14 @@ export function AppShell({
       <header className={`vault-navbar${scrolled ? " scrolled" : ""}`}>
         <div className="vault-navbar-inner" data-tour="navbar">
           {/* ── Left: Logo ── */}
-          <button
-            className="vault-logo bg-transparent border-0 p-0 text-left cursor-pointer"
-            onClick={() => {
-              setMenuOpen(false);
-              router.push("/dashboard");
-            }}
+          <Link
+            href="/dashboard"
+            className="vault-logo"
             aria-label="Go to Dashboard"
+            onClick={() => setMenuOpen(false)}
           >
             <Logo size="md" />
-          </button>
+          </Link>
 
           {/* ── Center: Nav Items ── */}
           {navItems.length > 0 && (
@@ -142,19 +136,20 @@ export function AppShell({
                 }}
               />
               {navItems.map((item) => (
-                <button
+                <Link
                   key={item.label}
                   ref={(el) => {
                     actionRefs.current[item.label] = el;
                   }}
+                  href={item.href}
                   className={`vault-nav-btn${
-                    item.admin ? " vault-nav-btn-admin" : ""
+                    item.label === activeLabel ? " active" : ""
                   }`}
-                  onClick={item.onClick}
+                  aria-current={item.label === activeLabel ? "page" : undefined}
                   onMouseEnter={() => handleHover(item.label)}
                 >
                   {item.label}
-                </button>
+                </Link>
               ))}
             </nav>
           )}
@@ -163,9 +158,9 @@ export function AppShell({
           <div className="vault-actions">
             {/* User badge */}
             {userName && (
-              <button
-                className="vault-user-badge bg-transparent border-0 p-0 cursor-pointer"
-                onClick={() => router.push("/profile")}
+              <Link
+                href="/profile"
+                className="vault-user-badge"
                 aria-label="Go to Profile"
                 data-tour="user-badge"
               >
@@ -173,7 +168,7 @@ export function AppShell({
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <span className="vault-user-name">{userName}</span>
-              </button>
+              </Link>
             )}
 
             {/* Sign Out */}
@@ -190,18 +185,16 @@ export function AppShell({
           {/* ── Right: User + Menu (mobile) ── */}
           <div className="vault-mobile-controls">
             {userName && (
-              <button
-                className="vault-user-badge bg-transparent border-0 p-0 cursor-pointer"
-                onClick={() => {
-                  setMenuOpen(false);
-                  router.push("/profile");
-                }}
+              <Link
+                href="/profile"
+                className="vault-user-badge"
                 aria-label="Go to Profile"
+                onClick={() => setMenuOpen(false)}
               >
                 <div className="vault-avatar">
                   {userName.charAt(0).toUpperCase()}
                 </div>
-              </button>
+              </Link>
             )}
             <button
               className="vault-mobile-icon-btn"
@@ -228,26 +221,27 @@ export function AppShell({
           <div className="vault-mobile-menu" role="menu">
             <div className="vault-mobile-menu-list">
               {userName && (
-                <button
-                  className="vault-mobile-menu-item"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    router.push("/profile");
-                  }}
+                <Link
+                  href="/profile"
+                  className={`vault-mobile-menu-item${
+                    activeLabel === "Profile" ? " active" : ""
+                  }`}
+                  onClick={() => setMenuOpen(false)}
                 >
                   Profile
-                </button>
+                </Link>
               )}
               {navItems.map((item) => (
-                <button
+                <Link
                   key={item.label}
+                  href={item.href}
                   className={`vault-mobile-menu-item${
-                    item.admin ? " primary" : ""
+                    item.label === activeLabel ? " active" : ""
                   }`}
-                  onClick={() => navigateAndClose(item.onClick)}
+                  onClick={() => setMenuOpen(false)}
                 >
                   {item.label}
-                </button>
+                </Link>
               ))}
               {showSignOut && (
                 <button

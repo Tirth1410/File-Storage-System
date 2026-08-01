@@ -1,7 +1,9 @@
 "use client";
 
 import { useSession } from "@/app/lib/auth-client";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
+  Suspense,
   useEffect,
   useState,
   useCallback,
@@ -59,7 +61,9 @@ type BulkDeleteResponse =
 
 const PAGE_SIZE = 50;
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, isPending } = useSession();
   useAuthRedirect(session, isPending);
   const { showModal, startTour, dismissTour } = useProductTour("dashboard");
@@ -78,7 +82,7 @@ export default function DashboardPage() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [activeTab, setActiveTab] = useState<"own" | "shared">("own");
 
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const currentFolderId = searchParams.get("folderId");
   const [currentFolderPath, setCurrentFolderPath] = useState<BreadcrumbItem[]>(
     [],
   );
@@ -102,21 +106,6 @@ export default function DashboardPage() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  const navigateToFolder = useCallback((folderId: string | null) => {
-    const params = new URLSearchParams(window.location.search);
-    if (folderId) {
-      params.set("folderId", folderId);
-    } else {
-      params.delete("folderId");
-    }
-    const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
-    window.history.pushState({}, "", newUrl);
-    setCurrentFolderId(folderId);
-    setCurrentFolderPath([]);
-    nextCursorRef.current = null;
-    setNextCursor(null);
-  }, []);
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -125,26 +114,7 @@ export default function DashboardPage() {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
       }
-      const folderIdFromUrl = urlParams.get("folderId");
-      if (folderIdFromUrl) {
-        startTransition(() => {
-          setCurrentFolderId(folderIdFromUrl);
-        });
-      }
     }
-  }, []);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const folderId = params.get("folderId");
-      setCurrentFolderId(folderId);
-      setCurrentFolderPath([]);
-      nextCursorRef.current = null;
-      setNextCursor(null);
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const fetchProfile = useCallback(async () => {
@@ -168,6 +138,9 @@ export default function DashboardPage() {
         setIsLoadingMore(true);
       } else {
         setFilesLoading(true);
+        nextCursorRef.current = null;
+        setNextCursor(null);
+        setCurrentFolderPath([]);
       }
       try {
         const params = new URLSearchParams();
@@ -634,7 +607,7 @@ export default function DashboardPage() {
                         setActiveTab(tab);
                         nextCursorRef.current = null;
                         setNextCursor(null);
-                        if (tab === "shared") navigateToFolder(null);
+                        if (tab === "shared") router.replace("/dashboard");
                       }}
                     />
                     {/* New Folder (own tab only) */}
@@ -661,10 +634,7 @@ export default function DashboardPage() {
                 {/* Breadcrumb — separate row beneath header */}
                 {activeTab === "own" && (
                   <div className="px-4 py-2.5 border-b border-[#E5E7EB] bg-[#FAFAFA] shrink-0">
-                    <BreadcrumbNav
-                      items={currentFolderPath}
-                      onNavigate={navigateToFolder}
-                    />
+                    <BreadcrumbNav items={currentFolderPath} />
                   </div>
                 )}
 
@@ -710,7 +680,6 @@ export default function DashboardPage() {
                             folder={folder}
                             isSelected={selectedFileIds.includes(folder.id)}
                             onToggleSelect={handleToggleSelect}
-                            onNavigate={(id) => navigateToFolder(id)}
                             onRename={handleRenameFolder}
                             onDelete={handleDeleteFolder}
                             onMove={handleMoveFolder}
@@ -772,5 +741,13 @@ export default function DashboardPage() {
         <ShareModal file={shareFile} onClose={() => setShareFile(null)} />
       )}
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<LoadingScreen message="Loading dashboard..." />}>
+      <DashboardContent />
+    </Suspense>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { signIn } from "@/app/lib/auth-client";
 import { Logo } from "@/app/components/shared/Logo";
 import { TriangleAlert } from "lucide-react";
@@ -258,12 +259,12 @@ function SignInContent() {
           {/* Footer */}
           <p className="text-center text-xs text-[#737373] mt-6">
             Don&apos;t have an account?{" "}
-            <a
+            <Link
               href="/sign-up"
               className="text-[#002FA7] hover:underline font-semibold"
             >
               Sign Up
-            </a>
+            </Link>
           </p>
         </div>
 

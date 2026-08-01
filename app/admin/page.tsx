@@ -102,8 +102,7 @@ export default function AdminPage() {
       if (res.error) {
         setErrorMessage(res.error.message || "Action failed");
       } else {
-        await fetchUsers();
-        await fetchStats();
+        await Promise.all([fetchUsers(), fetchStats()]);
       }
     } catch (err) {
       setErrorMessage((err as Error).message || "Action failed");
@@ -165,10 +164,12 @@ export default function AdminPage() {
         body: JSON.stringify({ quotaBytes: bytes }),
       });
       if (res.ok) {
-        const detailsRes = await fetch(`/api/admin/users/${selectedUser.id}`);
+        const [detailsRes] = await Promise.all([
+          fetch(`/api/admin/users/${selectedUser.id}`),
+          fetchStats(),
+          fetchUsers(),
+        ]);
         if (detailsRes.ok) setSelectedUserDetails(await detailsRes.json());
-        await fetchStats();
-        await fetchUsers();
         toast.success("Storage quota updated successfully!");
       } else {
         const errData = await res.json();

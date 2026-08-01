@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { ArrowRight, Users } from "lucide-react";
 import { roleToBadgeVariant } from "./types";
@@ -7,10 +8,10 @@ import type { Group } from "./types";
 
 interface GroupCardProps {
   group: Group;
-  onOpen: () => void;
+  href: string;
 }
 
-export function GroupCard({ group, onOpen }: GroupCardProps) {
+export function GroupCard({ group, href }: GroupCardProps) {
   const initials = group.name
     .split(/\s+/)
     .filter(Boolean)
@@ -19,9 +20,9 @@ export function GroupCard({ group, onOpen }: GroupCardProps) {
     .join("");
 
   return (
-    <button
-      onClick={onOpen}
-      className="text-left bg-white border border-[#E5E7EB] hover:border-[#002FA7]/40 hover:shadow-md rounded-2xl p-6 shadow-sm transition-all flex flex-col justify-between min-h-[190px] cursor-pointer group"
+    <Link
+      href={href}
+      className="no-underline text-left bg-white border border-[#E5E7EB] hover:border-[#002FA7]/40 hover:shadow-md rounded-2xl p-6 shadow-sm transition-all flex flex-col justify-between min-h-[190px] cursor-pointer group"
     >
       <div>
         <div className="flex justify-between items-start gap-2">
@@ -56,6 +57,6 @@ export function GroupCard({ group, onOpen }: GroupCardProps) {
           <ArrowRight className="w-3.5 h-3.5" />
         </span>
       </div>
-    </button>
+    </Link>
   );
 }
