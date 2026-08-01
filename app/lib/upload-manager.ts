@@ -49,7 +49,8 @@ export class UploadManager {
   private concurrency: number;
   private activeCount = 0;
   private listeners = new Set<() => void>();
-  private onJobCompleteCallback?: (job: UploadJob) => void;
+  private onBatchCompleteCallback?: () => void;
+  private batchPending = false;
 
   private jobsSnapshot: UploadJob[] = [];
   private statsSnapshot: UploadBatchStats = DEFAULT_STATS;
@@ -67,8 +68,8 @@ export class UploadManager {
     this.processQueue();
   }
 
-  public setOnJobComplete(callback: (job: UploadJob) => void) {
-    this.onJobCompleteCallback = callback;
+  public setOnBatchComplete(callback: () => void) {
+    this.onBatchCompleteCallback = callback;
   }
 
   public subscribe(listener: () => void): () => void {
@@ -174,6 +175,7 @@ export class UploadManager {
     }));
 
     this.jobs.push(...newJobs);
+    this.batchPending = true;
     this.notify();
     this.processQueue();
   }
@@ -191,6 +193,7 @@ export class UploadManager {
       job.uploadId = undefined;
       job.objectKey = undefined;
       job.abortController = undefined;
+      this.batchPending = true;
       this.notify();
       this.processQueue();
     }
@@ -296,6 +299,22 @@ export class UploadManager {
         this.processQueue();
       });
     }
+    this.checkBatchComplete();
+  }
+
+  private checkBatchComplete(): void {
+    if (!this.batchPending) return;
+    if (this.activeCount > 0) return;
+    const hasRemaining = this.jobs.some(
+      (j) =>
+        j.status === "waiting" ||
+        j.status === "preparing" ||
+        j.status === "uploading" ||
+        j.status === "completing",
+    );
+    if (hasRemaining) return;
+    this.batchPending = false;
+    this.onBatchCompleteCallback?.();
   }
 
   private async executeJob(job: UploadJob): Promise<void> {
@@ -451,10 +470,6 @@ export class UploadManager {
       job.speedMBs = 0;
       job.etaSeconds = 0;
       this.notify();
-
-      if (this.onJobCompleteCallback) {
-        this.onJobCompleteCallback(job);
-      }
     } catch (err) {
       if (
         job.status === ("cancelled" as UploadStatus) ||

@@ -40,8 +40,8 @@ export function useUploadManager() {
     uploadManager.removeJob(jobId);
   }, []);
 
-  const setOnJobComplete = useCallback((callback: (job: UploadJob) => void) => {
-    uploadManager.setOnJobComplete(callback);
+  const setOnBatchComplete = useCallback((callback: () => void) => {
+    uploadManager.setOnBatchComplete(callback);
   }, []);
 
   return {
@@ -53,7 +53,7 @@ export function useUploadManager() {
     cancelAll,
     clearCompleted,
     removeJob,
-    setOnJobComplete,
+    setOnBatchComplete,
     uploadManager,
   };
 }
