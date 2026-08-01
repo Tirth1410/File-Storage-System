@@ -9,6 +9,8 @@ interface SectionCardProps {
   className?: string;
   /** Remove default padding */
   noPadding?: boolean;
+  /** Extra classes applied to the inner content wrapper */
+  contentClassName?: string;
 }
 
 export function SectionCard({
@@ -17,6 +19,7 @@ export function SectionCard({
   children,
   className = "",
   noPadding = false,
+  contentClassName = "",
 }: SectionCardProps) {
   return (
     <div
@@ -32,7 +35,9 @@ export function SectionCard({
           {titleRight && <div className="min-w-0">{titleRight}</div>}
         </div>
       )}
-      <div className={noPadding ? "" : "p-4 sm:p-6"}>{children}</div>
+      <div className={`${noPadding ? "" : "p-4 sm:p-6"} ${contentClassName}`}>
+        {children}
+      </div>
     </div>
   );
 }

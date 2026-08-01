@@ -1,8 +1,24 @@
 import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
+import { Prisma } from "@/app/generated/prisma/client";
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  FILE_CURSOR_ORDER_BY,
+  fileCursorWhere,
+  computeFilePage,
+} from "@/app/lib/pagination";
 
 const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024);
+
+// Prisma interactive transactions default to maxWait 2000ms / timeout 5000ms,
+// which is too tight when deleting a large folder tree while other quota
+// transactions (e.g. concurrent uploads) hold the quota_usage row lock.
+const TRANSACTION_TIMEOUT = {
+  maxWait: 10_000,
+  timeout: 20_000,
+} as const;
 
 function getDescendantCteSql(): string {
   return `WITH RECURSIVE subtree AS (
@@ -87,13 +103,18 @@ export const folderService = {
   async getFolderContents(
     folderId: string | null,
     userId: string,
-    page = 1,
-    pageSize?: number,
+    limit = DEFAULT_PAGE_SIZE,
+    cursor?: string | null,
   ) {
-    const safePage = Math.max(1, page);
-    const safePageSize = pageSize && pageSize > 0 ? pageSize : undefined;
+    const safeLimit = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
 
-    const [folders, totalFiles, files] = await Promise.all([
+    const baseWhere: Prisma.FileWhereInput = {
+      ownerUserId: userId,
+      folderId: folderId,
+      status: "available",
+    };
+
+    const [folders, totalFiles, fileRows] = await Promise.all([
       prisma.folder.findMany({
         where: {
           ownerUserId: userId,
@@ -102,26 +123,24 @@ export const folderService = {
         orderBy: { name: "asc" },
       }),
       prisma.file.count({
-        where: {
-          ownerUserId: userId,
-          folderId: folderId,
-          status: "available",
-        },
+        where: baseWhere,
       }),
       prisma.file.findMany({
         where: {
-          ownerUserId: userId,
-          folderId: folderId,
-          status: "available",
+          ...baseWhere,
+          ...fileCursorWhere(cursor ?? null),
         },
-        orderBy: { createdAt: "desc" },
-        ...(safePageSize
-          ? { skip: (safePage - 1) * safePageSize, take: safePageSize }
-          : {}),
+        orderBy: FILE_CURSOR_ORDER_BY,
+        take: safeLimit + 1,
       }),
     ]);
 
-    const serializedFiles = files.map((file) => ({
+    const { items: pagedFiles, hasMore, nextCursor } = computeFilePage(
+      fileRows,
+      safeLimit,
+    );
+
+    const serializedFiles = pagedFiles.map((file) => ({
       ...file,
       sizeBytes: file.sizeBytes.toString(),
     }));
@@ -132,11 +151,9 @@ export const folderService = {
       totalItems: folders.length + totalFiles,
       totalFiles,
       totalFolders: folders.length,
-      page: safePage,
-      pageSize: safePageSize ?? null,
-      totalPages: safePageSize
-        ? Math.max(1, Math.ceil(totalFiles / safePageSize))
-        : 1,
+      limit: safeLimit,
+      hasMore,
+      nextCursor,
     };
   },
 
@@ -225,64 +242,67 @@ export const folderService = {
       }
     }
 
-    await prisma.$transaction(async (tx) => {
-      if (filesInTree.length > 0) {
-        const totalBytes = filesInTree.reduce(
-          (acc, f) => acc + f.sizeBytes,
-          BigInt(0),
-        );
+    await prisma.$transaction(
+      async (tx) => {
+        if (filesInTree.length > 0) {
+          const totalBytes = filesInTree.reduce(
+            (acc, f) => acc + f.sizeBytes,
+            BigInt(0),
+          );
 
-        await tx.quotaUsage.upsert({
-          where: { userId: folder.ownerUserId },
-          create: {
-            userId: folder.ownerUserId,
-            quotaBytes: DEFAULT_QUOTA_BYTES,
-            usedBytes: BigInt(0),
-          },
-          update: {},
-        });
-
-        const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
-          `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-          folder.ownerUserId,
-        );
-
-        if (lockedRows.length > 0) {
-          const usedBytes = BigInt(lockedRows[0].used_bytes);
-          const newUsed =
-            usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
-
-          await tx.quotaUsage.update({
+          await tx.quotaUsage.upsert({
             where: { userId: folder.ownerUserId },
-            data: { usedBytes: newUsed },
+            create: {
+              userId: folder.ownerUserId,
+              quotaBytes: DEFAULT_QUOTA_BYTES,
+              usedBytes: BigInt(0),
+            },
+            update: {},
           });
+
+          const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+            `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+            folder.ownerUserId,
+          );
+
+          if (lockedRows.length > 0) {
+            const usedBytes = BigInt(lockedRows[0].used_bytes);
+            const newUsed =
+              usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
+
+            await tx.quotaUsage.update({
+              where: { userId: folder.ownerUserId },
+              data: { usedBytes: newUsed },
+            });
+          }
+
+          await tx.file.deleteMany({
+            where: { id: { in: filesInTree.map((f) => f.id) } },
+          });
+
+          for (const file of filesInTree) {
+            await auditService.log({
+              userId,
+              action: "file_deleted",
+              fileId: file.id,
+              details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) during folder cascade delete. Action performed by ${userId}`,
+            });
+          }
         }
 
-        await tx.file.deleteMany({
-          where: { id: { in: filesInTree.map((f) => f.id) } },
+        await tx.folder.deleteMany({
+          where: { id: { in: allFolderIds } },
         });
 
-        for (const file of filesInTree) {
-          await auditService.log({
-            userId,
-            action: "file_deleted",
-            fileId: file.id,
-            details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) during folder cascade delete. Action performed by ${userId}`,
-          });
-        }
-      }
-
-      await tx.folder.deleteMany({
-        where: { id: { in: allFolderIds } },
-      });
-
-      await auditService.log({
-        userId,
-        action: "folder_deleted",
-        folderId,
-        details: `Deleted folder "${folder.name}" and ${allFolderIds.length - 1} subfolder(s) containing ${filesInTree.length} file(s)`,
-      });
-    });
+        await auditService.log({
+          userId,
+          action: "folder_deleted",
+          folderId,
+          details: `Deleted folder "${folder.name}" and ${allFolderIds.length - 1} subfolder(s) containing ${filesInTree.length} file(s)`,
+        });
+      },
+      TRANSACTION_TIMEOUT,
+    );
 
     return { success: true };
   },

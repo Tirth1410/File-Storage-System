@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/app/lib/request-user";
 import { folderService } from "@/app/lib/folder-service";
+import { parseLimit } from "@/app/lib/pagination";
 import { withLogging } from "@/app/lib/logger";
 
 export const GET = withLogging(async (request: Request) => {
@@ -12,16 +13,14 @@ export const GET = withLogging(async (request: Request) => {
 
     const { searchParams } = new URL(request.url);
     const folderId = searchParams.get("folderId");
-
-    const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
-    const pageSizeRaw = searchParams.get("pageSize");
-    const pageSize = pageSizeRaw ? Number.parseInt(pageSizeRaw, 10) : undefined;
+    const limit = parseLimit(searchParams.get("limit"));
+    const cursor = searchParams.get("cursor");
 
     const contents = await folderService.getFolderContents(
       folderId,
       user.id,
-      page,
-      pageSize,
+      limit,
+      cursor,
     );
     return NextResponse.json(contents);
   } catch (error) {

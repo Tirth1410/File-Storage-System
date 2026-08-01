@@ -49,6 +49,14 @@ const PART_SIZE_BYTES = 8 * 1024 * 1024; // 8MB default chunk size
 const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024); // 200 MB
 const MAX_BULK_DELETE_FILES = 500;
 
+// Prisma interactive transactions default to maxWait 2000ms / timeout 5000ms,
+// which is too tight when several concurrent uploads serialize on the
+// quota_usage row lock (3 parallel upload workers) over a pooled connection.
+const TRANSACTION_TIMEOUT = {
+  maxWait: 10_000,
+  timeout: 20_000,
+} as const;
+
 export const fileService = {
   async initiateUpload({
     filename,
@@ -69,85 +77,91 @@ export const fileService = {
     );
 
     try {
-      return await prisma.$transaction(async (tx) => {
-        // 2. Ensure quota_usage record exists
-        await tx.quotaUsage.upsert({
-          where: { userId },
-          create: {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // 2. Ensure quota_usage record exists
+          await tx.quotaUsage.upsert({
+            where: { userId },
+            create: {
+              userId,
+              quotaBytes: DEFAULT_QUOTA_BYTES,
+              usedBytes: BigInt(0),
+            },
+            update: {},
+          });
+
+          // 3. Lock quota_usage row for update to prevent race conditions
+          const lockedRows = await tx.$queryRawUnsafe<
+            { quota_bytes: string; used_bytes: string }[]
+          >(
+            `SELECT quota_bytes, used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
             userId,
-            quotaBytes: DEFAULT_QUOTA_BYTES,
-            usedBytes: BigInt(0),
-          },
-          update: {},
-        });
-
-        // 3. Lock quota_usage row for update to prevent race conditions
-        const lockedRows = await tx.$queryRawUnsafe<
-          { quota_bytes: string; used_bytes: string }[]
-        >(
-          `SELECT quota_bytes, used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-          userId,
-        );
-
-        const locked = lockedRows[0];
-        const quotaBytes = BigInt(locked.quota_bytes);
-        const usedBytes = BigInt(locked.used_bytes);
-
-        const requestedSize = BigInt(size);
-        const availableBytes = quotaBytes - usedBytes;
-
-        if (requestedSize > availableBytes) {
-          throw new Error(
-            "Quota exceeded: Not enough storage space available.",
           );
-        }
 
-        // 4. Create the file record in DB with status "uploading"
-        const file = await tx.file.create({
-          data: {
-            id: fileId,
-            ownerUserId: userId,
-            folderId: folderId ?? null,
-            bucket: process.env.R2_BUCKET!,
-            objectKey,
-            originalName: filename,
-            mimeType,
-            sizeBytes: requestedSize,
-            status: "uploading",
-            visibility: "private",
-          },
-        });
+          const locked = lockedRows[0];
+          const quotaBytes = BigInt(locked.quota_bytes);
+          const usedBytes = BigInt(locked.used_bytes);
 
-        // 5. Create the upload session record in DB
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-        const uploadSession = await tx.uploadSession.create({
-          data: {
+          const requestedSize = BigInt(size);
+          const availableBytes = quotaBytes - usedBytes;
+
+          if (requestedSize > availableBytes) {
+            throw new Error(
+              "Quota exceeded: Not enough storage space available.",
+            );
+          }
+
+          // 4. Create the file record in DB with status "uploading"
+          const file = await tx.file.create({
+            data: {
+              id: fileId,
+              ownerUserId: userId,
+              folderId: folderId ?? null,
+              bucket: process.env.R2_BUCKET!,
+              objectKey,
+              originalName: filename,
+              mimeType,
+              sizeBytes: requestedSize,
+              status: "uploading",
+              visibility: "private",
+            },
+          });
+
+          // 5. Create the upload session record in DB
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+          const uploadSession = await tx.uploadSession.create({
+            data: {
+              fileId: file.id,
+              userId,
+              storageUploadId: uploadId,
+              objectKey,
+              sizeBytes: requestedSize,
+              partSizeBytes: BigInt(PART_SIZE_BYTES),
+              status: "initiated",
+              expiresAt,
+            },
+          });
+
+          return {
+            uploadId: uploadSession.storageUploadId,
+            objectKey: uploadSession.objectKey,
             fileId: file.id,
-            userId,
-            storageUploadId: uploadId,
-            objectKey,
-            sizeBytes: requestedSize,
-            partSizeBytes: BigInt(PART_SIZE_BYTES),
-            status: "initiated",
-            expiresAt,
-          },
-        });
+            partSizeBytes: PART_SIZE_BYTES,
+          };
+        },
+        TRANSACTION_TIMEOUT,
+      );
 
-        // 6. Write audit log
-        await auditService.log({
-          userId,
-          action: "upload_initiated",
-          fileId: file.id,
-          details: `Initiated upload of file ${filename} (${size} bytes)`,
-        });
-
-        return {
-          uploadId: uploadSession.storageUploadId,
-          objectKey: uploadSession.objectKey,
-          fileId: file.id,
-          partSizeBytes: PART_SIZE_BYTES,
-        };
+      // 6. Write audit log outside the transaction so the quota row lock is
+      // held as briefly as possible while concurrent uploads are queued.
+      await auditService.log({
+        userId,
+        action: "upload_initiated",
+        fileId: result.fileId,
+        details: `Initiated upload of file ${filename} (${size} bytes)`,
       });
+
+      return result;
     } catch (dbError) {
       // Clean up the R2 upload if the database transaction fails
       try {
@@ -221,50 +235,53 @@ export const fileService = {
     await r2Service.completeMultipartUpload(objectKey, uploadId, parts);
 
     // Update upload session, file records, and user quota in DB
-    await prisma.$transaction(async (tx) => {
-      // 1. Lock quota_usage
-      const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
-        `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-        userId,
-      );
+    await prisma.$transaction(
+      async (tx) => {
+        // 1. Lock quota_usage
+        const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+          `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+          userId,
+        );
 
-      const locked = lockedRows[0];
-      const usedBytes = BigInt(locked.used_bytes);
+        const locked = lockedRows[0];
+        const usedBytes = BigInt(locked.used_bytes);
 
-      const size = uploadSession.sizeBytes;
-      const newUsed = usedBytes + size;
+        const size = uploadSession.sizeBytes;
+        const newUsed = usedBytes + size;
 
-      await tx.quotaUsage.update({
-        where: { userId },
-        data: {
-          usedBytes: newUsed,
-        },
-      });
+        await tx.quotaUsage.update({
+          where: { userId },
+          data: {
+            usedBytes: newUsed,
+          },
+        });
 
-      // 2. Update session and file
-      await tx.uploadSession.update({
-        where: { id: uploadSession.id },
-        data: {
-          status: "completed",
-          completedAt: new Date(),
-        },
-      });
+        // 2. Update session and file
+        await tx.uploadSession.update({
+          where: { id: uploadSession.id },
+          data: {
+            status: "completed",
+            completedAt: new Date(),
+          },
+        });
 
-      await tx.file.update({
-        where: { id: uploadSession.fileId },
-        data: {
-          status: "available",
-        },
-      });
+        await tx.file.update({
+          where: { id: uploadSession.fileId },
+          data: {
+            status: "available",
+          },
+        });
 
-      // 3. Log audit
-      await auditService.log({
-        userId,
-        action: "upload_success",
-        fileId: uploadSession.fileId,
-        details: `Successfully completed upload of file ${uploadSession.fileId} (${size} bytes)`,
-      });
-    });
+        // 3. Log audit
+        await auditService.log({
+          userId,
+          action: "upload_success",
+          fileId: uploadSession.fileId,
+          details: `Successfully completed upload of file ${uploadSession.fileId} (${size} bytes)`,
+        });
+      },
+      TRANSACTION_TIMEOUT,
+    );
 
     return {
       fileId: uploadSession.fileId,
@@ -289,30 +306,33 @@ export const fileService = {
     await r2Service.abortMultipartUpload(objectKey, uploadId);
 
     // Update DB
-    await prisma.$transaction(async (tx) => {
-      await tx.uploadSession.update({
-        where: { id: uploadSession.id },
-        data: {
-          status: "aborted",
-        },
-      });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.uploadSession.update({
+          where: { id: uploadSession.id },
+          data: {
+            status: "aborted",
+          },
+        });
 
-      await tx.file.update({
-        where: { id: uploadSession.fileId },
-        data: {
-          status: "failed",
-          deletedAt: new Date(),
-        },
-      });
+        await tx.file.update({
+          where: { id: uploadSession.fileId },
+          data: {
+            status: "failed",
+            deletedAt: new Date(),
+          },
+        });
 
-      // Log audit
-      await auditService.log({
-        userId,
-        action: "upload_aborted",
-        fileId: uploadSession.fileId,
-        details: `Aborted upload session ${uploadId}`,
-      });
-    });
+        // Log audit
+        await auditService.log({
+          userId,
+          action: "upload_aborted",
+          fileId: uploadSession.fileId,
+          details: `Aborted upload session ${uploadId}`,
+        });
+      },
+      TRANSACTION_TIMEOUT,
+    );
   },
 
   async deleteFile(fileId: string, userId: string, isAdmin = false) {
@@ -336,53 +356,56 @@ export const fileService = {
     }
 
     // 2. Remove all metadata from database and update user's quota
-    return await prisma.$transaction(async (tx) => {
-      // Cascade deletes the upload sessions referencing this file
-      await tx.file.deleteMany({
-        where: { id: fileId },
-      });
-
-      // Ensure quota record exists
-      await tx.quotaUsage.upsert({
-        where: { userId: file.ownerUserId },
-        create: {
-          userId: file.ownerUserId,
-          quotaBytes: DEFAULT_QUOTA_BYTES,
-          usedBytes: BigInt(0),
-        },
-        update: {},
-      });
-
-      // Lock row
-      const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
-        `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-        file.ownerUserId,
-      );
-
-      if (lockedRows.length > 0) {
-        const locked = lockedRows[0];
-        const usedBytes = BigInt(locked.used_bytes);
-        const size = file.sizeBytes;
-        const newUsed = usedBytes >= size ? usedBytes - size : BigInt(0);
-
-        await tx.quotaUsage.update({
-          where: { userId: file.ownerUserId },
-          data: {
-            usedBytes: newUsed,
-          },
+    return await prisma.$transaction(
+      async (tx) => {
+        // Cascade deletes the upload sessions referencing this file
+        await tx.file.deleteMany({
+          where: { id: fileId },
         });
-      }
 
-      // Log audit
-      await auditService.log({
-        userId,
-        action: "file_deleted",
-        fileId,
-        details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database. Action performed by ${userId}`,
-      });
+        // Ensure quota record exists
+        await tx.quotaUsage.upsert({
+          where: { userId: file.ownerUserId },
+          create: {
+            userId: file.ownerUserId,
+            quotaBytes: DEFAULT_QUOTA_BYTES,
+            usedBytes: BigInt(0),
+          },
+          update: {},
+        });
 
-      return { success: true };
-    });
+        // Lock row
+        const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+          `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+          file.ownerUserId,
+        );
+
+        if (lockedRows.length > 0) {
+          const locked = lockedRows[0];
+          const usedBytes = BigInt(locked.used_bytes);
+          const size = file.sizeBytes;
+          const newUsed = usedBytes >= size ? usedBytes - size : BigInt(0);
+
+          await tx.quotaUsage.update({
+            where: { userId: file.ownerUserId },
+            data: {
+              usedBytes: newUsed,
+            },
+          });
+        }
+
+        // Log audit
+        await auditService.log({
+          userId,
+          action: "file_deleted",
+          fileId,
+          details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database. Action performed by ${userId}`,
+        });
+
+        return { success: true };
+      },
+      TRANSACTION_TIMEOUT,
+    );
   },
 
   async removeSharedFileAccess(
@@ -551,58 +574,61 @@ export const fileService = {
       return { deleted: [], forbidden, notFound, failed };
     }
 
-    await prisma.$transaction(async (tx) => {
-      const totalBytesByOwner = new Map<string, bigint>();
+    await prisma.$transaction(
+      async (tx) => {
+        const totalBytesByOwner = new Map<string, bigint>();
 
-      for (const file of filesToDelete) {
-        totalBytesByOwner.set(
-          file.ownerUserId,
-          (totalBytesByOwner.get(file.ownerUserId) || BigInt(0)) +
-            file.sizeBytes,
-        );
-      }
+        for (const file of filesToDelete) {
+          totalBytesByOwner.set(
+            file.ownerUserId,
+            (totalBytesByOwner.get(file.ownerUserId) || BigInt(0)) +
+              file.sizeBytes,
+          );
+        }
 
-      await tx.file.deleteMany({
-        where: { id: { in: filesToDelete.map((file) => file.id) } },
-      });
-
-      for (const [ownerUserId, totalBytes] of totalBytesByOwner) {
-        await tx.quotaUsage.upsert({
-          where: { userId: ownerUserId },
-          create: {
-            userId: ownerUserId,
-            quotaBytes: DEFAULT_QUOTA_BYTES,
-            usedBytes: BigInt(0),
-          },
-          update: {},
+        await tx.file.deleteMany({
+          where: { id: { in: filesToDelete.map((file) => file.id) } },
         });
 
-        const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
-          `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-          ownerUserId,
-        );
-
-        if (lockedRows.length > 0) {
-          const usedBytes = BigInt(lockedRows[0].used_bytes);
-          const newUsed =
-            usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
-
-          await tx.quotaUsage.update({
+        for (const [ownerUserId, totalBytes] of totalBytesByOwner) {
+          await tx.quotaUsage.upsert({
             where: { userId: ownerUserId },
-            data: { usedBytes: newUsed },
+            create: {
+              userId: ownerUserId,
+              quotaBytes: DEFAULT_QUOTA_BYTES,
+              usedBytes: BigInt(0),
+            },
+            update: {},
           });
-        }
-      }
 
-      await tx.auditLog.createMany({
-        data: filesToDelete.map((file) => ({
-          userId,
-          action: "file_deleted",
-          fileId: file.id,
-          details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database via bulk delete. Action performed by ${userId}`,
-        })),
-      });
-    });
+          const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+            `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+            ownerUserId,
+          );
+
+          if (lockedRows.length > 0) {
+            const usedBytes = BigInt(lockedRows[0].used_bytes);
+            const newUsed =
+              usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
+
+            await tx.quotaUsage.update({
+              where: { userId: ownerUserId },
+              data: { usedBytes: newUsed },
+            });
+          }
+        }
+
+        await tx.auditLog.createMany({
+          data: filesToDelete.map((file) => ({
+            userId,
+            action: "file_deleted",
+            fileId: file.id,
+            details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database via bulk delete. Action performed by ${userId}`,
+          })),
+        });
+      },
+      TRANSACTION_TIMEOUT,
+    );
 
     return {
       deleted: filesToDelete.map((file) => file.id),
