@@ -688,10 +688,7 @@ export default function DashboardPage() {
                   data-tour="file-list"
                 >
                   {filesLoading ? (
-                    <LoadingState
-                      label="Loading files..."
-                      className="flex-1"
-                    />
+                    <LoadingState label="Loading files..." className="flex-1" />
                   ) : totalItems === 0 ? (
                     <EmptyState
                       icon={<FileText className="w-7 h-7 text-[#A3A3A3]" />}

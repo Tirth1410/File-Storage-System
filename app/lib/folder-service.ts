@@ -135,10 +135,11 @@ export const folderService = {
       }),
     ]);
 
-    const { items: pagedFiles, hasMore, nextCursor } = computeFilePage(
-      fileRows,
-      safeLimit,
-    );
+    const {
+      items: pagedFiles,
+      hasMore,
+      nextCursor,
+    } = computeFilePage(fileRows, safeLimit);
 
     const serializedFiles = pagedFiles.map((file) => ({
       ...file,
@@ -242,67 +243,64 @@ export const folderService = {
       }
     }
 
-    await prisma.$transaction(
-      async (tx) => {
-        if (filesInTree.length > 0) {
-          const totalBytes = filesInTree.reduce(
-            (acc, f) => acc + f.sizeBytes,
-            BigInt(0),
-          );
+    await prisma.$transaction(async (tx) => {
+      if (filesInTree.length > 0) {
+        const totalBytes = filesInTree.reduce(
+          (acc, f) => acc + f.sizeBytes,
+          BigInt(0),
+        );
 
-          await tx.quotaUsage.upsert({
+        await tx.quotaUsage.upsert({
+          where: { userId: folder.ownerUserId },
+          create: {
+            userId: folder.ownerUserId,
+            quotaBytes: DEFAULT_QUOTA_BYTES,
+            usedBytes: BigInt(0),
+          },
+          update: {},
+        });
+
+        const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
+          `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
+          folder.ownerUserId,
+        );
+
+        if (lockedRows.length > 0) {
+          const usedBytes = BigInt(lockedRows[0].used_bytes);
+          const newUsed =
+            usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
+
+          await tx.quotaUsage.update({
             where: { userId: folder.ownerUserId },
-            create: {
-              userId: folder.ownerUserId,
-              quotaBytes: DEFAULT_QUOTA_BYTES,
-              usedBytes: BigInt(0),
-            },
-            update: {},
+            data: { usedBytes: newUsed },
           });
-
-          const lockedRows = await tx.$queryRawUnsafe<{ used_bytes: string }[]>(
-            `SELECT used_bytes FROM quota_usage WHERE user_id = $1 FOR UPDATE`,
-            folder.ownerUserId,
-          );
-
-          if (lockedRows.length > 0) {
-            const usedBytes = BigInt(lockedRows[0].used_bytes);
-            const newUsed =
-              usedBytes >= totalBytes ? usedBytes - totalBytes : BigInt(0);
-
-            await tx.quotaUsage.update({
-              where: { userId: folder.ownerUserId },
-              data: { usedBytes: newUsed },
-            });
-          }
-
-          await tx.file.deleteMany({
-            where: { id: { in: filesInTree.map((f) => f.id) } },
-          });
-
-          for (const file of filesInTree) {
-            await auditService.log({
-              userId,
-              action: "file_deleted",
-              fileId: file.id,
-              details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) during folder cascade delete. Action performed by ${userId}`,
-            });
-          }
         }
 
-        await tx.folder.deleteMany({
-          where: { id: { in: allFolderIds } },
+        await tx.file.deleteMany({
+          where: { id: { in: filesInTree.map((f) => f.id) } },
         });
 
-        await auditService.log({
-          userId,
-          action: "folder_deleted",
-          folderId,
-          details: `Deleted folder "${folder.name}" and ${allFolderIds.length - 1} subfolder(s) containing ${filesInTree.length} file(s)`,
-        });
-      },
-      TRANSACTION_TIMEOUT,
-    );
+        for (const file of filesInTree) {
+          await auditService.log({
+            userId,
+            action: "file_deleted",
+            fileId: file.id,
+            details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) during folder cascade delete. Action performed by ${userId}`,
+          });
+        }
+      }
+
+      await tx.folder.deleteMany({
+        where: { id: { in: allFolderIds } },
+      });
+
+      await auditService.log({
+        userId,
+        action: "folder_deleted",
+        folderId,
+        details: `Deleted folder "${folder.name}" and ${allFolderIds.length - 1} subfolder(s) containing ${filesInTree.length} file(s)`,
+      });
+    }, TRANSACTION_TIMEOUT);
 
     return { success: true };
   },

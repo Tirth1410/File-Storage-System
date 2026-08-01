@@ -5,12 +5,7 @@ import { formatBytes } from "@/app/lib/utils";
 import { useUploadManager } from "@/app/hooks/useUploadManager";
 import { UploadJob, UploadStatus } from "@/app/lib/upload-manager";
 import { FileIcon } from "@/app/components/dashboard/FileIcon";
-import {
-  CloudUpload,
-  X,
-  RotateCcw,
-  AlertCircle,
-} from "lucide-react";
+import { CloudUpload, X, RotateCcw, AlertCircle } from "lucide-react";
 
 interface UploadPanelProps {
   onSuccess?: () => void;
@@ -265,7 +260,10 @@ function UploadQueueRow({
             </RowAction>
           )}
           {TERMINAL_STATUSES.includes(job.status) && (
-            <RowAction onClick={() => onRemove(job.id)} title="Remove from list">
+            <RowAction
+              onClick={() => onRemove(job.id)}
+              title="Remove from list"
+            >
               <X className="w-3.5 h-3.5" />
             </RowAction>
           )}

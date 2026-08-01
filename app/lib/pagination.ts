@@ -14,9 +14,10 @@ export function encodeFileCursor(createdAt: Date, id: string): string {
   return Buffer.from(`${createdAt.toISOString()}|${id}`).toString("base64url");
 }
 
-export function decodeFileCursor(
-  cursor: string,
-): { createdAt: Date; id: string } {
+export function decodeFileCursor(cursor: string): {
+  createdAt: Date;
+  id: string;
+} {
   let decoded: string;
   try {
     decoded = Buffer.from(cursor, "base64url").toString("utf8");
@@ -39,10 +40,7 @@ export function fileCursorWhere(cursor: string | null): Prisma.FileWhereInput {
   if (!cursor) return {};
   const { createdAt, id } = decodeFileCursor(cursor);
   return {
-    OR: [
-      { createdAt: { lt: createdAt } },
-      { createdAt, id: { lt: id } },
-    ],
+    OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }],
   };
 }
 
@@ -61,6 +59,7 @@ export function computeFilePage<T extends { createdAt: Date; id: string }>(
   return {
     items,
     hasMore,
-    nextCursor: hasMore && last ? encodeFileCursor(last.createdAt, last.id) : null,
+    nextCursor:
+      hasMore && last ? encodeFileCursor(last.createdAt, last.id) : null,
   };
 }

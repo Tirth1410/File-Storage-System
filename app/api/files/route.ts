@@ -50,10 +50,11 @@ export const GET = withLogging(async (request: NextRequest) => {
       }),
     ]);
 
-    const { items: pagedFiles, hasMore, nextCursor } = computeFilePage(
-      fileRows,
-      limit,
-    );
+    const {
+      items: pagedFiles,
+      hasMore,
+      nextCursor,
+    } = computeFilePage(fileRows, limit);
 
     const serializedFiles = pagedFiles.map((file) => ({
       ...file,
