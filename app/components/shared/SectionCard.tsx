@@ -22,11 +22,13 @@ export function SectionCard({
     <div
       className={`bg-white border border-[#E5E7EB] rounded-2xl shadow-sm overflow-hidden ${className}`}
     >
-      {title && (
+      {(title || titleRight) && (
         <div className="flex flex-col gap-3 px-4 py-4 border-b border-[#E5E7EB] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <h2 className="text-sm font-bold text-[#171717] uppercase tracking-wide">
-            {title}
-          </h2>
+          {title && (
+            <h2 className="text-sm font-bold text-[#171717] uppercase tracking-wide">
+              {title}
+            </h2>
+          )}
           {titleRight && <div className="min-w-0">{titleRight}</div>}
         </div>
       )}

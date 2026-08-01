@@ -12,7 +12,7 @@ export const POST = withLogging(async (request: Request) => {
     }
 
     const body = await request.json();
-    const { filename, size, mimeType } = body;
+    const { filename, size, mimeType, folderId } = body;
 
     if (!filename || typeof filename !== "string") {
       return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
@@ -30,6 +30,7 @@ export const POST = withLogging(async (request: Request) => {
         size,
         mimeType,
         userId: user.id,
+        folderId: folderId || null,
       });
 
       return NextResponse.json(result);

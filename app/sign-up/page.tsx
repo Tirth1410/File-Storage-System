@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signUp, signIn } from "@/app/lib/auth-client";
 import { Logo } from "@/app/components/shared/Logo";
+import { Mail } from "lucide-react";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -109,19 +110,7 @@ export default function SignUpPage() {
             /* Verification Sent View */
             <div className="text-center space-y-5">
               <div className="w-14 h-14 bg-[rgba(0,47,167,0.08)] border border-[rgba(0,47,167,0.2)] rounded-2xl flex items-center justify-center mx-auto text-[#002FA7]">
-                <svg
-                  className="w-7 h-7"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.75}
-                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
+                <Mail className="w-7 h-7" />
               </div>
 
               <div>

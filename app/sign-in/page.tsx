@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "@/app/lib/auth-client";
 import { Logo } from "@/app/components/shared/Logo";
+import { TriangleAlert } from "lucide-react";
 
 function SignInContent() {
   const router = useRouter();
@@ -133,19 +134,7 @@ function SignInContent() {
           {unverifiedEmail && (
             <div className="mb-5 bg-[rgba(234,179,8,0.08)] border border-[rgba(234,179,8,0.3)] text-[#854D0E] text-xs rounded-xl p-4 space-y-3">
               <div className="flex items-start gap-2.5">
-                <svg
-                  className="w-5 h-5 text-[#CA8A04] shrink-0 mt-0.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
+                <TriangleAlert className="w-5 h-5 text-[#CA8A04] shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold text-[#713F12]">
                     Email Verification Required

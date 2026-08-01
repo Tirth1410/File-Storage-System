@@ -17,6 +17,7 @@ export interface UploadJob {
   speedMBs: number;
   etaSeconds: number;
   error: string | null;
+  folderId?: string | null;
   uploadId?: string;
   objectKey?: string;
   abortController?: AbortController;
@@ -48,10 +49,14 @@ export class UploadManager {
   private concurrency: number;
   private activeCount = 0;
   private listeners = new Set<() => void>();
-  private onJobCompleteCallback?: (job: UploadJob) => void;
+  private onBatchCompleteCallback?: () => void;
+  private batchPending = false;
 
   private jobsSnapshot: UploadJob[] = [];
   private statsSnapshot: UploadBatchStats = DEFAULT_STATS;
+  private notifyTimer: ReturnType<typeof setTimeout> | null = null;
+  private notifyPending = false;
+  private readonly NOTIFY_THROTTLE_MS = 100;
 
   constructor(concurrency = 3) {
     this.concurrency = concurrency;
@@ -63,8 +68,8 @@ export class UploadManager {
     this.processQueue();
   }
 
-  public setOnJobComplete(callback: (job: UploadJob) => void) {
-    this.onJobCompleteCallback = callback;
+  public setOnBatchComplete(callback: () => void) {
+    this.onBatchCompleteCallback = callback;
   }
 
   public subscribe(listener: () => void): () => void {
@@ -128,6 +133,21 @@ export class UploadManager {
   }
 
   private notify() {
+    if (this.notifyTimer === null) {
+      this.flushNotify();
+      this.notifyTimer = setTimeout(() => {
+        this.notifyTimer = null;
+        if (this.notifyPending) {
+          this.notifyPending = false;
+          this.flushNotify();
+        }
+      }, this.NOTIFY_THROTTLE_MS);
+    } else {
+      this.notifyPending = true;
+    }
+  }
+
+  private flushNotify() {
     this.updateSnapshots();
     this.listeners.forEach((listener) => listener());
   }
@@ -140,7 +160,7 @@ export class UploadManager {
     return this.statsSnapshot;
   }
 
-  public addFiles(files: File[]): void {
+  public addFiles(files: File[], folderId?: string | null): void {
     const newJobs: UploadJob[] = files.map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       file,
@@ -151,9 +171,11 @@ export class UploadManager {
       speedMBs: 0,
       etaSeconds: 0,
       error: null,
+      folderId: folderId ?? undefined,
     }));
 
     this.jobs.push(...newJobs);
+    this.batchPending = true;
     this.notify();
     this.processQueue();
   }
@@ -171,6 +193,7 @@ export class UploadManager {
       job.uploadId = undefined;
       job.objectKey = undefined;
       job.abortController = undefined;
+      this.batchPending = true;
       this.notify();
       this.processQueue();
     }
@@ -276,6 +299,22 @@ export class UploadManager {
         this.processQueue();
       });
     }
+    this.checkBatchComplete();
+  }
+
+  private checkBatchComplete(): void {
+    if (!this.batchPending) return;
+    if (this.activeCount > 0) return;
+    const hasRemaining = this.jobs.some(
+      (j) =>
+        j.status === "waiting" ||
+        j.status === "preparing" ||
+        j.status === "uploading" ||
+        j.status === "completing",
+    );
+    if (hasRemaining) return;
+    this.batchPending = false;
+    this.onBatchCompleteCallback?.();
   }
 
   private async executeJob(job: UploadJob): Promise<void> {
@@ -298,6 +337,7 @@ export class UploadManager {
           filename: job.file.name,
           size: job.file.size,
           mimeType: job.file.type || "application/octet-stream",
+          folderId: job.folderId,
         }),
         signal: job.abortController.signal,
       });
@@ -430,10 +470,6 @@ export class UploadManager {
       job.speedMBs = 0;
       job.etaSeconds = 0;
       this.notify();
-
-      if (this.onJobCompleteCallback) {
-        this.onJobCompleteCallback(job);
-      }
     } catch (err) {
       if (
         job.status === ("cancelled" as UploadStatus) ||

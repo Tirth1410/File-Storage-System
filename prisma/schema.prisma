@@ -32,6 +32,7 @@ model User {
   ownedGroups      Group[]          @relation("GroupOwner")
   groupMembers     GroupMember[]
   sharedGroupFiles GroupFile[]      @relation("SharedGroupFiles")
+  folders          Folder[]
 
   @@unique([email])
   @@map("user")
@@ -83,10 +84,28 @@ model Verification {
   @@map("verification")
 }
 
+model Folder {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  ownerUserId    String
+  parentFolderId String?  @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  parent   Folder?  @relation("FolderTree", fields: [parentFolderId], references: [id], onDelete: SetNull)
+  children Folder[] @relation("FolderTree")
+  files    File[]
+  owner    User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, parentFolderId, name])
+  @@map("folder")
+}
+
 model File {
   id           String           @id @default(uuid()) @db.Uuid
   ownerUserId  String
   groupId      String?          @db.Uuid
+  folderId     String?          @db.Uuid
   bucket       String
   objectKey    String
   originalName String
@@ -101,6 +120,7 @@ model File {
   shareLinks   ShareLink[]
   permissions  FilePermission[]
   groupFiles   GroupFile[]
+  folder       Folder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@map("file")
 }
@@ -136,8 +156,9 @@ model QuotaUsage {
 model AuditLog {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id")
-  action    String // upload_initiated | upload_success | upload_aborted | upload_expired | download_requested | download_success | download_failed | file_deleted
+  action    String // upload_initiated | upload_success | upload_aborted | upload_expired | download_requested | download_success | download_failed | file_deleted | folder_created | folder_renamed | folder_deleted | folder_moved | file_moved
   fileId    String?  @map("file_id") @db.Uuid
+  folderId  String?  @map("folder_id") @db.Uuid
   details   String?
   createdAt DateTime @default(now()) @map("created_at")
 

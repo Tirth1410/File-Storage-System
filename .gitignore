@@ -46,6 +46,7 @@ next-env.d.ts
 /graphify-out
 /.agents/
 .playwright-mcp/
+playwright-mcp/
 
 #documentation
 docs

@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as pdfjs from "pdfjs-dist";
+import {
+  RotateCcw,
+  RotateCw,
+  TriangleAlert,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 
 // Set worker source to CDN matching the local package version
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -240,19 +247,7 @@ export default function PDFCanvasViewer({
                 className="p-1.5 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-white disabled:opacity-40 disabled:hover:bg-transparent transition-all duration-150 cursor-pointer"
                 title="Zoom Out"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.5 12h-15"
-                  />
-                </svg>
+                <ZoomOut className="w-4 h-4" />
               </button>
               <span className="text-xs font-mono font-bold text-neutral-700 min-w-[50px] text-center select-none">
                 {Math.round(scale * 100)}%
@@ -263,19 +258,7 @@ export default function PDFCanvasViewer({
                 className="p-1.5 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-white disabled:opacity-40 disabled:hover:bg-transparent transition-all duration-150 cursor-pointer"
                 title="Zoom In"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 4.5v15m7.5-7.5h-15"
-                  />
-                </svg>
+                <ZoomIn className="w-4 h-4" />
               </button>
             </div>
 
@@ -289,38 +272,14 @@ export default function PDFCanvasViewer({
                 className="p-1.5 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-white transition-all duration-150 cursor-pointer"
                 title="Rotate Counter-Clockwise"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"
-                  />
-                </svg>
+                <RotateCcw className="w-4 h-4" />
               </button>
               <button
                 onClick={rotateClockwise}
                 className="p-1.5 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-white transition-all duration-150 cursor-pointer"
                 title="Rotate Clockwise"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3"
-                  />
-                </svg>
+                <RotateCw className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -349,19 +308,7 @@ export default function PDFCanvasViewer({
 
         {error && (
           <div className="py-24 text-red-500 font-medium text-sm flex flex-col items-center gap-2">
-            <svg
-              className="w-8 h-8"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+            <TriangleAlert className="w-8 h-8" />
             <p>{error}</p>
           </div>
         )}

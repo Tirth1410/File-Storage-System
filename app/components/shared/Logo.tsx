@@ -42,13 +42,10 @@ export function Logo({
   const s = sizeMap[size];
   return (
     <div
-      className={`flex items-center ${s.gap} group cursor-pointer select-none ${className}`}
+      className={`flex items-center ${s.gap} cursor-pointer select-none ${className}`}
     >
       {/* Icon Mark */}
-      <div
-        className="flex-shrink-0 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:scale-105"
-        style={{ width: s.px, height: s.px }}
-      >
+      <div className="flex-shrink-0" style={{ width: s.px, height: s.px }}>
         <svg
           viewBox="0 0 100 100"
           fill="none"
@@ -80,7 +77,7 @@ export function Logo({
       {/* Wordmark */}
       {showText && (
         <span
-          className={`${s.text} ${s.letterSpacing} font-semibold text-[#171717] transition-opacity duration-200 group-hover:opacity-70`}
+          className={`${s.text} ${s.letterSpacing} font-semibold text-[#171717]`}
           style={{ fontVariantNumeric: "tabular-nums" }}
         >
           VAULT

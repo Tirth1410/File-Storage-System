@@ -4,13 +4,16 @@ import { memo, useEffect, useRef, useState } from "react";
 import { formatBytes } from "@/app/lib/utils";
 import { useUploadManager } from "@/app/hooks/useUploadManager";
 import { UploadJob, UploadStatus } from "@/app/lib/upload-manager";
+import { CloudUpload } from "lucide-react";
 
 interface UploadPanelProps {
   onSuccess?: () => void;
+  folderId?: string | null;
 }
 
 export const UploadPanel = memo(function UploadPanel({
   onSuccess,
+  folderId,
 }: UploadPanelProps) {
   const {
     jobs,
@@ -20,7 +23,7 @@ export const UploadPanel = memo(function UploadPanel({
     cancelJob,
     cancelAll,
     removeJob,
-    setOnJobComplete,
+    setOnBatchComplete,
   } = useUploadManager();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -32,15 +35,15 @@ export const UploadPanel = memo(function UploadPanel({
   }, [onSuccess]);
 
   useEffect(() => {
-    setOnJobComplete(() => {
+    setOnBatchComplete(() => {
       onSuccessRef.current?.();
     });
-  }, [setOnJobComplete]);
+  }, [setOnBatchComplete]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFiles = Array.from(e.target.files);
-      addFiles(selectedFiles);
+      addFiles(selectedFiles, folderId);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -65,7 +68,7 @@ export const UploadPanel = memo(function UploadPanel({
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files);
-      addFiles(droppedFiles);
+      addFiles(droppedFiles, folderId);
     }
   };
 
@@ -139,19 +142,7 @@ export const UploadPanel = memo(function UploadPanel({
         />
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 bg-[#F5F5F5] border border-[#E5E7EB] rounded-xl flex items-center justify-center group-hover:border-[#002FA7]/30 group-hover:bg-[rgba(0,47,167,0.05)] transition-all">
-            <svg
-              className="w-6 h-6 text-[#737373] group-hover:text-[#002FA7] transition-colors"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-              />
-            </svg>
+            <CloudUpload className="w-6 h-6 text-[#737373] group-hover:text-[#002FA7] transition-colors" />
           </div>
           <div className="space-y-1">
             <span className="text-sm font-semibold text-[#171717] block">

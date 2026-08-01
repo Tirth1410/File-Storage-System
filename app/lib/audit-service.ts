@@ -6,11 +6,13 @@ export const auditService = {
     userId,
     action,
     fileId,
+    folderId,
     details,
   }: {
     userId: string;
     action: string;
     fileId?: string;
+    folderId?: string;
     details?: string;
   }) {
     try {
@@ -19,6 +21,7 @@ export const auditService = {
           userId,
           action,
           fileId,
+          folderId,
           details,
         },
       });
