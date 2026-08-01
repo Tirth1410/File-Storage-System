@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession } from "@/app/lib/auth-client";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, startTransition } from "react";
 import { Plus, Users } from "lucide-react";
 
@@ -21,7 +20,6 @@ import { useAuthRedirect } from "@/app/hooks/useAuthRedirect";
 import type { Group } from "@/app/components/groups/types";
 
 export default function GroupsPage() {
-  const router = useRouter();
   const { data: session, isPending } = useSession();
   useAuthRedirect(session, isPending);
   const { showModal, startTour, dismissTour } = useProductTour("groups");
@@ -146,7 +144,7 @@ export default function GroupsPage() {
                   <GroupCard
                     key={group.id}
                     group={group}
-                    onOpen={() => router.push(`/group/${group.id}`)}
+                    href={`/group/${group.id}`}
                   />
                 ))}
               </div>

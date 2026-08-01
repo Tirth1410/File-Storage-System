@@ -44,6 +44,8 @@ const DEFAULT_STATS: UploadBatchStats = {
   overallProgress: 0,
 };
 
+const COMPLETED_AUTO_REMOVE_MS = 1200;
+
 export class UploadManager {
   private jobs: UploadJob[] = [];
   private concurrency: number;
@@ -51,6 +53,7 @@ export class UploadManager {
   private listeners = new Set<() => void>();
   private onBatchCompleteCallback?: () => void;
   private batchPending = false;
+  private autoRemoveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   private jobsSnapshot: UploadJob[] = [];
   private statsSnapshot: UploadBatchStats = DEFAULT_STATS;
@@ -284,8 +287,23 @@ export class UploadManager {
         job.status === "cancelled")
     ) {
       this.jobs = this.jobs.filter((j) => j.id !== jobId);
+      const timer = this.autoRemoveTimers.get(jobId);
+      if (timer) clearTimeout(timer);
+      this.autoRemoveTimers.delete(jobId);
       this.notify();
     }
+  }
+
+  private scheduleAutoRemove(jobId: string): void {
+    const timer = setTimeout(() => {
+      this.autoRemoveTimers.delete(jobId);
+      const job = this.jobs.find((j) => j.id === jobId);
+      if (job && job.status === "completed") {
+        this.jobs = this.jobs.filter((j) => j.id !== jobId);
+        this.notify();
+      }
+    }, COMPLETED_AUTO_REMOVE_MS);
+    this.autoRemoveTimers.set(jobId, timer);
   }
 
   private processQueue(): void {
@@ -470,6 +488,7 @@ export class UploadManager {
       job.speedMBs = 0;
       job.etaSeconds = 0;
       this.notify();
+      this.scheduleAutoRemove(job.id);
     } catch (err) {
       if (
         job.status === ("cancelled" as UploadStatus) ||

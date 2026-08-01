@@ -1,8 +1,24 @@
 import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
+import { Prisma } from "@/app/generated/prisma/client";
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  FILE_CURSOR_ORDER_BY,
+  fileCursorWhere,
+  computeFilePage,
+} from "@/app/lib/pagination";
 
 const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024);
+
+// Prisma interactive transactions default to maxWait 2000ms / timeout 5000ms,
+// which is too tight when deleting a large folder tree while other quota
+// transactions (e.g. concurrent uploads) hold the quota_usage row lock.
+const TRANSACTION_TIMEOUT = {
+  maxWait: 10_000,
+  timeout: 20_000,
+} as const;
 
 function getDescendantCteSql(): string {
   return `WITH RECURSIVE subtree AS (
@@ -87,13 +103,18 @@ export const folderService = {
   async getFolderContents(
     folderId: string | null,
     userId: string,
-    page = 1,
-    pageSize?: number,
+    limit = DEFAULT_PAGE_SIZE,
+    cursor?: string | null,
   ) {
-    const safePage = Math.max(1, page);
-    const safePageSize = pageSize && pageSize > 0 ? pageSize : undefined;
+    const safeLimit = Math.min(Math.max(1, limit), MAX_PAGE_SIZE);
 
-    const [folders, totalFiles, files] = await Promise.all([
+    const baseWhere: Prisma.FileWhereInput = {
+      ownerUserId: userId,
+      folderId: folderId,
+      status: "available",
+    };
+
+    const [folders, totalFiles, fileRows] = await Promise.all([
       prisma.folder.findMany({
         where: {
           ownerUserId: userId,
@@ -102,26 +123,25 @@ export const folderService = {
         orderBy: { name: "asc" },
       }),
       prisma.file.count({
-        where: {
-          ownerUserId: userId,
-          folderId: folderId,
-          status: "available",
-        },
+        where: baseWhere,
       }),
       prisma.file.findMany({
         where: {
-          ownerUserId: userId,
-          folderId: folderId,
-          status: "available",
+          ...baseWhere,
+          ...fileCursorWhere(cursor ?? null),
         },
-        orderBy: { createdAt: "desc" },
-        ...(safePageSize
-          ? { skip: (safePage - 1) * safePageSize, take: safePageSize }
-          : {}),
+        orderBy: FILE_CURSOR_ORDER_BY,
+        take: safeLimit + 1,
       }),
     ]);
 
-    const serializedFiles = files.map((file) => ({
+    const {
+      items: pagedFiles,
+      hasMore,
+      nextCursor,
+    } = computeFilePage(fileRows, safeLimit);
+
+    const serializedFiles = pagedFiles.map((file) => ({
       ...file,
       sizeBytes: file.sizeBytes.toString(),
     }));
@@ -132,11 +152,9 @@ export const folderService = {
       totalItems: folders.length + totalFiles,
       totalFiles,
       totalFolders: folders.length,
-      page: safePage,
-      pageSize: safePageSize ?? null,
-      totalPages: safePageSize
-        ? Math.max(1, Math.ceil(totalFiles / safePageSize))
-        : 1,
+      limit: safeLimit,
+      hasMore,
+      nextCursor,
     };
   },
 
@@ -282,7 +300,7 @@ export const folderService = {
         folderId,
         details: `Deleted folder "${folder.name}" and ${allFolderIds.length - 1} subfolder(s) containing ${filesInTree.length} file(s)`,
       });
-    });
+    }, TRANSACTION_TIMEOUT);
 
     return { success: true };
   },

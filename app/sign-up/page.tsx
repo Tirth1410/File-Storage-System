@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signUp, signIn } from "@/app/lib/auth-client";
 import { Logo } from "@/app/components/shared/Logo";
 import { Mail } from "lucide-react";
 
 export default function SignUpPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -166,12 +165,12 @@ export default function SignUpPage() {
                   )}
                 </button>
 
-                <button
-                  onClick={() => router.push("/sign-in")}
-                  className="w-full bg-[#002FA7] hover:bg-[#002482] text-white font-bold rounded-xl px-4 py-2.5 text-xs transition-all cursor-pointer shadow-sm shadow-[#002FA7]/20"
+                <Link
+                  href="/sign-in"
+                  className="block w-full text-center bg-[#002FA7] hover:bg-[#002482] text-white font-bold rounded-xl px-4 py-2.5 text-xs transition-all cursor-pointer shadow-sm shadow-[#002FA7]/20 no-underline"
                 >
                   Proceed to Sign In
-                </button>
+                </Link>
               </div>
             </div>
           ) : (
@@ -296,12 +295,12 @@ export default function SignUpPage() {
               {/* Footer */}
               <p className="text-center text-xs text-[#737373] mt-6">
                 Already have an account?{" "}
-                <a
+                <Link
                   href="/sign-in"
                   className="text-[#002FA7] hover:underline font-semibold"
                 >
                   Sign In
-                </a>
+                </Link>
               </p>
             </>
           )}

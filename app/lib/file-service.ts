@@ -49,6 +49,14 @@ const PART_SIZE_BYTES = 8 * 1024 * 1024; // 8MB default chunk size
 const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024); // 200 MB
 const MAX_BULK_DELETE_FILES = 500;
 
+// Prisma interactive transactions default to maxWait 2000ms / timeout 5000ms,
+// which is too tight when several concurrent uploads serialize on the
+// quota_usage row lock (3 parallel upload workers) over a pooled connection.
+const TRANSACTION_TIMEOUT = {
+  maxWait: 10_000,
+  timeout: 20_000,
+} as const;
+
 export const fileService = {
   async initiateUpload({
     filename,
@@ -69,7 +77,7 @@ export const fileService = {
     );
 
     try {
-      return await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
         // 2. Ensure quota_usage record exists
         await tx.quotaUsage.upsert({
           where: { userId },
@@ -133,21 +141,24 @@ export const fileService = {
           },
         });
 
-        // 6. Write audit log
-        await auditService.log({
-          userId,
-          action: "upload_initiated",
-          fileId: file.id,
-          details: `Initiated upload of file ${filename} (${size} bytes)`,
-        });
-
         return {
           uploadId: uploadSession.storageUploadId,
           objectKey: uploadSession.objectKey,
           fileId: file.id,
           partSizeBytes: PART_SIZE_BYTES,
         };
+      }, TRANSACTION_TIMEOUT);
+
+      // 6. Write audit log outside the transaction so the quota row lock is
+      // held as briefly as possible while concurrent uploads are queued.
+      await auditService.log({
+        userId,
+        action: "upload_initiated",
+        fileId: result.fileId,
+        details: `Initiated upload of file ${filename} (${size} bytes)`,
       });
+
+      return result;
     } catch (dbError) {
       // Clean up the R2 upload if the database transaction fails
       try {
@@ -264,7 +275,7 @@ export const fileService = {
         fileId: uploadSession.fileId,
         details: `Successfully completed upload of file ${uploadSession.fileId} (${size} bytes)`,
       });
-    });
+    }, TRANSACTION_TIMEOUT);
 
     return {
       fileId: uploadSession.fileId,
@@ -312,7 +323,7 @@ export const fileService = {
         fileId: uploadSession.fileId,
         details: `Aborted upload session ${uploadId}`,
       });
-    });
+    }, TRANSACTION_TIMEOUT);
   },
 
   async deleteFile(fileId: string, userId: string, isAdmin = false) {
@@ -382,7 +393,7 @@ export const fileService = {
       });
 
       return { success: true };
-    });
+    }, TRANSACTION_TIMEOUT);
   },
 
   async removeSharedFileAccess(
@@ -602,7 +613,7 @@ export const fileService = {
           details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database via bulk delete. Action performed by ${userId}`,
         })),
       });
-    });
+    }, TRANSACTION_TIMEOUT);
 
     return {
       deleted: filesToDelete.map((file) => file.id),

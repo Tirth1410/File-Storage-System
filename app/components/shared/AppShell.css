@@ -102,6 +102,7 @@
   border: none;
   cursor: pointer;
   white-space: nowrap;
+  text-decoration: none;
   transition:
     color 0.25s ease,
     transform 0.25s ease;
@@ -113,13 +114,15 @@
   transform: translateY(-1px);
 }
 
-.vault-nav-btn-admin {
-  color: #002fa7;
+/* Active page pill — subtle background + bold text */
+.vault-nav-btn.active {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  color: #171717;
   font-weight: 600;
 }
-.vault-nav-btn-admin:hover {
-  color: #002fa7;
-  transform: translateY(-1px);
+.vault-nav-btn.active:hover {
+  transform: translateY(0);
 }
 
 .vault-actions {
@@ -144,6 +147,7 @@
   border-radius: 40px;
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid rgba(0, 0, 0, 0.05);
+  text-decoration: none;
   transition:
     background 0.2s ease,
     transform 0.2s ease;
@@ -369,6 +373,7 @@
     font-size: 14px;
     font-weight: 650;
     text-align: left;
+    text-decoration: none;
     cursor: pointer;
     transition:
       background 0.2s ease,
@@ -379,9 +384,10 @@
     background: rgba(0, 0, 0, 0.04);
   }
 
-  .vault-mobile-menu-item.primary {
-    color: #002fa7;
-    background: rgba(0, 47, 167, 0.07);
+  .vault-mobile-menu-item.active {
+    color: #171717;
+    background: rgba(0, 0, 0, 0.06);
+    font-weight: 700;
   }
 
   .vault-mobile-menu-item.danger {

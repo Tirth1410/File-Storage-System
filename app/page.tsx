@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Logo } from "@/app/components/shared/Logo";
 import {
   ArrowRight,
@@ -12,8 +12,6 @@ import {
 } from "lucide-react";
 
 export default function Home() {
-  const router = useRouter();
-
   return (
     <main className="min-h-screen bg-[#FAFAFA] text-[#171717] font-sans selection:bg-[#002FA7]/20 selection:text-[#002FA7] flex flex-col relative overflow-hidden">
       {/* Background Grid Pattern */}
@@ -23,18 +21,18 @@ export default function Home() {
       <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12 max-w-[1400px] w-full mx-auto">
         <Logo size="md" />
         <div className="flex items-center gap-8 text-sm font-medium">
-          <button
-            onClick={() => router.push("/sign-in")}
+          <Link
+            href="/sign-in"
             className="text-[#525252] hover:text-[#002FA7] transition-colors cursor-pointer"
           >
             Log in
-          </button>
-          <button
-            onClick={() => router.push("/sign-up")}
-            className="bg-[#002FA7] text-white px-6 py-2.5 rounded-full hover:bg-[#002482] transition-transform hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
+          </Link>
+          <Link
+            href="/sign-up"
+            className="inline-block bg-[#002FA7] text-white px-6 py-2.5 rounded-full hover:bg-[#002482] transition-transform hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
           >
             Get Started
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -54,13 +52,13 @@ export default function Home() {
             way. Fast uploads, strict privacy, and zero clutter.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <button
-              onClick={() => router.push("/sign-up")}
+            <Link
+              href="/sign-up"
               className="group flex items-center gap-2 bg-[#002FA7] text-white px-8 py-4 rounded-full font-medium text-lg hover:bg-[#002482] transition-all hover:shadow-[0_0_30px_-10px_rgba(0,47,167,0.6)] cursor-pointer"
             >
               Start Storing
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform opacity-90 text-white" />
-            </button>
+            </Link>
           </div>
         </div>
 

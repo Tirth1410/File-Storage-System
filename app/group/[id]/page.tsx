@@ -2,6 +2,7 @@
 
 import { useSession } from "@/app/lib/auth-client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useCallback, useEffect, use, useState, startTransition } from "react";
 import { ArrowLeft, Users } from "lucide-react";
 
@@ -346,23 +347,23 @@ export default function GroupDetailPage({
               title="Group not found"
               description="This group may have been deleted or you no longer have access to it."
               action={
-                <button
-                  onClick={() => router.push("/groups")}
+                <Link
+                  href="/groups"
                   className="bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-all cursor-pointer"
                 >
                   Back to Groups
-                </button>
+                </Link>
               }
             />
           ) : group ? (
             <div className="space-y-6">
-              <button
-                onClick={() => router.push("/groups")}
-                className="flex items-center gap-2 text-xs font-semibold text-[#737373] hover:text-[#002FA7] transition-all cursor-pointer"
+              <Link
+                href="/groups"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-[#737373] hover:text-[#002FA7] transition-all no-underline cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Groups
-              </button>
+              </Link>
 
               <GroupDetailHeader
                 group={group}
