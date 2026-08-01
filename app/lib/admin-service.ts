@@ -1,12 +1,92 @@
 import prisma from "@/app/lib/prisma";
 
-export const adminService = {
-  async getDashboardStats() {
-    // 1. Storage metrics
-    const quotaUsages = await prisma.quotaUsage.findMany();
-    const defaultQuota = BigInt(200 * 1024 * 1024); // 200 MB default
+export const DEFAULT_QUOTA_BYTES = 200 * 1024 * 1024; // 200 MB default
 
-    const totalUsers = await prisma.user.count();
+export const adminService = {
+  async listUsers(limit = 100) {
+    const users = await prisma.user.findMany({
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: { quotaUsage: true },
+    });
+
+    return users.map((user) => {
+      const quota = user.quotaUsage;
+      const quotaBytes = quota?.quotaBytes ?? BigInt(DEFAULT_QUOTA_BYTES);
+      const usedBytes = quota?.usedBytes ?? BigInt(0);
+      const remainingBytes = quotaBytes - usedBytes;
+      const utilization =
+        quotaBytes > BigInt(0)
+          ? Number((usedBytes * BigInt(100)) / quotaBytes)
+          : 0;
+
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        banned: user.banned,
+        banReason: user.banReason,
+        createdAt: user.createdAt,
+        storage: {
+          quotaBytes: quotaBytes.toString(),
+          usedBytes: usedBytes.toString(),
+          remainingBytes: remainingBytes.toString(),
+          utilization,
+        },
+      };
+    });
+  },
+
+  async getDashboardStats() {
+    const defaultQuota = BigInt(DEFAULT_QUOTA_BYTES);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      quotaUsages,
+      totalUsers,
+      fileGroups,
+      uploadCounts,
+      downloadCounts,
+      activeUserSessions,
+      activeUserLogs,
+    ] = await Promise.all([
+      // 1. Storage metrics
+      prisma.quotaUsage.findMany(),
+      prisma.user.count(),
+      // 2. File metrics (aggregated in DB instead of loading all rows)
+      prisma.file.groupBy({
+        by: ["status"],
+        where: { status: { in: ["available", "deleted"] } },
+        _count: { _all: true },
+        _sum: { sizeBytes: true },
+      }),
+      // 3. Upload metrics
+      Promise.all([
+        prisma.uploadSession.count(),
+        prisma.uploadSession.count({ where: { status: "completed" } }),
+        prisma.uploadSession.count({
+          where: { status: { in: ["failed", "aborted", "expired"] } },
+        }),
+      ]),
+      // 3. Download metrics
+      Promise.all([
+        prisma.auditLog.count({ where: { action: "download_requested" } }),
+        prisma.auditLog.count({ where: { action: "download_success" } }),
+        prisma.auditLog.count({ where: { action: "download_failed" } }),
+      ]),
+      // 4. Active users: users with a live session OR audit log in the last 30 days
+      prisma.session.findMany({
+        where: { expiresAt: { gte: new Date() } },
+        select: { userId: true },
+        distinct: ["userId"],
+      }),
+      prisma.auditLog.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        select: { userId: true },
+        distinct: ["userId"],
+      }),
+    ]);
 
     let totalAllocated = BigInt(0);
     let totalUsed = BigInt(0);
@@ -30,52 +110,23 @@ export const adminService = {
         ? Number((totalUsed * BigInt(100)) / totalAllocated)
         : 0;
 
-    // 2. File metrics
-    const files = await prisma.file.findMany({
-      where: {
-        status: { in: ["available", "deleted"] },
-      },
-      select: {
-        status: true,
-        sizeBytes: true,
-      },
-    });
+    const byStatus = new Map(fileGroups.map((group) => [group.status, group]));
+    const availableGroup = byStatus.get("available");
+    const deletedGroup = byStatus.get("deleted");
 
-    const totalUploadedFiles = files.length;
-    const activeFiles = files.filter((f) => f.status === "available");
-    const totalActiveFiles = activeFiles.length;
-    const totalDeletedFiles = files.filter(
-      (f) => f.status === "deleted",
-    ).length;
-
-    let totalStorageConsumed = BigInt(0);
-    for (const f of activeFiles) {
-      totalStorageConsumed += f.sizeBytes;
-    }
-
+    const totalActiveFiles = availableGroup?._count._all ?? 0;
+    const totalDeletedFiles = deletedGroup?._count._all ?? 0;
+    const totalUploadedFiles = totalActiveFiles + totalDeletedFiles;
+    const totalStorageConsumed = availableGroup?._sum.sizeBytes ?? BigInt(0);
     const averageFileSize =
       totalActiveFiles > 0
         ? totalStorageConsumed / BigInt(totalActiveFiles)
         : BigInt(0);
 
-    // 3. Upload / Download metrics
-    const totalUploadRequests = await prisma.uploadSession.count();
-    const successfulUploads = await prisma.uploadSession.count({
-      where: { status: "completed" },
-    });
-    const failedUploads = await prisma.uploadSession.count({
-      where: { status: { in: ["failed", "aborted", "expired"] } },
-    });
-
-    const totalDownloadRequests = await prisma.auditLog.count({
-      where: { action: "download_requested" },
-    });
-    const successfulDownloads = await prisma.auditLog.count({
-      where: { action: "download_success" },
-    });
-    const failedDownloads = await prisma.auditLog.count({
-      where: { action: "download_failed" },
-    });
+    const [totalUploadRequests, successfulUploads, failedUploads] =
+      uploadCounts;
+    const [totalDownloadRequests, successfulDownloads, failedDownloads] =
+      downloadCounts;
 
     // 4. User metrics
     let usersNearingLimit = 0;
@@ -91,19 +142,6 @@ export const adminService = {
         }
       }
     }
-
-    // Active users: users with at least one session OR audit log in the last 30 days
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const activeUserSessions = await prisma.session.findMany({
-      where: { expiresAt: { gte: new Date() } },
-      select: { userId: true },
-      distinct: ["userId"],
-    });
-    const activeUserLogs = await prisma.auditLog.findMany({
-      where: { createdAt: { gte: thirtyDaysAgo } },
-      select: { userId: true },
-      distinct: ["userId"],
-    });
 
     const activeUserIds = new Set([
       ...activeUserSessions.map((s) => s.userId),
@@ -143,26 +181,64 @@ export const adminService = {
   },
 
   async getUserDetails(userId: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const [
+      user,
+      quotaRow,
+      fileGroups,
+      uploadCounts,
+      downloadCounts,
+      latestAuditLog,
+    ] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.quotaUsage.findUnique({ where: { userId } }),
+      prisma.file.groupBy({
+        by: ["status"],
+        where: {
+          ownerUserId: userId,
+          status: { in: ["available", "deleted"] },
+        },
+        _count: { _all: true },
+      }),
+      Promise.all([
+        prisma.uploadSession.count({ where: { userId } }),
+        prisma.uploadSession.count({
+          where: { userId, status: "completed" },
+        }),
+        prisma.uploadSession.count({
+          where: {
+            userId,
+            status: { in: ["failed", "aborted", "expired"] },
+          },
+        }),
+      ]),
+      Promise.all([
+        prisma.auditLog.count({
+          where: { userId, action: "download_requested" },
+        }),
+        prisma.auditLog.count({
+          where: { userId, action: "download_success" },
+        }),
+        prisma.auditLog.count({
+          where: { userId, action: "download_failed" },
+        }),
+      ]),
+      prisma.auditLog.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Get quota
-    let quota = await prisma.quotaUsage.findUnique({
-      where: { userId },
-    });
-    if (!quota) {
-      quota = {
-        userId,
-        quotaBytes: BigInt(200 * 1024 * 1024),
-        usedBytes: BigInt(0),
-        updatedAt: new Date(),
-      };
-    }
+    // Get quota (default 200 MB when no quota_usage row exists)
+    const quota = quotaRow ?? {
+      userId,
+      quotaBytes: BigInt(DEFAULT_QUOTA_BYTES),
+      usedBytes: BigInt(0),
+      updatedAt: new Date(),
+    };
 
     const remainingBytes = quota.quotaBytes - quota.usedBytes;
     const utilization =
@@ -170,55 +246,16 @@ export const adminService = {
         ? Number((quota.usedBytes * BigInt(100)) / quota.quotaBytes)
         : 0;
 
-    // Files owned by user
-    const files = await prisma.file.findMany({
-      where: {
-        ownerUserId: userId,
-        status: { in: ["available", "deleted"] },
-      },
-      select: {
-        status: true,
-        sizeBytes: true,
-      },
-    });
+    const byStatus = new Map(fileGroups.map((group) => [group.status, group]));
+    const totalActiveFiles = byStatus.get("available")?._count._all ?? 0;
+    const totalDeletedFiles = byStatus.get("deleted")?._count._all ?? 0;
+    const totalUploadedFiles = totalActiveFiles + totalDeletedFiles;
 
-    const totalUploadedFiles = files.length;
-    const totalActiveFiles = files.filter(
-      (f) => f.status === "available",
-    ).length;
-    const totalDeletedFiles = files.filter(
-      (f) => f.status === "deleted",
-    ).length;
-
-    // User activity metrics
-    const uploadRequests = await prisma.uploadSession.count({
-      where: { userId },
-    });
-    const successfulUploads = await prisma.uploadSession.count({
-      where: { userId, status: "completed" },
-    });
-    const failedUploads = await prisma.uploadSession.count({
-      where: {
-        userId,
-        status: { in: ["failed", "aborted", "expired"] },
-      },
-    });
-
-    const downloadRequests = await prisma.auditLog.count({
-      where: { userId, action: "download_requested" },
-    });
-    const successfulDownloads = await prisma.auditLog.count({
-      where: { userId, action: "download_success" },
-    });
-    const failedDownloads = await prisma.auditLog.count({
-      where: { userId, action: "download_failed" },
-    });
+    const [uploadRequests, successfulUploads, failedUploads] = uploadCounts;
+    const [downloadRequests, successfulDownloads, failedDownloads] =
+      downloadCounts;
 
     // Last activity
-    const latestAuditLog = await prisma.auditLog.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    });
     const lastActivity = latestAuditLog
       ? latestAuditLog.createdAt
       : user.createdAt;
