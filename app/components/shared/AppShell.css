@@ -66,10 +66,6 @@
   text-decoration: none;
   flex-shrink: 0;
   min-width: 0;
-  transition: opacity 0.2s ease;
-}
-.vault-logo:hover {
-  opacity: 1;
 }
 
 .vault-nav-center {
@@ -114,6 +110,15 @@
 }
 .vault-nav-btn:hover {
   color: #171717;
+  transform: translateY(-1px);
+}
+
+.vault-nav-btn-admin {
+  color: #002fa7;
+  font-weight: 600;
+}
+.vault-nav-btn-admin:hover {
+  color: #002fa7;
   transform: translateY(-1px);
 }
 

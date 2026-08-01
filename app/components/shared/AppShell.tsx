@@ -1,7 +1,7 @@
 /**
  * AppShell — Premium floating glassmorphic navbar.
  * Features: scroll-aware shrink, smooth hover lift, sliding active indicator,
- * pill CTA with glow, logo hover animation, dark glassmorphism.
+ * primary nav tabs (Dashboard / Groups / Admin), dark glassmorphism.
  */
 "use client";
 
@@ -12,29 +12,18 @@ import { Logo } from "@/app/components/shared/Logo";
 import { Menu, X } from "lucide-react";
 import "./AppShell.css";
 
-interface NavAction {
-  label: string;
-  onClick: () => void;
-  variant?: "ghost" | "primary" | "danger";
-}
-
 interface AppShellProps {
   /** Name of the logged-in user */
   userName?: string;
-  /** Optional: show a back nav link returning to a route */
-  backHref?: string;
-  backLabel?: string;
-  /** Optional: extra action buttons to show on the right */
-  actions?: NavAction[];
+  /** Show the Admin nav tab. Defaults to false. */
+  isAdmin?: boolean;
   /** Show sign-out button. Defaults to true. */
   showSignOut?: boolean;
 }
 
 export function AppShell({
   userName,
-  backHref,
-  backLabel = "Back",
-  actions = [],
+  isAdmin = false,
   showSignOut = true,
 }: AppShellProps) {
   const router = useRouter();
@@ -83,20 +72,26 @@ export function AppShell({
     };
   }, []);
 
-  /* ── Nav items: back link + actions ── */
-  const navItems: Array<{ label: string; onClick: () => void }> = [];
-  if (backHref) {
-    navItems.push({ label: backLabel, onClick: () => router.push(backHref) });
-  } else if (userName) {
+  /* ── Nav items: primary tabs ── */
+  const navItems: Array<{
+    label: string;
+    onClick: () => void;
+    admin?: boolean;
+  }> = [];
+  if (userName) {
     navItems.push({
       label: "Dashboard",
       onClick: () => router.push("/dashboard"),
     });
     navItems.push({ label: "Groups", onClick: () => router.push("/groups") });
   }
-
-  const primaryActions = actions.filter((a) => a.variant === "primary");
-  const ghostActions = actions.filter((a) => a.variant !== "primary");
+  if (isAdmin) {
+    navItems.push({
+      label: "Admin",
+      onClick: () => router.push("/admin"),
+      admin: true,
+    });
+  }
 
   const navigateAndClose = (onClick: () => void) => {
     setMenuOpen(false);
@@ -108,7 +103,7 @@ export function AppShell({
     signOut({
       fetchOptions: {
         onSuccess: () => {
-          router.push("/sign-in");
+          router.replace("/sign-in");
         },
       },
     });
@@ -152,7 +147,9 @@ export function AppShell({
                   ref={(el) => {
                     actionRefs.current[item.label] = el;
                   }}
-                  className="vault-nav-btn"
+                  className={`vault-nav-btn${
+                    item.admin ? " vault-nav-btn-admin" : ""
+                  }`}
                   onClick={item.onClick}
                   onMouseEnter={() => handleHover(item.label)}
                 >
@@ -162,7 +159,7 @@ export function AppShell({
             </nav>
           )}
 
-          {/* ── Right: User + Actions (desktop) ── */}
+          {/* ── Right: User (desktop) ── */}
           <div className="vault-actions">
             {/* User badge */}
             {userName && (
@@ -179,40 +176,10 @@ export function AppShell({
               </button>
             )}
 
-            {/* Ghost actions */}
-            {ghostActions.map((action) => (
-              <button
-                key={action.label}
-                className="vault-btn-ghost"
-                onClick={action.onClick}
-              >
-                {action.label}
-              </button>
-            ))}
-
-            {/* Separator before CTA if needed */}
-            {primaryActions.length > 0 &&
-              (ghostActions.length > 0 || userName) && (
-                <div className="vault-sep" />
-              )}
-
-            {/* Primary CTA actions */}
-            {primaryActions.map((action) => (
-              <button
-                key={action.label}
-                className="vault-btn-primary"
-                onClick={action.onClick}
-              >
-                {action.label}
-              </button>
-            ))}
-
             {/* Sign Out */}
             {showSignOut && (
               <>
-                {(actions.length > 0 || userName) && (
-                  <div className="vault-sep" />
-                )}
+                {userName && <div className="vault-sep" />}
                 <button className="vault-btn-ghost" onClick={handleSignOut}>
                   Sign Out
                 </button>
@@ -274,30 +241,12 @@ export function AppShell({
               {navItems.map((item) => (
                 <button
                   key={item.label}
-                  className="vault-mobile-menu-item"
+                  className={`vault-mobile-menu-item${
+                    item.admin ? " primary" : ""
+                  }`}
                   onClick={() => navigateAndClose(item.onClick)}
                 >
                   {item.label}
-                </button>
-              ))}
-              {primaryActions.map((action) => (
-                <button
-                  key={action.label}
-                  className="vault-mobile-menu-item primary"
-                  onClick={() => navigateAndClose(action.onClick)}
-                >
-                  {action.label}
-                </button>
-              ))}
-              {ghostActions.map((action) => (
-                <button
-                  key={action.label}
-                  className={`vault-mobile-menu-item ${
-                    action.variant === "danger" ? "danger" : ""
-                  }`}
-                  onClick={() => navigateAndClose(action.onClick)}
-                >
-                  {action.label}
                 </button>
               ))}
               {showSignOut && (

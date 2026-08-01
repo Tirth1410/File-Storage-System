@@ -2,12 +2,13 @@
 
 /**
  * ShareModal — redesigned for the Minimal Editorial palette.
- * Moved from app/dashboard/ShareModal.tsx → app/components/shared/ShareModal.tsx
- * so it can be reused anywhere a file share action is triggered.
+ * Lives in components/shared so it can be reused anywhere a file share
+ * action is triggered (the former app/dashboard/ShareModal.tsx was removed).
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 interface ShareModalProps {
   file: { id: string; originalName: string };
@@ -384,19 +385,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                           className="p-2 rounded-xl bg-[rgba(220,38,38,0.07)] text-[#DC2626] border border-[rgba(220,38,38,0.15)] hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
                           title="Delete Link"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
