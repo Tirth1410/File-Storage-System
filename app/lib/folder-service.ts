@@ -84,30 +84,60 @@ export const folderService = {
     });
   },
 
-  async getFolderContents(folderId: string | null, userId: string) {
-    const folders = await prisma.folder.findMany({
-      where: {
-        ownerUserId: userId,
-        parentFolderId: folderId,
-      },
-      orderBy: { name: "asc" },
-    });
+  async getFolderContents(
+    folderId: string | null,
+    userId: string,
+    page = 1,
+    pageSize?: number,
+  ) {
+    const safePage = Math.max(1, page);
+    const safePageSize = pageSize && pageSize > 0 ? pageSize : undefined;
 
-    const files = await prisma.file.findMany({
-      where: {
-        ownerUserId: userId,
-        folderId: folderId,
-        status: "available",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [folders, totalFiles, files] = await Promise.all([
+      prisma.folder.findMany({
+        where: {
+          ownerUserId: userId,
+          parentFolderId: folderId,
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.file.count({
+        where: {
+          ownerUserId: userId,
+          folderId: folderId,
+          status: "available",
+        },
+      }),
+      prisma.file.findMany({
+        where: {
+          ownerUserId: userId,
+          folderId: folderId,
+          status: "available",
+        },
+        orderBy: { createdAt: "desc" },
+        ...(safePageSize
+          ? { skip: (safePage - 1) * safePageSize, take: safePageSize }
+          : {}),
+      }),
+    ]);
 
     const serializedFiles = files.map((file) => ({
       ...file,
       sizeBytes: file.sizeBytes.toString(),
     }));
 
-    return { folders, files: serializedFiles };
+    return {
+      folders,
+      files: serializedFiles,
+      totalItems: folders.length + totalFiles,
+      totalFiles,
+      totalFolders: folders.length,
+      page: safePage,
+      pageSize: safePageSize ?? null,
+      totalPages: safePageSize
+        ? Math.max(1, Math.ceil(totalFiles / safePageSize))
+        : 1,
+    };
   },
 
   async renameFolder(

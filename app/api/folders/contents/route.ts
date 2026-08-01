@@ -13,7 +13,16 @@ export const GET = withLogging(async (request: Request) => {
     const { searchParams } = new URL(request.url);
     const folderId = searchParams.get("folderId");
 
-    const contents = await folderService.getFolderContents(folderId, user.id);
+    const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
+    const pageSizeRaw = searchParams.get("pageSize");
+    const pageSize = pageSizeRaw ? Number.parseInt(pageSizeRaw, 10) : undefined;
+
+    const contents = await folderService.getFolderContents(
+      folderId,
+      user.id,
+      page,
+      pageSize,
+    );
     return NextResponse.json(contents);
   } catch (error) {
     const message =

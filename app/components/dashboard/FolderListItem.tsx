@@ -1,23 +1,13 @@
 "use client";
 
-import { memo, useState, useRef, useEffect } from "react";
-import {
-  Folder,
-  Pencil,
-  Trash2,
-  ArrowRightToLine,
-  MoreVertical,
-} from "lucide-react";
+import { memo } from "react";
+import { Folder, Pencil, Trash2, ArrowRightToLine } from "lucide-react";
 import { formatDate } from "@/app/lib/utils";
-
-interface FolderData {
-  id: string;
-  name: string;
-  ownerUserId: string;
-  parentFolderId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  DropdownMenu,
+  DropdownItem,
+} from "@/app/components/shared/DropdownMenu";
+import type { FolderData } from "./types";
 
 interface FolderListItemProps {
   folder: FolderData;
@@ -107,64 +97,3 @@ export const FolderListItem = memo(function FolderListItem({
     </div>
   );
 });
-
-/* ─── Dropdown Menu Components ─── */
-
-function DropdownMenu({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  return (
-    <div className="relative shrink-0" ref={ref}>
-      <button
-        onClick={() => setOpen((prev) => !prev)}
-        className="p-2 rounded-lg transition-all cursor-pointer bg-white border border-[#E5E7EB] text-[#525252] hover:text-[#171717] hover:bg-[#F5F5F5]"
-        title="More actions"
-      >
-        <MoreVertical className="w-4 h-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-[#E5E7EB] rounded-xl shadow-lg py-1 overflow-hidden">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DropdownItem({
-  icon,
-  label,
-  onClick,
-  danger = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all cursor-pointer ${
-        danger
-          ? "text-[#DC2626] hover:bg-[rgba(220,38,38,0.07)]"
-          : "text-[#525252] hover:bg-[#F5F5F5] hover:text-[#171717]"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
