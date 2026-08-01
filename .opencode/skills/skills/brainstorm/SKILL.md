@@ -31,6 +31,8 @@ Focus only on understanding the requirement.
 
 Based on your understanding, ask clarifying questions wherever the user's requirement is incomplete, ambiguous, or uncertain. Prefer the `AskUserQuestion` tool for discrete choices (it returns structured answers); use free-text questions only for open-ended points it can't represent.
 
+Treat the user as a customer with zero technical knowledge who describes the feature in plain language. Phrase every clarifying question in non-technical, customer-friendly terms — never ask about technical choices (e.g. database choices, frameworks, libraries, or any implementation details).
+
 Continue asking questions until every important requirement has been clarified.
 
 ---
@@ -50,3 +52,5 @@ Repeat this process until the user explicitly approves the finalized requirement
 ## Deliverable
 
 Write the finalized and approved requirements to `docs/specs/<slug>-requirements.md` (`<slug>` = a short kebab-case name for the task, agreed with the user if not obvious). This file is the handoff artifact the `architecture-design` skill reads next — without it on disk, later phases (possibly in a different session) have nothing concrete to resume from. Tell the user the file path once written.
+
+The deliverable must contain only the customer's functional requirements, described in plain language. Do not include any technical decisions or implementation details (e.g. database choices, frameworks, libraries) in this document.
