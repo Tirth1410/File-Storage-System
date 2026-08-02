@@ -73,7 +73,7 @@ const dashboardSteps: DriveStep[] = [
     popover: {
       title: "Upload Your First File",
       description:
-        "Drag & drop files here or click to browse. Vault supports files up to 1 GB with fast concurrent uploads.",
+        "Drag & drop files here or click to browse. Vault supports files up to 200 MB with fast concurrent uploads.",
       side: "right",
       align: "start",
     },
