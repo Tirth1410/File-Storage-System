@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
   // ── Core ───────────────────────────────────────────────────────────────────
   description:
-    "Vault is a high-performance, privacy-first file storage platform. Upload files up to 1 GB directly to the cloud, share with fine-grained permissions, and manage your storage with full auditability.",
+    "Vault is a high-performance, privacy-first file storage platform. Upload files up to 200 MB directly to the cloud, share with fine-grained permissions, and manage your storage with full auditability.",
   keywords: [
     "file storage",
     "secure file upload",
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     siteName: "Vault",
     title: "Vault — Secure File Storage",
     description:
-      "Upload, share, and manage files up to 1 GB with direct-to-cloud uploads, short-lived presigned links, and fine-grained access control.",
+      "Upload, share, and manage files up to 200 MB with direct-to-cloud uploads, short-lived presigned links, and fine-grained access control.",
     locale: "en_US",
     images: [
       {
@@ -84,7 +84,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Vault — Secure File Storage",
     description:
-      "Upload, share, and manage files up to 1 GB with direct-to-cloud uploads and fine-grained access control.",
+      "Upload, share, and manage files up to 200 MB with direct-to-cloud uploads and fine-grained access control.",
     images: ["/og-image.png"],
   },
 
@@ -104,6 +104,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
