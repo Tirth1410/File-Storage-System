@@ -68,12 +68,7 @@ export function LandingNav() {
 
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-2">
-          <CTALink
-            href="/sign-in"
-            variant="ghost"
-            size="md"
-            className="px-4"
-          >
+          <CTALink href="/sign-in" variant="ghost" size="md" className="px-4">
             Log in
           </CTALink>
           <CTALink href="/sign-up" size="md" arrow>

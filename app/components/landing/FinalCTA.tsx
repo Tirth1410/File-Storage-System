@@ -27,23 +27,14 @@ export function FinalCTA() {
                 Ready to take control of your files?
               </h2>
               <p className="mt-4 max-w-xl mx-auto text-[clamp(1rem,1.2vw,1.125rem)] text-white/80 leading-relaxed text-balance">
-                Start storing in seconds. 200 MB free — and your first file uploads
-                straight to the cloud.
+                Start storing in seconds. 200 MB free — and your first file
+                uploads straight to the cloud.
               </p>
               <div className="mt-[clamp(2rem,5vh,3rem)] flex flex-col sm:flex-row items-center justify-center gap-4">
-                <CTALink
-                  href="/sign-up"
-                  variant="inverse"
-                  size="lg"
-                  arrow
-                >
+                <CTALink href="/sign-up" variant="inverse" size="lg" arrow>
                   Create your free account
                 </CTALink>
-                <CTALink
-                  href="/sign-in"
-                  variant="outline-light"
-                  size="lg"
-                >
+                <CTALink href="/sign-in" variant="outline-light" size="lg">
                   Log in
                 </CTALink>
               </div>

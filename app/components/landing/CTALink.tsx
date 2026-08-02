@@ -82,13 +82,7 @@ export function CTALink({
     if (e.defaultPrevented) return;
 
     // Let the browser handle new-tab / new-window modifiers natively.
-    if (
-      e.button !== 0 ||
-      e.metaKey ||
-      e.ctrlKey ||
-      e.shiftKey ||
-      e.altKey
-    ) {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
       return;
     }
 
