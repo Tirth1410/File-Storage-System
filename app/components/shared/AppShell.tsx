@@ -10,12 +10,14 @@ import Link from "next/link";
 import { signOut } from "@/app/lib/auth-client";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Logo } from "@/app/components/shared/Logo";
+import { UserAvatar } from "@/app/components/shared/UserAvatar";
 import { Menu, X } from "lucide-react";
 import "./AppShell.css";
 
 interface AppShellProps {
   /** Name of the logged-in user */
   userName?: string;
+  avatarUrl?: string | null;
   /** Show the Admin nav tab. Defaults to false. */
   isAdmin?: boolean;
   /** Show sign-out button. Defaults to true. */
@@ -24,6 +26,7 @@ interface AppShellProps {
 
 export function AppShell({
   userName,
+  avatarUrl,
   isAdmin = false,
   showSignOut = true,
 }: AppShellProps) {
@@ -164,9 +167,11 @@ export function AppShell({
                 aria-label="Go to Profile"
                 data-tour="user-badge"
               >
-                <div className="vault-avatar">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar
+                  image={avatarUrl}
+                  name={userName}
+                  className="w-[26px] h-[26px] text-[11px]"
+                />
                 <span className="vault-user-name">{userName}</span>
               </Link>
             )}
@@ -191,9 +196,11 @@ export function AppShell({
                 aria-label="Go to Profile"
                 onClick={() => setMenuOpen(false)}
               >
-                <div className="vault-avatar">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar
+                  image={avatarUrl}
+                  name={userName}
+                  className="w-[26px] h-[26px] text-[11px]"
+                />
               </Link>
             )}
             <button

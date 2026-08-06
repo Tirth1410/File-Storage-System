@@ -512,6 +512,7 @@ function DashboardContent() {
     <>
       <AppShell
         userName={user.name || undefined}
+        avatarUrl={user.image ?? null}
         isAdmin={user.role === "admin"}
       />
 

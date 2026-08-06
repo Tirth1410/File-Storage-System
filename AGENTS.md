@@ -34,3 +34,22 @@ bun run db:seed
 ```bash
 bun run dev
 ```
+
+# Response Format
+
+Respond in a scannable, low-cognitive-load format:
+
+1. **Structure over prose** — use bulleted / numbered lists instead of long
+   paragraphs. Reserve paragraphs for short single ideas.
+2. **Lead with the answer** — put the conclusion/summary first, then details.
+3. **Make status explicit** — separate short labeled sections like:
+   - **Done** — what was completed
+   - **Issue / Finding** — what the problem or result is
+   - **Next / Question** — what's remaining or being asked
+4. **Template by context** — consistent layout per task type:
+   - Implementation → Done / Changes / Verification / Next
+   - Bug → Symptom / Root Cause / Fix / Verification
+   - Analysis → summary first, findings as bullets
+   - Multi-step work → progress checklist with `[x]` / `[ ]` states
+5. **Use tables** for comparisons, before/after, or field mappings.
+6. **Reference code by `file:line`** instead of quoting large blocks.
