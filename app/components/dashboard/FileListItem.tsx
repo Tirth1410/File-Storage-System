@@ -88,43 +88,48 @@ export const FileListItem = memo(function FileListItem({
         </div>
       </div>
 
-      {/* 3-dot Actions Menu */}
-      <DropdownMenu>
+      {/* Preview + 3-dot Actions Menu */}
+      <div className="flex items-center gap-2 shrink-0">
         {canPreview && (
-          <DropdownItem
-            icon={<Eye className="w-4 h-4" />}
-            label="Preview"
+          <button
             onClick={() => onPreview(file)}
-          />
+            className="p-2 rounded-lg transition-all cursor-pointer bg-white border border-[#E5E7EB] text-[#525252] hover:text-[#002FA7] hover:bg-[#F5F5F5]"
+            title="Preview"
+            aria-label="Preview"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
         )}
-        <DropdownItem
-          icon={<Download className="w-4 h-4" />}
-          label="Download"
-          onClick={() => onDownload(file)}
-        />
-        {isOwner && (
+        <DropdownMenu>
           <DropdownItem
-            icon={<Share2 className="w-4 h-4" />}
-            label="Share"
-            onClick={() => onShare(file)}
+            icon={<Download className="w-4 h-4" />}
+            label="Download"
+            onClick={() => onDownload(file)}
           />
-        )}
-        {isOwner && onMove && (
-          <DropdownItem
-            icon={<ArrowRightToLine className="w-4 h-4" />}
-            label="Move"
-            onClick={() => onMove(file)}
-          />
-        )}
-        {canShowDeleteAction && (
-          <DropdownItem
-            icon={<Trash2 className="w-4 h-4" />}
-            label={deleteTitle}
-            onClick={() => onDelete(file.id)}
-            danger
-          />
-        )}
-      </DropdownMenu>
+          {isOwner && (
+            <DropdownItem
+              icon={<Share2 className="w-4 h-4" />}
+              label="Share"
+              onClick={() => onShare(file)}
+            />
+          )}
+          {isOwner && onMove && (
+            <DropdownItem
+              icon={<ArrowRightToLine className="w-4 h-4" />}
+              label="Move"
+              onClick={() => onMove(file)}
+            />
+          )}
+          {canShowDeleteAction && (
+            <DropdownItem
+              icon={<Trash2 className="w-4 h-4" />}
+              label={deleteTitle}
+              onClick={() => onDelete(file.id)}
+              danger
+            />
+          )}
+        </DropdownMenu>
+      </div>
     </div>
   );
 });
