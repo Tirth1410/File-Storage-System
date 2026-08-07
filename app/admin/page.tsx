@@ -189,7 +189,11 @@ export default function AdminPage() {
 
   return (
     <>
-      <AppShell userName={session.user.name || undefined} isAdmin />
+      <AppShell
+        userName={session.user.name || undefined}
+        avatarUrl={session.user.image ?? null}
+        isAdmin
+      />
 
       <main className="min-h-screen bg-[#FAFAFA]">
         <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 md:px-10 md:py-8 md:space-y-8">

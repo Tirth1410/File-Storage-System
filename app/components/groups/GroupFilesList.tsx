@@ -3,7 +3,7 @@
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { EmptyState } from "@/app/components/shared/EmptyState";
 import { formatBytes } from "@/app/lib/utils";
-import { FileText } from "lucide-react";
+import { Eye, Download, Trash2, FileText } from "lucide-react";
 import type { GroupFile, GroupRole } from "./types";
 
 interface GroupFilesListProps {
@@ -58,26 +58,31 @@ export function GroupFilesList({
                   {gf.allowPreview && (
                     <button
                       onClick={() => onPreview(gf.file, gf.allowDownload)}
-                      className="bg-[rgba(0,47,167,0.06)] hover:bg-[rgba(0,47,167,0.12)] text-[#002FA7] font-semibold px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                      className="p-2 rounded-lg transition-all cursor-pointer bg-[rgba(0,47,167,0.06)] hover:bg-[rgba(0,47,167,0.12)] text-[#002FA7]"
+                      title="Preview"
+                      aria-label="Preview"
                     >
-                      Preview
+                      <Eye className="w-4 h-4" />
                     </button>
                   )}
                   {gf.allowDownload && (
                     <button
                       onClick={() => onDownload(gf.file)}
-                      className="bg-white border border-[#E5E7EB] hover:bg-[#F5F5F5] text-[#171717] font-semibold px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                      className="p-2 rounded-lg transition-all cursor-pointer bg-white border border-[#E5E7EB] hover:bg-[#F5F5F5] text-[#171717]"
+                      title="Download"
+                      aria-label="Download"
                     >
-                      Download
+                      <Download className="w-4 h-4" />
                     </button>
                   )}
                   {canUnshare && (
                     <button
                       onClick={() => onUnshare(gf.file.id)}
-                      className="bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626] font-semibold px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
-                      title="Unshare File"
+                      className="p-2 rounded-lg transition-all cursor-pointer bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626]"
+                      title="Remove"
+                      aria-label="Remove"
                     >
-                      Remove
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>

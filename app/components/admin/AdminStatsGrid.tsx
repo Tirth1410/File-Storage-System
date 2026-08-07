@@ -1,6 +1,7 @@
 "use client";
 
 import { StatCard } from "@/app/components/shared/StatCard";
+import { AdminStatsGridSkeleton } from "./AdminStatsGridSkeleton";
 import { formatBytes } from "@/app/lib/utils";
 import { ArrowLeftRight, Database, FileText, Users } from "lucide-react";
 import type { DashboardStats } from "./types";
@@ -12,16 +13,7 @@ interface AdminStatsGridProps {
 
 export function AdminStatsGrid({ loading, stats }: AdminStatsGridProps) {
   if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-28 bg-white border border-[#E5E7EB] rounded-2xl animate-pulse"
-          />
-        ))}
-      </div>
-    );
+    return <AdminStatsGridSkeleton />;
   }
 
   if (!stats) return null;

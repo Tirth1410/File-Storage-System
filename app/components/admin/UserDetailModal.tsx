@@ -1,8 +1,8 @@
 "use client";
 
 import { ModalShell } from "@/app/components/shared/ModalShell";
-import { LoadingState } from "@/app/components/shared/LoadingState";
 import { SectionCard } from "@/app/components/shared/SectionCard";
+import { UserDetailModalSkeleton } from "./UserDetailModalSkeleton";
 import { StorageBar } from "@/app/components/shared/StorageBar";
 import { formatDateTime } from "@/app/lib/utils";
 import { QuotaEditor } from "./QuotaEditor";
@@ -44,7 +44,7 @@ export function UserDetailModal({
     >
       <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[#FAFAFA] sm:p-6">
         {loadingDetails ? (
-          <LoadingState label="Loading analytics..." />
+          <UserDetailModalSkeleton />
         ) : details ? (
           <div className="space-y-6">
             {/* Profile Info */}

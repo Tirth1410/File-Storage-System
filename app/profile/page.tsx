@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
+import { ProfileSkeleton } from "@/app/components/shared/ProfileSkeleton";
 import { useAuthRedirect } from "@/app/hooks/useAuthRedirect";
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { StatCard } from "@/app/components/shared/StatCard";
 import { StorageBar } from "@/app/components/shared/StorageBar";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
+import { UserAvatar } from "@/app/components/shared/UserAvatar";
 import { formatBytes } from "@/app/lib/utils";
 import { Download, FileText } from "lucide-react";
 
@@ -66,14 +68,12 @@ export default function ProfilePage() {
   if (!session?.user) return <LoadingScreen message="Loading profile..." />;
 
   const { user } = session;
-  const initials = user.name
-    ? user.name.slice(0, 2).toUpperCase()
-    : user.email.slice(0, 2).toUpperCase();
 
   return (
     <>
       <AppShell
         userName={user.name || undefined}
+        avatarUrl={user.image ?? null}
         isAdmin={user.role === "admin"}
       />
 
@@ -90,10 +90,7 @@ export default function ProfilePage() {
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-28 gap-3">
-              <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-[#737373]">Loading profile data...</p>
-            </div>
+            <ProfileSkeleton />
           ) : profileData ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Left column */}
@@ -101,9 +98,11 @@ export default function ProfilePage() {
                 {/* Identity Card */}
                 <SectionCard title="Account">
                   <div className="flex flex-col items-center text-center gap-3 pb-5 border-b border-[#E5E7EB]">
-                    <div className="w-16 h-16 bg-[rgba(0,47,167,0.1)] border border-[rgba(0,47,167,0.2)] rounded-full flex items-center justify-center font-bold text-xl text-[#002FA7]">
-                      {initials}
-                    </div>
+                    <UserAvatar
+                      image={user.image}
+                      name={user.name}
+                      className="w-16 h-16 text-xl"
+                    />
                     <div>
                       <p className="text-base font-bold text-[#171717]">
                         {user.name || "User"}
@@ -112,10 +111,9 @@ export default function ProfilePage() {
                         {user.email}
                       </p>
                     </div>
-                    <StatusBadge
-                      variant={user.role === "admin" ? "admin" : "user"}
-                      label={user.role || "user"}
-                    />
+                    {user.role === "admin" && (
+                      <StatusBadge variant="admin" label="admin" />
+                    )}
                   </div>
                   <div className="space-y-3 pt-2 text-sm">
                     <div className="flex justify-between items-center">
@@ -147,20 +145,6 @@ export default function ProfilePage() {
                     utilization={profileData.storage.utilization}
                     variant="full"
                   />
-                  <div className="mt-4 pt-4 border-t border-[#E5E7EB] space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-[#737373]">Available</span>
-                      <span className="font-semibold text-[#16A34A] font-mono">
-                        {formatBytes(profileData.storage.remainingBytes)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#737373]">Total Quota</span>
-                      <span className="font-semibold text-[#171717] font-mono">
-                        {formatBytes(profileData.storage.quotaBytes)}
-                      </span>
-                    </div>
-                  </div>
                 </SectionCard>
               </div>
 

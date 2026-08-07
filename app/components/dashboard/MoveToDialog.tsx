@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Folder, ChevronRight, X, Home, Loader2 } from "lucide-react";
+import { Folder, ChevronRight, X, Home } from "lucide-react";
+import { MoveToDialogSkeleton } from "./MoveToDialogSkeleton";
 
 interface FolderNode {
   id: string;
@@ -134,14 +135,8 @@ export function MoveToDialog({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-[#002FA7]" />
-            </div>
-          ) : loadingContents ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-[#002FA7]" />
-            </div>
+          {loading || loadingContents ? (
+            <MoveToDialogSkeleton />
           ) : (
             <>
               {filteredFolders.length > 0 ? (

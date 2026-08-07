@@ -2,8 +2,8 @@
 
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
-import { LoadingState } from "@/app/components/shared/LoadingState";
 import { EmptyState } from "@/app/components/shared/EmptyState";
+import { UsersTableSkeleton } from "./UsersTableSkeleton";
 import { formatBytes } from "@/app/lib/utils";
 import { UserActionButtons } from "./UserActionButtons";
 import { Users } from "lucide-react";
@@ -39,7 +39,7 @@ export function UsersTable({
       }
     >
       {loading ? (
-        <LoadingState label="Fetching users..." className="py-12" />
+        <UsersTableSkeleton />
       ) : users.length === 0 ? (
         <EmptyState
           className="py-12"

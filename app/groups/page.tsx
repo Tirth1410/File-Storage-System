@@ -6,7 +6,7 @@ import { Plus, Users } from "lucide-react";
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
-import { LoadingState } from "@/app/components/shared/LoadingState";
+import { GroupsGridSkeleton } from "@/app/components/groups/GroupsGridSkeleton";
 import { EmptyState } from "@/app/components/shared/EmptyState";
 import { TourKickoffModal } from "@/app/components/shared/TourKickoffModal";
 import { PageHeader } from "@/app/components/shared/PageHeader";
@@ -84,6 +84,7 @@ export default function GroupsPage() {
     <>
       <AppShell
         userName={user.name || undefined}
+        avatarUrl={user.image ?? null}
         isAdmin={user.role === "admin"}
       />
 
@@ -119,7 +120,7 @@ export default function GroupsPage() {
             />
 
             {loading ? (
-              <LoadingState label="Loading groups..." />
+              <GroupsGridSkeleton />
             ) : groups.length === 0 ? (
               <EmptyState
                 className="bg-white border border-[#E5E7EB] rounded-2xl py-24"
