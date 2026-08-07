@@ -14,11 +14,7 @@ export function MoveToDialogSkeleton() {
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 py-2.5 px-3">
             <Skeleton width={20} height={20} borderRadius={6} inline />
-            <Skeleton
-              width={`${40 + (i % 3) * 15}%`}
-              height={14}
-              inline
-            />
+            <Skeleton width={`${40 + (i % 3) * 15}%`} height={14} inline />
           </div>
         ))}
       </div>
