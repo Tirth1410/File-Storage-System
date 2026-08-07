@@ -4,7 +4,11 @@ import { Skeleton } from "@/app/components/shared/Skeleton";
 
 export function ShareModalSkeleton() {
   return (
-    <div className="space-y-6" aria-busy="true" aria-label="Loading share options">
+    <div
+      className="space-y-6"
+      aria-busy="true"
+      aria-label="Loading share options"
+    >
       <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] space-y-4 sm:p-5">
         <Skeleton width={150} height={16} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
