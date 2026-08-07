@@ -8,7 +8,8 @@ import { ArrowLeft, Users } from "lucide-react";
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
-import { LoadingState } from "@/app/components/shared/LoadingState";
+import { GroupDetailSkeleton } from "@/app/components/groups/GroupDetailSkeleton";
+import { Skeleton } from "@/app/components/shared/Skeleton";
 import { EmptyState } from "@/app/components/shared/EmptyState";
 import { ConfirmationDialog } from "@/app/components/shared/ConfirmationDialog";
 import { FilePreviewModal } from "@/app/components/shared/FilePreviewModal";
@@ -340,7 +341,7 @@ export default function GroupDetailPage({
       <main className="min-h-screen bg-[#FAFAFA]">
         <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 sm:px-6 md:px-10 md:py-8">
           {loading ? (
-            <LoadingState label="Loading group..." className="py-24" />
+            <GroupDetailSkeleton />
           ) : notFound ? (
             <EmptyState
               className="bg-white border border-[#E5E7EB] rounded-2xl py-24"
@@ -387,11 +388,16 @@ export default function GroupDetailPage({
                   />
 
                   {detailsLoading ? (
-                    <div className="bg-white border border-[#E5E7EB] rounded-2xl">
-                      <LoadingState
-                        label="Loading group data..."
-                        className="py-20"
-                      />
+                    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 space-y-4">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <Skeleton circle width={32} height={32} />
+                          <div className="flex-1 space-y-1.5">
+                            <Skeleton width="50%" height={14} />
+                            <Skeleton width="30%" height={12} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : detailsTab === "files" ? (
                     <GroupFilesList
