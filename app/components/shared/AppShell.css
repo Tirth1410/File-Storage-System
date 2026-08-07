@@ -114,11 +114,11 @@
   transform: translateY(-1px);
 }
 
-/* Active page pill — subtle background + bold text */
+/* Active page pill — theme-blue tint + bold blue text */
 .vault-nav-btn.active {
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.03);
-  color: #171717;
+  background: rgba(0, 47, 167, 0.12);
+  border: 1px solid rgba(0, 47, 167, 0.2);
+  color: #002fa7;
   font-weight: 600;
 }
 .vault-nav-btn.active:hover {
@@ -371,8 +371,8 @@
   }
 
   .vault-mobile-menu-item.active {
-    color: #171717;
-    background: rgba(0, 0, 0, 0.06);
+    color: #002fa7;
+    background: rgba(0, 47, 167, 0.12);
     font-weight: 700;
   }
 

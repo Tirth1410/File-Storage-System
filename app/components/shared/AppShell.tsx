@@ -77,7 +77,13 @@ export function AppShell({
 
   const handleHover = (label: string | null) => {
     if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
-    hoverRafRef.current = requestAnimationFrame(() => updateIndicator(label));
+    hoverRafRef.current = requestAnimationFrame(() => {
+      if (label && label === activeLabel) {
+        setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+        return;
+      }
+      updateIndicator(label);
+    });
   };
 
   useEffect(() => {
