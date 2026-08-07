@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
+import { ProfileSkeleton } from "@/app/components/shared/ProfileSkeleton";
 import { useAuthRedirect } from "@/app/hooks/useAuthRedirect";
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { StatCard } from "@/app/components/shared/StatCard";
@@ -89,10 +90,7 @@ export default function ProfilePage() {
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-28 gap-3">
-              <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-[#737373]">Loading profile data...</p>
-            </div>
+            <ProfileSkeleton />
           ) : profileData ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Left column */}
