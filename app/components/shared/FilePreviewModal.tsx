@@ -10,7 +10,7 @@ const PDFCanvasViewer = dynamic(
 );
 
 import { ModalShell } from "@/app/components/shared/ModalShell";
-import { LoadingState } from "@/app/components/shared/LoadingState";
+import { PreviewSkeleton } from "@/app/components/shared/PreviewSkeleton";
 import { Download } from "lucide-react";
 
 interface FilePreviewModalProps {
@@ -77,7 +77,7 @@ export function FilePreviewModal({
         }`}
       >
         {previewLoading ? (
-          <LoadingState label="Loading preview..." labelClassName="text-xs" />
+          <PreviewSkeleton />
         ) : previewUrl ? (
           <>
             {file.mimeType.startsWith("image/") && (
