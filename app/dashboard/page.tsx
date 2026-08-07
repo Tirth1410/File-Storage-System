@@ -14,7 +14,7 @@ import { FileText, RefreshCw } from "lucide-react";
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
-import { LoadingState } from "@/app/components/shared/LoadingState";
+import { FileListSkeleton } from "@/app/components/dashboard/FileListSkeleton";
 import { EmptyState } from "@/app/components/shared/EmptyState";
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { ShareModal } from "@/app/components/shared/ShareModal";
@@ -659,7 +659,7 @@ function DashboardContent() {
                   data-tour="file-list"
                 >
                   {filesLoading ? (
-                    <LoadingState label="Loading files..." className="flex-1" />
+                    <FileListSkeleton />
                   ) : totalItems === 0 ? (
                     <EmptyState
                       icon={<FileText className="w-7 h-7 text-[#A3A3A3]" />}
