@@ -261,7 +261,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
               }`}
             >
               {tab === "links"
-                ? "Share Links"
+                ? "Share Public Link"
                 : tab === "users"
                   ? "User Permissions"
                   : "Share to Group"}
