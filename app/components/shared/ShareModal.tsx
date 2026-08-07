@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { ShareModalSkeleton } from "./ShareModalSkeleton";
 
 interface ShareModalProps {
   file: { id: string; originalName: string };
@@ -272,9 +273,7 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
         {/* Body */}
         <div className="flex-1 overflow-auto p-4 bg-[#FAFAFA] space-y-6 sm:p-6">
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-[3px] border-[#002FA7] border-t-transparent rounded-full animate-spin" />
-            </div>
+            <ShareModalSkeleton />
           ) : activeTab === "links" ? (
             <div className="space-y-6">
               {/* Generate Form */}
