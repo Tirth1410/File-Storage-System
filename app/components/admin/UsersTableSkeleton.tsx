@@ -6,7 +6,11 @@ const ROWS = 6;
 
 export function UsersTableSkeleton() {
   return (
-    <div className="overflow-x-auto" aria-busy="true" aria-label="Loading users">
+    <div
+      className="overflow-x-auto"
+      aria-busy="true"
+      aria-label="Loading users"
+    >
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="border-b border-[#E5E7EB] text-xs font-bold uppercase tracking-wide text-[#737373]">
