@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
 import { APP_URL } from "@/app/lib/config";
+import "react-loading-skeleton/dist/skeleton.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
