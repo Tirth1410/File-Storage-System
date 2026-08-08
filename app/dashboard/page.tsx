@@ -400,6 +400,76 @@ function DashboardContent() {
     setBulkMoveOpen(true);
   }, []);
 
+  const selectedFolderIds = useMemo(() => {
+    if (activeTab === "shared") return [];
+    if (selectAllMode) {
+      return folders.filter((f) => !deselectedIds.has(f.id)).map((f) => f.id);
+    }
+    return folders.filter((f) => selectedIds.has(f.id)).map((f) => f.id);
+  }, [folders, selectAllMode, deselectedIds, selectedIds, activeTab]);
+
+  const submitBulkMove = async (targetFolderId: string | null) => {
+    try {
+      const fileIds: string[] = [];
+      const folderIds: string[] = [];
+      if (!selectAllMode) {
+        const fileIdSet = new Set(files.map((f) => f.id));
+        for (const id of selectedIds) {
+          if (fileIdSet.has(id)) fileIds.push(id);
+          else folderIds.push(id);
+        }
+      }
+
+      const res = await fetch("/api/files/bulk-move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileIds,
+          folderIds,
+          targetFolderId,
+          selectAll: selectAllMode,
+          folderId: currentFolderId,
+          excludeIds: selectAllMode ? Array.from(deselectedIds) : [],
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        showAlert(
+          "Error",
+          d.error || "Failed to move selected items",
+          "danger",
+        );
+        return;
+      }
+
+      const result = await res.json();
+      if (result.moved.length > 0) {
+        const skippedCount =
+          result.skipped.length +
+          result.forbidden.length +
+          result.notFound.length +
+          result.failed.length;
+        toast.success(
+          skippedCount > 0
+            ? `${result.moved.length} moved, ${skippedCount} skipped`
+            : `${result.moved.length} item${
+                result.moved.length > 1 ? "s" : ""
+              } moved!`,
+        );
+        resetSelection();
+        fetchContents();
+        fetchProfile();
+      } else {
+        showAlert("Error", "No selected items were moved", "danger");
+      }
+      setBulkMoveOpen(false);
+    } catch {
+      showAlert("Error", "An error occurred while moving items", "danger");
+      setBulkMoveOpen(false);
+    }
+  };
+
   const handleBatchDelete = () => {
     const count = selectedCount;
     if (count === 0) return;
@@ -712,6 +782,19 @@ function DashboardContent() {
           excludeFolderIds={moveTarget.type === "folder" ? [moveTarget.id] : []}
           onSelect={submitMove}
           onClose={() => setMoveTarget(null)}
+        />
+      )}
+
+      {/* Bulk Move Dialog */}
+      {bulkMoveOpen && (
+        <MoveToDialog
+          title={`Move ${selectedCount} item${
+            selectedCount !== 1 ? "s" : ""
+          } to...`}
+          currentFolderId={currentFolderId}
+          excludeFolderIds={selectedFolderIds}
+          onSelect={submitBulkMove}
+          onClose={() => setBulkMoveOpen(false)}
         />
       )}
 
