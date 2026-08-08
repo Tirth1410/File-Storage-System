@@ -5,22 +5,28 @@ import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { EmptyState } from "@/app/components/shared/EmptyState";
 import { Users } from "lucide-react";
 import { roleToBadgeVariant } from "./types";
-import type { GroupMember, GroupRole } from "./types";
+import type { GroupMember, GroupRole, PendingInvite } from "./types";
 
 interface GroupMembersListProps {
   members: GroupMember[];
   currentUserId: string;
   currentUserRole: GroupRole;
+  pendingInvites: PendingInvite[];
   onChangeRole: (memberUserId: string, role: "ADMIN" | "MEMBER") => void;
   onRemove: (memberUserId: string) => void;
+  onResendInvite: (inviteId: string) => void;
+  onCancelInvite: (inviteId: string) => void;
 }
 
 export function GroupMembersList({
   members,
   currentUserId,
   currentUserRole,
+  pendingInvites,
   onChangeRole,
   onRemove,
+  onResendInvite,
+  onCancelInvite,
 }: GroupMembersListProps) {
   return (
     <SectionCard noPadding title="Group Members">
@@ -92,6 +98,47 @@ export function GroupMembersList({
             </div>
           );
         })
+      )}
+
+      {pendingInvites.length > 0 && (
+        <div className="border-t border-[#E5E7EB]">
+          <div className="px-4 py-3 sm:px-6">
+            <h4 className="text-xs font-bold text-[#171717] uppercase tracking-wide">
+              Pending Invites ({pendingInvites.length})
+            </h4>
+          </div>
+          {pendingInvites.map((inv) => (
+            <div
+              key={inv.id}
+              className="px-4 py-3 flex flex-col items-stretch justify-between gap-3 border-t border-[#F5F5F5] hover:bg-[#FAFAFA] transition-colors sm:flex-row sm:items-center sm:px-6"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-[#171717] truncate">
+                  {inv.email}
+                </p>
+                <p className="text-xs text-[#737373] mt-0.5">
+                  Pending
+                  {inv.expiresAt &&
+                    ` · expires ${new Date(inv.expiresAt).toLocaleDateString()}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => onResendInvite(inv.id)}
+                  className="text-xs font-semibold text-[#002FA7] border border-[rgba(0,47,167,0.15)] bg-[rgba(0,47,167,0.03)] px-2.5 py-1.5 rounded-lg hover:bg-[rgba(0,47,167,0.08)] transition-all cursor-pointer"
+                >
+                  Resend
+                </button>
+                <button
+                  onClick={() => onCancelInvite(inv.id)}
+                  className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </SectionCard>
   );
