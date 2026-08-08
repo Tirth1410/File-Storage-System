@@ -16,3 +16,8 @@ export const APP_URL = isProd ? PROD_URL : DEV_URL;
 if (typeof window === "undefined") {
   process.env.BETTER_AUTH_URL = APP_URL;
 }
+
+export const INVITE_EXPIRATION_DAYS = Number.parseInt(
+  process.env.INVITE_EXPIRATION_DAYS || "7",
+  10,
+);
