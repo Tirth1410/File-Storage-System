@@ -89,9 +89,7 @@ export function MoveToDialog({
     handleNavigate(folderId);
   }
 
-  const filteredFolders = currentFolders.filter(
-    (f) => !excludedSet.has(f.id),
-  );
+  const filteredFolders = currentFolders.filter((f) => !excludedSet.has(f.id));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">

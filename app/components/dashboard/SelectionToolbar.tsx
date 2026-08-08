@@ -1,16 +1,21 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Trash2, ArrowRightToLine, CheckSquare, X } from "lucide-react";
 
 interface SelectionToolbarProps {
   totalItems: number;
   selectedCount: number;
   isAllSelected: boolean;
   isSomeSelected: boolean;
-  activeTab: "own" | "shared";
+  selectionMode: boolean;
+  canMove: boolean;
+  deleteLabel: string;
+  onEnterSelectionMode: () => void;
   onToggleSelectAll: () => void;
+  onBatchMove: () => void;
   onBatchDelete: () => void;
   onClear: () => void;
+  onDone: () => void;
 }
 
 export function SelectionToolbar({
@@ -18,11 +23,30 @@ export function SelectionToolbar({
   selectedCount,
   isAllSelected,
   isSomeSelected,
-  activeTab,
+  selectionMode,
+  canMove,
+  deleteLabel,
+  onEnterSelectionMode,
   onToggleSelectAll,
+  onBatchMove,
   onBatchDelete,
   onClear,
+  onDone,
 }: SelectionToolbarProps) {
+  if (!selectionMode) {
+    return (
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs">
+        <button
+          onClick={onEnterSelectionMode}
+          className="flex items-center gap-1.5 font-semibold text-[#002FA7] hover:bg-[rgba(0,47,167,0.08)] px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+        >
+          <CheckSquare className="w-4 h-4" />
+          Select Files
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2 px-4 py-2.5 bg-[#F9FAFB] border-b border-[#E5E7EB] text-xs sm:flex-row sm:items-center sm:justify-between">
       <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-[#525252] hover:text-[#171717]">
@@ -43,13 +67,21 @@ export function SelectionToolbar({
           <span className="font-semibold text-[#002FA7] bg-[rgba(0,47,167,0.08)] px-2.5 py-0.5 rounded-full border border-[rgba(0,47,167,0.2)]">
             {selectedCount} selected
           </span>
+          {canMove && (
+            <button
+              onClick={onBatchMove}
+              className="flex items-center gap-1.5 bg-[#002FA7] hover:bg-[#002482] text-white font-bold px-3 py-1 rounded-lg transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer"
+            >
+              <ArrowRightToLine className="w-3.5 h-3.5" />
+              Move ({selectedCount})
+            </button>
+          )}
           <button
             onClick={onBatchDelete}
             className="flex items-center gap-1.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold px-3 py-1 rounded-lg transition-all shadow-sm shadow-[#DC2626]/20 cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            {activeTab === "shared" ? "Remove Selected" : "Delete Selected"} (
-            {selectedCount})
+            {deleteLabel} ({selectedCount})
           </button>
           <button
             onClick={onClear}
@@ -59,6 +91,14 @@ export function SelectionToolbar({
           </button>
         </div>
       )}
+
+      <button
+        onClick={onDone}
+        className="flex items-center gap-1.5 text-[#737373] hover:text-[#171717] font-medium cursor-pointer"
+      >
+        <X className="w-4 h-4" />
+        Done
+      </button>
     </div>
   );
 }
