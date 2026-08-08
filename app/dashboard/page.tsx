@@ -51,6 +51,7 @@ import { useFilePreview, useFileDownload } from "@/app/hooks/useFilePreview";
 type BulkDeleteResponse =
   | {
       deleted: string[];
+      foldersDeleted?: string[];
       forbidden: string[];
       notFound: string[];
       failed: { id: string; reason: string }[];
@@ -475,6 +476,16 @@ function DashboardContent() {
     if (count === 0) return;
     const isShared = activeTab === "shared";
 
+    const fileIds: string[] = [];
+    const folderIds: string[] = [];
+    if (!selectAllMode) {
+      const fileIdSet = new Set(files.map((f) => f.id));
+      for (const id of selectedIds) {
+        if (fileIdSet.has(id)) fileIds.push(id);
+        else folderIds.push(id);
+      }
+    }
+
     confirm({
       title: isShared
         ? `Remove ${count} File${count > 1 ? "s" : ""}`
@@ -483,7 +494,7 @@ function DashboardContent() {
         ? `Remove ${count} selected file${count > 1 ? "s" : ""} from your Shared tab?`
         : `Are you sure you want to delete ${count} selected item${
             count > 1 ? "s" : ""
-          }?`,
+          }? Folders and all their contents will be deleted permanently, and storage quota will be released.`,
       confirmLabel: isShared
         ? `Remove ${count} File${count > 1 ? "s" : ""}`
         : `Delete ${count} Item${count > 1 ? "s" : ""}`,
@@ -496,8 +507,13 @@ function DashboardContent() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              fileIds: Array.from(selectedIds),
+              fileIds,
+              folderIds,
               context: activeTab,
+              selectAll: !isShared && selectAllMode,
+              folderId: !isShared ? currentFolderId : null,
+              excludeIds:
+                !isShared && selectAllMode ? Array.from(deselectedIds) : [],
             }),
           });
 
@@ -514,7 +530,9 @@ function DashboardContent() {
           const result: BulkDeleteResponse = await res.json();
 
           const successfulIds =
-            "removed" in result ? result.removed : result.deleted;
+            "removed" in result
+              ? result.removed
+              : [...(result.deleted ?? []), ...(result.foldersDeleted ?? [])];
 
           if (successfulIds.length > 0) {
             const skippedCount =
