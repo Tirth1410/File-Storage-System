@@ -841,6 +841,7 @@ function DashboardContent() {
                           <FolderListItem
                             key={folder.id}
                             folder={folder}
+                            selectionMode={selectionMode}
                             isSelected={isItemSelected(folder.id)}
                             onToggleSelect={handleRowToggle}
                             onRename={handleRenameFolder}
@@ -853,6 +854,7 @@ function DashboardContent() {
                           key={file.id}
                           file={file}
                           currentUserId={user.id}
+                          selectionMode={selectionMode}
                           isSelected={isItemSelected(file.id)}
                           onToggleSelect={handleRowToggle}
                           onPreview={openPreview}
