@@ -562,7 +562,9 @@ function DashboardContent() {
               : "Move File To..."
           }
           currentFolderId={currentFolderId}
-          excludeFolderId={moveTarget.type === "folder" ? moveTarget.id : null}
+          excludeFolderIds={
+            moveTarget.type === "folder" ? [moveTarget.id] : []
+          }
           onSelect={submitMove}
           onClose={() => setMoveTarget(null)}
         />

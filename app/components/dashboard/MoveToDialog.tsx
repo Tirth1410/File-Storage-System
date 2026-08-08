@@ -20,7 +20,7 @@ interface BreadcrumbItem {
 interface MoveToDialogProps {
   title: string;
   currentFolderId: string | null;
-  excludeFolderId?: string | null;
+  excludeFolderIds?: string[];
   onSelect: (folderId: string | null) => void;
   onClose: () => void;
 }
@@ -28,7 +28,7 @@ interface MoveToDialogProps {
 export function MoveToDialog({
   title,
   currentFolderId,
-  excludeFolderId,
+  excludeFolderIds = [],
   onSelect,
   onClose,
 }: MoveToDialogProps) {
@@ -39,6 +39,8 @@ export function MoveToDialog({
   const [loadingContents, setLoadingContents] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(currentFolderId);
   const { pending, execute } = useAsyncAction();
+
+  const excludedSet = new Set(excludeFolderIds);
 
   const loadContents = useCallback(async (folderId: string | null) => {
     setLoadingContents(true);
@@ -76,6 +78,7 @@ export function MoveToDialog({
   }, [loadContents]);
 
   function handleNavigate(folderId: string | null) {
+    if (folderId !== null && excludedSet.has(folderId)) return;
     setCurrentView(folderId);
     setSelectedId(folderId);
     loadContents(folderId);
@@ -87,7 +90,7 @@ export function MoveToDialog({
   }
 
   const filteredFolders = currentFolders.filter(
-    (f) => f.id !== excludeFolderId,
+    (f) => !excludedSet.has(f.id),
   );
 
   return (
