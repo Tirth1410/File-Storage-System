@@ -316,12 +316,6 @@ function DashboardContent() {
     resetSelection();
   }, [resetSelection]);
 
-  const handleClearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-    setSelectAllMode(false);
-    setDeselectedIds(new Set());
-  }, []);
-
   const handleToggleSelectAll = useCallback(() => {
     if (activeTabRef.current === "own") {
       if (selectAllModeRef.current && deselectedIdsRef.current.size === 0) {
@@ -911,7 +905,6 @@ function DashboardContent() {
                     onToggleSelectAll={handleToggleSelectAll}
                     onBatchMove={handleBatchMove}
                     onBatchDelete={handleBatchDelete}
-                    onClear={handleClearSelection}
                     onDone={handleExitSelectionMode}
                   />
                 )}

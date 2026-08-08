@@ -601,19 +601,19 @@ export const folderService = {
     }
 
     await prisma.$transaction(async (tx) => {
-      for (const folder of foldersToMove) {
-        await tx.folder.update({
-          where: { id: folder.id },
+      if (foldersToMove.length > 0) {
+        await tx.folder.updateMany({
+          where: { id: { in: foldersToMove.map((f) => f.id) } },
           data: { parentFolderId: targetFolderId },
         });
       }
-      for (const file of filesToMove) {
-        await tx.file.update({
-          where: { id: file.id },
+      if (filesToMove.length > 0) {
+        await tx.file.updateMany({
+          where: { id: { in: filesToMove.map((f) => f.id) } },
           data: { folderId: targetFolderId },
         });
       }
-    });
+    }, TRANSACTION_TIMEOUT);
 
     for (const folder of foldersToMove) {
       await auditService.log({

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, ArrowRightToLine, CheckSquare, X } from "lucide-react";
+import { Trash2, ArrowRightToLine, ListChecks } from "lucide-react";
 
 interface SelectionToolbarProps {
   totalItems: number;
@@ -14,7 +14,6 @@ interface SelectionToolbarProps {
   onToggleSelectAll: () => void;
   onBatchMove: () => void;
   onBatchDelete: () => void;
-  onClear: () => void;
   onDone: () => void;
 }
 
@@ -30,7 +29,6 @@ export function SelectionToolbar({
   onToggleSelectAll,
   onBatchMove,
   onBatchDelete,
-  onClear,
   onDone,
 }: SelectionToolbarProps) {
   if (!selectionMode) {
@@ -40,8 +38,8 @@ export function SelectionToolbar({
           onClick={onEnterSelectionMode}
           className="flex items-center gap-1.5 font-semibold text-[#002FA7] hover:bg-[rgba(0,47,167,0.08)] px-2.5 py-1 rounded-lg transition-all cursor-pointer"
         >
-          <CheckSquare className="w-4 h-4" />
-          Select Files
+          <ListChecks className="w-4 h-4" />
+          Select
         </button>
       </div>
     );
@@ -83,21 +81,14 @@ export function SelectionToolbar({
             <Trash2 className="w-3.5 h-3.5" />
             {deleteLabel} ({selectedCount})
           </button>
-          <button
-            onClick={onClear}
-            className="text-[#737373] hover:text-[#171717] font-medium underline cursor-pointer"
-          >
-            Clear
-          </button>
         </div>
       )}
 
       <button
         onClick={onDone}
-        className="flex items-center gap-1.5 text-[#737373] hover:text-[#171717] font-medium cursor-pointer"
+        className="flex items-center gap-1.5 text-[#525252] hover:text-[#171717] font-semibold px-2.5 py-1 rounded-lg border border-[#D1D5DB] hover:border-[#A3A3A3] bg-white cursor-pointer transition-all"
       >
-        <X className="w-4 h-4" />
-        Done
+        Clear
       </button>
     </div>
   );
