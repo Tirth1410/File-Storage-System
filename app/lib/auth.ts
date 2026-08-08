@@ -6,6 +6,7 @@ import { admin } from "better-auth/plugins";
 import { APP_URL } from "./config";
 
 import { sendVerificationEmailService } from "@/app/lib/email-service";
+import { invitationService } from "@/app/lib/invitation-service";
 
 const rawEnvVal = process.env.ADMIN_USER_IDS || process.env.ADMIN_USER_ID;
 const adminUserIds = rawEnvVal
@@ -87,6 +88,15 @@ export const auth = betterAuth({
               where: { id: user.id },
               data: { role: "admin" },
             });
+          }
+
+          try {
+            await invitationService.grantPendingInvitesForUser({
+              userId: user.id,
+              email: user.email,
+            });
+          } catch {
+            console.error("Failed to grant pending invites for user", user.id);
           }
         },
       },

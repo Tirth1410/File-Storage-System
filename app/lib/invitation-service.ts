@@ -2,6 +2,7 @@ import crypto from "crypto";
 import prisma from "@/app/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { auditService } from "@/app/lib/audit-service";
+import { logger } from "@/app/lib/logger";
 import { shareService } from "@/app/lib/share-service";
 import { groupService } from "@/app/lib/group-service";
 import { sendInviteEmailService } from "@/app/lib/email-service";
@@ -18,7 +19,10 @@ export type FileInviteResult =
   | { granted: false; pending: true; emailSent: boolean; invite: Invitation };
 
 export type GroupInviteResult =
-  | { granted: true; member: Awaited<ReturnType<typeof groupService.addMember>> }
+  | {
+      granted: true;
+      member: Awaited<ReturnType<typeof groupService.addMember>>;
+    }
   | { granted: false; pending: true; emailSent: boolean; invite: Invitation };
 
 export function normalizeEmail(email: string): string {
@@ -246,5 +250,71 @@ export const invitationService = {
     });
 
     return { granted: false, pending: true, emailSent, invite };
+  },
+
+  async grantPendingInvitesForUser({
+    userId,
+    email,
+  }: {
+    userId: string;
+    email: string;
+  }): Promise<number> {
+    const normalized = normalizeEmail(email);
+    const invites = await prisma.invitation.findMany({
+      where: {
+        email: normalized,
+        status: "PENDING",
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    let grantedCount = 0;
+    for (const invite of invites) {
+      try {
+        if (invite.resourceType === "FILE" && invite.fileId) {
+          await prisma.filePermission.upsert({
+            where: {
+              fileId_userId: { fileId: invite.fileId, userId },
+            },
+            update: { permission: invite.permission },
+            create: {
+              fileId: invite.fileId,
+              userId,
+              permission: invite.permission,
+            },
+          });
+        } else if (invite.resourceType === "GROUP" && invite.groupId) {
+          await prisma.groupMember.upsert({
+            where: {
+              groupId_userId: { groupId: invite.groupId, userId },
+            },
+            update: { role: invite.permission },
+            create: {
+              groupId: invite.groupId,
+              userId,
+              role: invite.permission,
+            },
+          });
+        }
+
+        await prisma.invitation.update({
+          where: { id: invite.id },
+          data: { status: "ACCEPTED", acceptedAt: new Date() },
+        });
+
+        await auditService.log({
+          userId,
+          action: "invite_granted",
+          fileId: invite.fileId ?? undefined,
+          details: `Auto-granted ${invite.resourceType} access to ${normalized}`,
+        });
+
+        grantedCount += 1;
+      } catch (err) {
+        logger.error(`Failed to grant invite ${invite.id}:`, err);
+      }
+    }
+
+    return grantedCount;
   },
 };
