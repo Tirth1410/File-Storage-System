@@ -75,7 +75,8 @@ async function sendBrevoEmail({
 
   try {
     const rawFrom =
-      process.env.EMAIL_FROM || "Vault FileStorage <vaultfilestorage@gmail.com>";
+      process.env.EMAIL_FROM ||
+      "Vault FileStorage <vaultfilestorage@gmail.com>";
     const sender = parseSender(rawFrom);
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
