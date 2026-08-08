@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fileService } from "@/app/lib/file-service";
+import { invitationService } from "@/app/lib/invitation-service";
 import { logger, withLogging } from "@/app/lib/logger";
 
 export const GET = withLogging(async (request: Request) => {
@@ -13,7 +14,8 @@ export const GET = withLogging(async (request: Request) => {
     }
 
     const cleanedCount = await fileService.cleanupExpiredUploads();
-    return NextResponse.json({ success: true, cleanedCount });
+    const expiredInvites = await invitationService.expireStaleInvites();
+    return NextResponse.json({ success: true, cleanedCount, expiredInvites });
   } catch (error) {
     logger.error("Error running cleanup job:", error);
     return NextResponse.json(
