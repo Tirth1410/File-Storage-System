@@ -34,7 +34,7 @@ const TRANSACTION_TIMEOUT = {
   timeout: 20_000,
 } as const;
 
-function getDescendantCteSql(): string {
+export function getDescendantCteSql(): string {
   return `WITH RECURSIVE subtree AS (
     SELECT id, "parentFolderId" FROM folder WHERE id = $1
     UNION ALL

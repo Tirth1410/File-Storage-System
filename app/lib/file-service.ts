@@ -2,6 +2,7 @@ import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
 import { logger } from "@/app/lib/logger";
+import { getDescendantCteSql } from "@/app/lib/folder-service";
 
 export interface InitiateUploadInput {
   filename: string;
@@ -26,6 +27,7 @@ export interface AbortUploadInput {
 
 export interface BulkDeleteResult {
   deleted: string[];
+  foldersDeleted: string[];
   forbidden: string[];
   notFound: string[];
   failed: { id: string; reason: string }[];
@@ -488,29 +490,78 @@ export const fileService = {
 
   async bulkDeleteFiles(
     fileIds: string[],
+    folderIds: string[],
     userId: string,
     isAdmin = false,
+    options: {
+      selectAll?: boolean;
+      sourceFolderId?: string | null;
+      excludeIds?: string[];
+    } = {},
   ): Promise<BulkDeleteResult> {
     const uniqueFileIds = Array.from(
       new Set(fileIds.filter((id): id is string => typeof id === "string")),
     );
+    const uniqueFolderIds = Array.from(
+      new Set(folderIds.filter((id): id is string => typeof id === "string")),
+    );
 
-    if (uniqueFileIds.length === 0) {
-      throw new BulkDeleteValidationError("At least one file ID is required");
+    let resolvedFileIds = uniqueFileIds;
+    let resolvedFolderIds = uniqueFolderIds;
+
+    if (options.selectAll) {
+      const [allFolders, allFiles] = await Promise.all([
+        prisma.folder.findMany({
+          where: {
+            ownerUserId: userId,
+            parentFolderId: options.sourceFolderId ?? null,
+          },
+          select: { id: true },
+        }),
+        prisma.file.findMany({
+          where: {
+            ownerUserId: userId,
+            folderId: options.sourceFolderId ?? null,
+            status: "available",
+          },
+          select: { id: true },
+        }),
+      ]);
+      const excluded = new Set(options.excludeIds ?? []);
+      resolvedFolderIds = allFolders
+        .map((f) => f.id)
+        .filter((id) => !excluded.has(id));
+      resolvedFileIds = allFiles
+        .map((f) => f.id)
+        .filter((id) => !excluded.has(id));
     }
 
-    if (uniqueFileIds.length > MAX_BULK_DELETE_FILES) {
+    if (resolvedFileIds.length === 0 && resolvedFolderIds.length === 0) {
       throw new BulkDeleteValidationError(
-        `Cannot delete more than ${MAX_BULK_DELETE_FILES} files at once`,
+        "At least one file or folder ID is required",
       );
     }
 
-    const files = await prisma.file.findMany({
-      where: { id: { in: uniqueFileIds } },
-    });
+    if (
+      resolvedFileIds.length + resolvedFolderIds.length >
+      MAX_BULK_DELETE_FILES
+    ) {
+      throw new BulkDeleteValidationError(
+        `Cannot delete more than ${MAX_BULK_DELETE_FILES} items at once`,
+      );
+    }
+
+    const [files, folders] = await Promise.all([
+      resolvedFileIds.length > 0
+        ? prisma.file.findMany({ where: { id: { in: resolvedFileIds } } })
+        : ([] as Awaited<ReturnType<typeof prisma.file.findMany>>),
+      resolvedFolderIds.length > 0
+        ? prisma.folder.findMany({ where: { id: { in: resolvedFolderIds } } })
+        : ([] as Awaited<ReturnType<typeof prisma.folder.findMany>>),
+    ]);
 
     const filesById = new Map(files.map((file) => [file.id, file]));
-    const notFound = uniqueFileIds.filter((id) => !filesById.has(id));
+    const notFound = resolvedFileIds.filter((id) => !filesById.has(id));
     const forbidden: string[] = [];
     const authorizedFiles: typeof files = [];
 
@@ -522,18 +573,59 @@ export const fileService = {
       }
     }
 
-    if (authorizedFiles.length === 0) {
-      return { deleted: [], forbidden, notFound, failed: [] };
+    const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+    const folderNotfound = resolvedFolderIds.filter(
+      (id) => !folderById.has(id),
+    );
+    const folderForbidden: string[] = [];
+    const authorizedFolders: typeof folders = [];
+    for (const folder of folders) {
+      if (folder.ownerUserId !== userId && !isAdmin) {
+        folderForbidden.push(folder.id);
+      } else {
+        authorizedFolders.push(folder);
+      }
     }
+
+    const foldersToDelete: string[] = [];
+    const folderTreeFiles: typeof files = [];
+    for (const folder of authorizedFolders) {
+      const descendantRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+        getDescendantCteSql(),
+        folder.id,
+      );
+      const ids = descendantRows.map((r) => r.id);
+      foldersToDelete.push(...ids);
+      const treeFiles = await prisma.file.findMany({
+        where: { folderId: { in: ids } },
+      });
+      folderTreeFiles.push(...treeFiles);
+    }
+
+    if (authorizedFiles.length === 0 && foldersToDelete.length === 0) {
+      return {
+        deleted: [],
+        foldersDeleted: [],
+        forbidden: [...forbidden, ...folderForbidden],
+        notFound: [...notFound, ...folderNotfound],
+        failed: [],
+      };
+    }
+
+    const directFileIdSet = new Set(authorizedFiles.map((file) => file.id));
+    const extraTreeFiles = folderTreeFiles.filter(
+      (file) => !directFileIdSet.has(file.id),
+    );
+    const filesToDelete = [...authorizedFiles, ...extraTreeFiles];
 
     const failed: { id: string; reason: string }[] = [];
     const objectKeyToFileId = new Map(
-      authorizedFiles.map((file) => [file.objectKey, file.id]),
+      filesToDelete.map((file) => [file.objectKey, file.id]),
     );
 
     try {
       const { errors } = await r2Service.deleteObjects(
-        authorizedFiles.map((file) => file.objectKey),
+        filesToDelete.map((file) => file.objectKey),
       );
 
       for (const error of errors) {
@@ -547,25 +639,32 @@ export const fileService = {
         error instanceof Error ? error.message : "Failed to delete R2 objects";
       return {
         deleted: [],
-        forbidden,
-        notFound,
-        failed: authorizedFiles.map((file) => ({ id: file.id, reason })),
+        foldersDeleted: [],
+        forbidden: [...forbidden, ...folderForbidden],
+        notFound: [...notFound, ...folderNotfound],
+        failed: filesToDelete.map((file) => ({ id: file.id, reason })),
       };
     }
 
     const failedIds = new Set(failed.map((item) => item.id));
-    const filesToDelete = authorizedFiles.filter(
+    const filesToDeleteDb = filesToDelete.filter(
       (file) => !failedIds.has(file.id),
     );
 
-    if (filesToDelete.length === 0) {
-      return { deleted: [], forbidden, notFound, failed };
+    if (filesToDeleteDb.length === 0 && foldersToDelete.length === 0) {
+      return {
+        deleted: [],
+        foldersDeleted: [],
+        forbidden: [...forbidden, ...folderForbidden],
+        notFound: [...notFound, ...folderNotfound],
+        failed,
+      };
     }
 
     await prisma.$transaction(async (tx) => {
       const totalBytesByOwner = new Map<string, bigint>();
 
-      for (const file of filesToDelete) {
+      for (const file of filesToDeleteDb) {
         totalBytesByOwner.set(
           file.ownerUserId,
           (totalBytesByOwner.get(file.ownerUserId) || BigInt(0)) +
@@ -573,9 +672,16 @@ export const fileService = {
         );
       }
 
-      await tx.file.deleteMany({
-        where: { id: { in: filesToDelete.map((file) => file.id) } },
-      });
+      if (filesToDeleteDb.length > 0) {
+        await tx.file.deleteMany({
+          where: { id: { in: filesToDeleteDb.map((file) => file.id) } },
+        });
+      }
+      if (foldersToDelete.length > 0) {
+        await tx.folder.deleteMany({
+          where: { id: { in: foldersToDelete } },
+        });
+      }
 
       for (const [ownerUserId, totalBytes] of totalBytesByOwner) {
         await tx.quotaUsage.upsert({
@@ -606,19 +712,31 @@ export const fileService = {
       }
 
       await tx.auditLog.createMany({
-        data: filesToDelete.map((file) => ({
+        data: filesToDeleteDb.map((file) => ({
           userId,
           action: "file_deleted",
           fileId: file.id,
           details: `Permanently deleted file ${file.originalName} (${file.sizeBytes} bytes) from R2 and database via bulk delete. Action performed by ${userId}`,
         })),
       });
+
+      if (authorizedFolders.length > 0) {
+        await tx.auditLog.createMany({
+          data: authorizedFolders.map((folder) => ({
+            userId,
+            action: "folder_deleted",
+            folderId: folder.id,
+            details: `Deleted folder "${folder.name}" and descendants via bulk delete. Action performed by ${userId}`,
+          })),
+        });
+      }
     }, TRANSACTION_TIMEOUT);
 
     return {
-      deleted: filesToDelete.map((file) => file.id),
-      forbidden,
-      notFound,
+      deleted: filesToDeleteDb.map((file) => file.id),
+      foldersDeleted: foldersToDelete,
+      forbidden: [...forbidden, ...folderForbidden],
+      notFound: [...notFound, ...folderNotfound],
       failed,
     };
   },
