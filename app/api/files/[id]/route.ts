@@ -2,6 +2,36 @@ import { NextResponse } from "next/server";
 import { getRequestUser } from "@/app/lib/request-user";
 import { fileService } from "@/app/lib/file-service";
 import { logger, withLogging } from "@/app/lib/logger";
+import prisma from "@/app/lib/prisma";
+
+export const GET = withLogging(
+  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+    try {
+      const user = getRequestUser(request);
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const { id } = await params;
+      const file = await prisma.file.findUnique({ where: { id } });
+      if (!file) {
+        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+      }
+      if (file.ownerUserId !== user.id && user.role !== "admin") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      return NextResponse.json({
+        file: { ...file, sizeBytes: file.sizeBytes.toString() },
+      });
+    } catch {
+      return NextResponse.json(
+        { error: "Internal Server Error" },
+        { status: 500 },
+      );
+    }
+  },
+);
 
 export const DELETE = withLogging(
   async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
