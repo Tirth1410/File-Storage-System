@@ -13,8 +13,9 @@ import type { UploadedFile } from "./types";
 interface FileListItemProps {
   file: UploadedFile;
   currentUserId?: string;
+  selectionMode?: boolean;
   isSelected?: boolean;
-  onToggleSelect?: (fileId: string) => void;
+  onToggleSelect?: (fileId: string, range?: boolean) => void;
   onPreview: (file: UploadedFile) => void;
   onDownload: (file: UploadedFile) => void;
   onShare: (file: UploadedFile) => void;
@@ -27,6 +28,7 @@ interface FileListItemProps {
 export const FileListItem = memo(function FileListItem({
   file,
   currentUserId,
+  selectionMode = false,
   isSelected = false,
   onToggleSelect,
   onPreview,
@@ -46,6 +48,11 @@ export const FileListItem = memo(function FileListItem({
 
   return (
     <div
+      onClick={(e) => {
+        if (selectionMode && onToggleSelect) {
+          onToggleSelect(file.id, e.shiftKey);
+        }
+      }}
       className={`flex flex-col items-stretch justify-between py-3.5 px-3 rounded-xl transition-all border gap-3 sm:flex-row sm:items-center sm:px-4 sm:gap-4 ${
         isSelected
           ? "bg-[rgba(0,47,167,0.04)] border-[rgba(0,47,167,0.2)] shadow-sm"
@@ -54,11 +61,12 @@ export const FileListItem = memo(function FileListItem({
     >
       {/* Selection Checkbox & File Info */}
       <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
-        {onToggleSelect && (
+        {onToggleSelect && selectionMode && (
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect(file.id)}
+            onClick={(e) => e.stopPropagation()}
             className="w-4 h-4 rounded text-[#002FA7] border-[#D1D5DB] focus:ring-[#002FA7] cursor-pointer shrink-0 accent-[#002FA7]"
           />
         )}
@@ -89,7 +97,10 @@ export const FileListItem = memo(function FileListItem({
       </div>
 
       {/* Preview + 3-dot Actions Menu */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div
+        className="flex items-center gap-2 shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         {canPreview && (
           <button
             onClick={() => onPreview(file)}

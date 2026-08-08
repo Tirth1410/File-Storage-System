@@ -12,6 +12,20 @@ import {
 
 const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024);
 
+export interface BulkMoveEntry {
+  id: string;
+  type: "file" | "folder";
+  reason?: string;
+}
+
+export interface BulkMoveResult {
+  moved: BulkMoveEntry[];
+  forbidden: BulkMoveEntry[];
+  notFound: BulkMoveEntry[];
+  failed: BulkMoveEntry[];
+  skipped: BulkMoveEntry[];
+}
+
 // Prisma interactive transactions default to maxWait 2000ms / timeout 5000ms,
 // which is too tight when deleting a large folder tree while other quota
 // transactions (e.g. concurrent uploads) hold the quota_usage row lock.
@@ -20,7 +34,7 @@ const TRANSACTION_TIMEOUT = {
   timeout: 20_000,
 } as const;
 
-function getDescendantCteSql(): string {
+export function getDescendantCteSql(): string {
   return `WITH RECURSIVE subtree AS (
     SELECT id, "parentFolderId" FROM folder WHERE id = $1
     UNION ALL
@@ -414,6 +428,213 @@ export const folderService = {
     });
 
     return updated;
+  },
+
+  async bulkMove({
+    fileIds = [],
+    folderIds = [],
+    targetFolderId,
+    selectAll = false,
+    sourceFolderId = null,
+    excludeIds = [],
+    userId,
+    isAdmin = false,
+  }: {
+    fileIds?: string[];
+    folderIds?: string[];
+    targetFolderId: string | null;
+    selectAll?: boolean;
+    sourceFolderId?: string | null;
+    excludeIds?: string[];
+    userId: string;
+    isAdmin?: boolean;
+  }): Promise<BulkMoveResult> {
+    if (targetFolderId) {
+      const target = await prisma.folder.findUnique({
+        where: { id: targetFolderId },
+      });
+      if (!target) {
+        throw new Error("Target folder not found");
+      }
+      if (target.ownerUserId !== userId && !isAdmin) {
+        throw new Error("Forbidden");
+      }
+    }
+
+    let fileEntryIds = Array.from(new Set(fileIds.filter(Boolean)));
+    let folderEntryIds = Array.from(new Set(folderIds.filter(Boolean)));
+    const excluded = new Set(excludeIds);
+
+    if (selectAll) {
+      const [allFolders, allFiles] = await Promise.all([
+        prisma.folder.findMany({
+          where: {
+            ownerUserId: userId,
+            parentFolderId: sourceFolderId ?? null,
+          },
+          select: { id: true },
+        }),
+        prisma.file.findMany({
+          where: {
+            ownerUserId: userId,
+            folderId: sourceFolderId ?? null,
+            status: "available",
+          },
+          select: { id: true },
+        }),
+      ]);
+      folderEntryIds = allFolders
+        .map((f) => f.id)
+        .filter((id) => !excluded.has(id));
+      fileEntryIds = allFiles
+        .map((f) => f.id)
+        .filter((id) => !excluded.has(id));
+    }
+
+    const [folderRows, fileRows] = await Promise.all([
+      folderEntryIds.length > 0
+        ? prisma.folder.findMany({ where: { id: { in: folderEntryIds } } })
+        : Promise.resolve([]),
+      fileEntryIds.length > 0
+        ? prisma.file.findMany({ where: { id: { in: fileEntryIds } } })
+        : Promise.resolve([]),
+    ]);
+    const folderById = new Map(folderRows.map((f) => [f.id, f]));
+    const fileById = new Map(fileRows.map((f) => [f.id, f]));
+
+    const moved: BulkMoveEntry[] = [];
+    const forbidden: BulkMoveEntry[] = [];
+    const notFound: BulkMoveEntry[] = [];
+    const failed: BulkMoveEntry[] = [];
+    const skipped: BulkMoveEntry[] = [];
+
+    const validFolders: (typeof folderRows)[number][] = [];
+    for (const id of folderEntryIds) {
+      const row = folderById.get(id);
+      if (!row) {
+        notFound.push({ id, type: "folder" });
+        continue;
+      }
+      if (row.ownerUserId !== userId && !isAdmin) {
+        forbidden.push({ id, type: "folder" });
+        continue;
+      }
+      if (row.parentFolderId === targetFolderId) {
+        skipped.push({ id, type: "folder" });
+        continue;
+      }
+      validFolders.push(row);
+    }
+
+    const validFiles: (typeof fileRows)[number][] = [];
+    for (const id of fileEntryIds) {
+      const row = fileById.get(id);
+      if (!row) {
+        notFound.push({ id, type: "file" });
+        continue;
+      }
+      if (row.ownerUserId !== userId && !isAdmin) {
+        forbidden.push({ id, type: "file" });
+        continue;
+      }
+      if (row.folderId === targetFolderId) {
+        skipped.push({ id, type: "file" });
+        continue;
+      }
+      validFiles.push(row);
+    }
+
+    const foldersToMove: (typeof folderRows)[number][] = [];
+    if (targetFolderId && validFolders.length > 0) {
+      for (const folder of validFolders) {
+        const descendantRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          getDescendantCteSql(),
+          folder.id,
+        );
+        const descendantIds = descendantRows.map((r) => r.id);
+        if (descendantIds.includes(targetFolderId)) {
+          failed.push({
+            id: folder.id,
+            type: "folder",
+            reason:
+              "Cannot move a folder into itself or one of its descendants",
+          });
+        } else {
+          foldersToMove.push(folder);
+        }
+      }
+    } else {
+      foldersToMove.push(...validFolders);
+    }
+
+    if (targetFolderId && foldersToMove.length > 0) {
+      const movedIds = foldersToMove.map((f) => f.id);
+      const nameRows = await prisma.folder.findMany({
+        where: {
+          parentFolderId: targetFolderId,
+          name: { in: foldersToMove.map((f) => f.name) },
+          id: { notIn: movedIds },
+        },
+        select: { ownerUserId: true, name: true },
+      });
+      const taken = new Set(nameRows.map((r) => `${r.ownerUserId}:${r.name}`));
+      const filtered: (typeof foldersToMove)[number][] = [];
+      for (const folder of foldersToMove) {
+        if (taken.has(`${folder.ownerUserId}:${folder.name}`)) {
+          failed.push({
+            id: folder.id,
+            type: "folder",
+            reason:
+              "A folder with this name already exists in the target location",
+          });
+        } else {
+          filtered.push(folder);
+        }
+      }
+      foldersToMove.splice(0, foldersToMove.length, ...filtered);
+    }
+
+    const filesToMove = validFiles;
+
+    if (foldersToMove.length === 0 && filesToMove.length === 0) {
+      return { moved, forbidden, notFound, failed, skipped };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (foldersToMove.length > 0) {
+        await tx.folder.updateMany({
+          where: { id: { in: foldersToMove.map((f) => f.id) } },
+          data: { parentFolderId: targetFolderId },
+        });
+      }
+      if (filesToMove.length > 0) {
+        await tx.file.updateMany({
+          where: { id: { in: filesToMove.map((f) => f.id) } },
+          data: { folderId: targetFolderId },
+        });
+      }
+    }, TRANSACTION_TIMEOUT);
+
+    for (const folder of foldersToMove) {
+      await auditService.log({
+        userId,
+        action: "folder_moved",
+        folderId: folder.id,
+        details: `Moved folder "${folder.name}" to ${targetFolderId ?? "root"} via bulk move`,
+      });
+      moved.push({ id: folder.id, type: "folder" });
+    }
+    for (const file of filesToMove) {
+      await auditService.log({
+        userId,
+        action: "file_moved",
+        fileId: file.id,
+        details: `Moved file "${file.originalName}" to ${targetFolderId ?? "root"} via bulk move`,
+      });
+      moved.push({ id: file.id, type: "file" });
+    }
+
+    return { moved, forbidden, notFound, failed, skipped };
   },
 
   async getBreadcrumb(folderId: string, userId: string) {

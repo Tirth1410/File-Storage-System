@@ -13,7 +13,12 @@ export const POST = withLogging(async (request: Request) => {
 
     const body = await request.json().catch(() => null);
     const fileIds = body?.fileIds;
+    const folderIds = body?.folderIds;
     const context = body?.context === "shared" ? "shared" : "own";
+    const selectAll = body?.selectAll === true;
+    const sourceFolderId =
+      typeof body?.folderId === "string" ? body.folderId : null;
+    const excludeIds = Array.isArray(body?.excludeIds) ? body.excludeIds : [];
 
     if (!Array.isArray(fileIds)) {
       return NextResponse.json(
@@ -27,8 +32,10 @@ export const POST = withLogging(async (request: Request) => {
         ? await fileService.bulkRemoveSharedFileAccess(fileIds, user.id)
         : await fileService.bulkDeleteFiles(
             fileIds,
+            Array.isArray(folderIds) ? folderIds : [],
             user.id,
             user.role === "admin",
+            { selectAll, sourceFolderId, excludeIds },
           );
 
     return NextResponse.json(result);
