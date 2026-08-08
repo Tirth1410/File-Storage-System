@@ -40,6 +40,14 @@ interface SharedGroupItem {
   };
 }
 
+interface PendingInvite {
+  id: string;
+  email: string;
+  permission: string;
+  expiresAt: string | null;
+  invitedByUser: { name: string | null; email: string } | null;
+}
+
 interface GroupListItem {
   id: string;
   name: string;
@@ -49,6 +57,7 @@ interface GroupListItem {
 export function ShareModal({ file, onClose }: ShareModalProps) {
   const [links, setLinks] = useState<ShareLink[]>([]);
   const [permissions, setPermissions] = useState<SharedPermission[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"links" | "users" | "groups">(
     "links",
@@ -84,7 +93,10 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       const userGroupsData = await userGroupsRes.json();
 
       if (linksRes.ok) setLinks(linksData.links || []);
-      if (permsRes.ok) setPermissions(permsData.permissions || []);
+      if (permsRes.ok) {
+        setPermissions(permsData.permissions || []);
+        setPendingInvites(permsData.pendingInvites || []);
+      }
       if (sharedGroupsRes.ok) setSharedGroups(sharedGroupsData.groups || []);
       if (userGroupsRes.ok) setUserGroups(userGroupsData || []);
     } catch (err) {
@@ -155,6 +167,10 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
         body: JSON.stringify({ email, permission: "read" }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (data.pending) {
+          toast.success(`Invitation sent to ${email}`);
+        }
         setEmail("");
         fetchData();
       } else {
@@ -179,6 +195,40 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
       }
     } catch {
       toast.error("Error removing permission");
+    }
+  };
+
+  const resendInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch(`/api/invitations/${inviteId}/resend`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        toast.success("Invitation resent successfully!");
+        fetchData();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to resend invitation");
+      }
+    } catch {
+      toast.error("Error resending invitation");
+    }
+  };
+
+  const cancelInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch(`/api/invitations/${inviteId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Invitation cancelled");
+        fetchData();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to cancel invitation");
+      }
+    } catch {
+      toast.error("Error cancelling invitation");
     }
   };
 
@@ -464,6 +514,50 @@ export function ShareModal({ file, onClose }: ShareModalProps) {
                       >
                         Remove
                       </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Pending Invites */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-[#171717] uppercase tracking-wide">
+                  Pending Invites ({pendingInvites.length})
+                </h4>
+                {pendingInvites.length === 0 ? (
+                  <p className="text-xs text-[#737373]">
+                    No pending invitations.
+                  </p>
+                ) : (
+                  pendingInvites.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="bg-white p-4 rounded-xl border border-[#E5E7EB] flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#171717]">
+                          {inv.email}
+                        </p>
+                        <p className="text-xs text-[#737373] mt-0.5 truncate">
+                          Pending
+                          {inv.expiresAt &&
+                            ` · expires ${new Date(inv.expiresAt).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 shrink-0">
+                        <button
+                          onClick={() => resendInvite(inv.id)}
+                          className="text-xs font-semibold text-[#002FA7] border border-[rgba(0,47,167,0.15)] bg-[rgba(0,47,167,0.03)] px-3 py-1.5 rounded-lg hover:bg-[rgba(0,47,167,0.08)] transition-all cursor-pointer"
+                        >
+                          Resend
+                        </button>
+                        <button
+                          onClick={() => cancelInvite(inv.id)}
+                          className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.2)] px-3 py-1.5 rounded-lg hover:bg-[rgba(220,38,38,0.12)] transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
