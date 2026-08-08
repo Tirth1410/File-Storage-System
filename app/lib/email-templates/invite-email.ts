@@ -39,7 +39,16 @@ export function generateInviteEmailHtml({
         <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
           <tr>
             <td style="padding: 28px 32px; border-bottom: 1px solid #F3F4F6;">
-              <span style="font-size: 16px; font-weight: 700; color: #171717; letter-spacing: 0.08em;">VAULT</span>
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="vertical-align: middle;">
+                    <img src="${resolvedAppUrl}/logo.svg" width="36" height="36" alt="Vault" style="display: block; border: 0; border-radius: 10px;" />
+                  </td>
+                  <td style="padding-left: 12px; vertical-align: middle;">
+                    <span style="font-size: 16px; font-weight: 700; color: #171717; letter-spacing: 0.08em;">VAULT</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
