@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, use, useState, startTransition } from "react";
 import { ArrowLeft, Users } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
@@ -138,6 +139,10 @@ export default function GroupDetailPage({
         body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (data.pending) {
+          toast.success(`Invitation sent to ${inviteEmail}`);
+        }
         setInviteEmail("");
         setInviteRole("MEMBER");
         fetchGroupDetails(group.id);
@@ -200,6 +205,40 @@ export default function GroupDetailPage({
       }
     } catch {
       alert("Error", "Error changing role", "danger");
+    }
+  };
+
+  const handleResendInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch(`/api/invitations/${inviteId}/resend`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        toast.success("Invitation resent successfully!");
+        if (group) fetchGroupDetails(group.id);
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Failed to resend invitation");
+      }
+    } catch {
+      toast.error("Error resending invitation");
+    }
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch(`/api/invitations/${inviteId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Invitation cancelled");
+        if (group) fetchGroupDetails(group.id);
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Failed to cancel invitation");
+      }
+    } catch {
+      toast.error("Error cancelling invitation");
     }
   };
 
@@ -413,8 +452,11 @@ export default function GroupDetailPage({
                       members={groupDetails?.members || []}
                       currentUserId={user.id}
                       currentUserRole={group.currentUserRole}
+                      pendingInvites={groupDetails?.invitations || []}
                       onChangeRole={handleChangeRole}
                       onRemove={handleRemoveMember}
+                      onResendInvite={handleResendInvite}
+                      onCancelInvite={handleCancelInvite}
                     />
                   )}
                 </div>

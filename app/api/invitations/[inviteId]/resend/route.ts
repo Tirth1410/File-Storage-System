@@ -6,34 +6,18 @@ import { withLogging } from "@/app/lib/logger";
 export const POST = withLogging(
   async (
     request: Request,
-    { params }: { params: Promise<{ groupId: string }> },
+    { params }: { params: Promise<{ inviteId: string }> },
   ) => {
     try {
       const user = getRequestUser(request);
-
       if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      const { groupId } = await params;
-      const { email, role = "MEMBER" } = await request.json();
-
-      if (!email || typeof email !== "string") {
-        return NextResponse.json(
-          { error: "Email is required" },
-          { status: 400 },
-        );
-      }
-
-      if (!["ADMIN", "MEMBER"].includes(role)) {
-        return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-      }
-
-      const result = await invitationService.createGroupInvite({
-        groupId,
-        email,
-        role,
-        invitedByUserId: user.id,
+      const { inviteId } = await params;
+      const result = await invitationService.resendInvite({
+        inviteId,
+        userId: user.id,
       });
       return NextResponse.json(result);
     } catch (error) {
@@ -42,11 +26,9 @@ export const POST = withLogging(
       const status =
         message === "Forbidden"
           ? 403
-          : message === "Group not found"
+          : message === "Invitation not found"
             ? 404
-            : message === "You cannot invite yourself"
-              ? 400
-              : 500;
+            : 400;
       return NextResponse.json({ error: message }, { status });
     }
   },

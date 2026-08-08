@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withLogging } from "@/app/lib/logger";
 import { getRequestUser } from "@/app/lib/request-user";
+import { invitationService } from "@/app/lib/invitation-service";
 import { shareService } from "@/app/lib/share-service";
 import prisma from "@/app/lib/prisma";
 
@@ -28,12 +29,13 @@ export const POST = withLogging(
       }
 
       try {
-        const permission = await shareService.addFilePermission(
+        const result = await invitationService.createFileInvite({
           fileId,
-          body.email,
-          body.permission || "read",
-        );
-        return NextResponse.json({ permission });
+          email: body.email,
+          permission: body.permission || "read",
+          invitedByUserId: user.id,
+        });
+        return NextResponse.json(result);
       } catch (e) {
         const errorMessage =
           e instanceof Error ? e.message : "Failed to add permission";
@@ -62,8 +64,11 @@ export const GET = withLogging(
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const permissions = await shareService.listFilePermissions(fileId);
-      return NextResponse.json({ permissions });
+      const [permissions, pendingInvites] = await Promise.all([
+        shareService.listFilePermissions(fileId),
+        invitationService.listFileInvites(fileId),
+      ]);
+      return NextResponse.json({ permissions, pendingInvites });
     } catch {
       return NextResponse.json(
         { error: "Internal Server Error" },

@@ -49,6 +49,14 @@ export interface GroupFile {
   };
 }
 
+export interface PendingInvite {
+  id: string;
+  email: string;
+  permission: string;
+  expiresAt: string | null;
+  invitedByUser: { name: string | null; email: string } | null;
+}
+
 export interface FullGroupDetails {
   id: string;
   name: string;
@@ -57,6 +65,7 @@ export interface FullGroupDetails {
   createdAt: string;
   members: GroupMember[];
   groupFiles: GroupFile[];
+  invitations: PendingInvite[];
 }
 
 export function roleToBadgeVariant(role: GroupRole) {
