@@ -48,6 +48,7 @@ export function AppShell({
     if (!pathname) return null;
     if (pathname.startsWith("/admin")) return "Admin";
     if (pathname.startsWith("/group")) return "Groups";
+    if (pathname.startsWith("/shared")) return "Shared Files";
     if (pathname.startsWith("/dashboard")) return "Dashboard";
     if (pathname.startsWith("/profile")) return "Profile";
     return null;
@@ -97,6 +98,7 @@ export function AppShell({
   const navItems: Array<{ label: string; href: string }> = [];
   if (userName) {
     navItems.push({ label: "Dashboard", href: "/dashboard" });
+    navItems.push({ label: "Shared Files", href: "/shared" });
     navItems.push({ label: "Groups", href: "/groups" });
   }
   if (isAdmin) {
