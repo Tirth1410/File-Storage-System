@@ -3,16 +3,22 @@ import prisma from "@/app/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { auditService } from "@/app/lib/audit-service";
 import { shareService } from "@/app/lib/share-service";
+import { groupService } from "@/app/lib/group-service";
 import { sendInviteEmailService } from "@/app/lib/email-service";
 import { APP_URL, INVITE_EXPIRATION_DAYS } from "@/app/lib/config";
 
-export type Invitation = Prisma.InvitationGetPayload<Prisma.InvitationDefaultArgs>;
+export type Invitation =
+  Prisma.InvitationGetPayload<Prisma.InvitationDefaultArgs>;
 
 export type FileInviteResult =
   | {
       granted: true;
       permission: Awaited<ReturnType<typeof shareService.addFilePermission>>;
     }
+  | { granted: false; pending: true; emailSent: boolean; invite: Invitation };
+
+export type GroupInviteResult =
+  | { granted: true; member: Awaited<ReturnType<typeof groupService.addMember>> }
   | { granted: false; pending: true; emailSent: boolean; invite: Invitation };
 
 export function normalizeEmail(email: string): string {
@@ -163,6 +169,80 @@ export const invitationService = {
       action: "invite_sent",
       fileId,
       details: `Sent file-share invite to ${normalized} for ${resourceLabel}`,
+    });
+
+    return { granted: false, pending: true, emailSent, invite };
+  },
+
+  async createGroupInvite({
+    groupId,
+    email,
+    role = "MEMBER",
+    invitedByUserId,
+  }: {
+    groupId: string;
+    email: string;
+    role?: "ADMIN" | "MEMBER";
+    invitedByUserId: string;
+  }): Promise<GroupInviteResult> {
+    const normalized = normalizeEmail(email);
+
+    if (await isInvitingSelf(normalized, invitedByUserId)) {
+      throw new Error("You cannot invite yourself");
+    }
+
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: invitedByUserId } },
+    });
+    const inviter = await prisma.user.findUnique({
+      where: { id: invitedByUserId },
+    });
+    const isSystemAdmin = inviter?.role === "admin";
+    if (
+      !isSystemAdmin &&
+      (!membership ||
+        (membership.role !== "OWNER" && membership.role !== "ADMIN"))
+    ) {
+      throw new Error("Forbidden");
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalized },
+    });
+    if (existingUser) {
+      const member = await groupService.addMember(
+        groupId,
+        normalized,
+        role,
+        invitedByUserId,
+      );
+      return { granted: true, member };
+    }
+
+    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    const invite = await upsertInvite({
+      email: normalized,
+      resourceType: "GROUP",
+      fileId: null,
+      groupId,
+      permission: role,
+      invitedByUserId,
+    });
+
+    const emailSent = await deliverInviteEmail({
+      invite,
+      inviterName: await getInviterName(invitedByUserId),
+      resourceLabel: group.name,
+    });
+
+    await auditService.log({
+      userId: invitedByUserId,
+      action: "invite_sent",
+      details: `Sent group invite to ${normalized} for group ${group.name}`,
     });
 
     return { granted: false, pending: true, emailSent, invite };

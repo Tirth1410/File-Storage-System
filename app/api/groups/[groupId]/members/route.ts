@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/app/lib/request-user";
-import { groupService } from "@/app/lib/group-service";
+import { invitationService } from "@/app/lib/invitation-service";
 import { withLogging } from "@/app/lib/logger";
 
 export const POST = withLogging(
@@ -29,23 +29,24 @@ export const POST = withLogging(
         return NextResponse.json({ error: "Invalid role" }, { status: 400 });
       }
 
-      const member = await groupService.addMember(
+      const result = await invitationService.createGroupInvite({
         groupId,
         email,
         role,
-        user.id,
-      );
-      return NextResponse.json(member);
+        invitedByUserId: user.id,
+      });
+      return NextResponse.json(result);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Internal Server Error";
       const status =
         message === "Forbidden"
           ? 403
-          : message === "User with this email not found" ||
-              message === "Group not found"
+          : message === "Group not found"
             ? 404
-            : 500;
+            : message === "You cannot invite yourself"
+              ? 400
+              : 500;
       return NextResponse.json({ error: message }, { status });
     }
   },
