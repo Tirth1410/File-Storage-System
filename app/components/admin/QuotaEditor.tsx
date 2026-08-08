@@ -1,5 +1,8 @@
 "use client";
 
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
+
 interface QuotaEditorProps {
   gb: number;
   mb: number;
@@ -17,6 +20,7 @@ export function QuotaEditor({
   onMbChange,
   onApply,
 }: QuotaEditorProps) {
+  const { pending, execute } = useAsyncAction();
   const disabled = saving || (gb <= 0 && mb <= 0);
 
   return (
@@ -55,11 +59,17 @@ export function QuotaEditor({
           </div>
         </div>
         <button
-          onClick={onApply}
-          disabled={disabled}
-          className="bg-[#002FA7] hover:bg-[#002482] text-white font-bold text-sm py-2 px-4 rounded-lg transition-all disabled:opacity-50 shadow-sm shadow-[#002FA7]/20 cursor-pointer shrink-0"
+          onClick={() => execute(async () => onApply())}
+          disabled={disabled || pending}
+          className="bg-[#002FA7] hover:bg-[#002482] text-white font-bold text-sm py-2 px-4 rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm shadow-[#002FA7]/20 cursor-pointer shrink-0"
         >
-          {saving ? "Saving..." : "Apply"}
+          {pending ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner size="sm" /> Saving...
+            </span>
+          ) : (
+            "Apply"
+          )}
         </button>
       </div>
     </div>

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { EmptyState } from "@/app/components/shared/EmptyState";
+import { Spinner } from "@/app/components/shared/Spinner";
 import { Users } from "lucide-react";
 import { roleToBadgeVariant } from "./types";
 import type { GroupMember, GroupRole, PendingInvite } from "./types";
@@ -28,6 +30,17 @@ export function GroupMembersList({
   onResendInvite,
   onCancelInvite,
 }: GroupMembersListProps) {
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const runAction = async (key: string, fn: () => Promise<void>) => {
+    setPendingId(key);
+    try {
+      await fn();
+    } finally {
+      setPendingId((cur) => (cur === key ? null : cur));
+    }
+  };
+
   return (
     <SectionCard noPadding title="Group Members">
       {!members || members.length === 0 ? (
@@ -87,10 +100,21 @@ export function GroupMembersList({
                       </select>
                     )}
                     <button
-                      onClick={() => onRemove(m.userId)}
-                      className="bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626] font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                      onClick={() =>
+                        runAction(`remove-${m.userId}`, async () =>
+                          onRemove(m.userId),
+                        )
+                      }
+                      disabled={pendingId === `remove-${m.userId}`}
+                      className="bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626] font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Remove
+                      {pendingId === `remove-${m.userId}` ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Spinner size="sm" /> Removing...
+                        </span>
+                      ) : (
+                        "Remove"
+                      )}
                     </button>
                   </div>
                 )}
@@ -124,16 +148,38 @@ export function GroupMembersList({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => onResendInvite(inv.id)}
-                  className="text-xs font-semibold text-[#002FA7] border border-[rgba(0,47,167,0.15)] bg-[rgba(0,47,167,0.03)] px-2.5 py-1.5 rounded-lg hover:bg-[rgba(0,47,167,0.08)] transition-all cursor-pointer"
+                  onClick={() =>
+                    runAction(`resend-${inv.id}`, async () =>
+                      onResendInvite(inv.id),
+                    )
+                  }
+                  disabled={pendingId === `resend-${inv.id}`}
+                  className="text-xs font-semibold text-[#002FA7] border border-[rgba(0,47,167,0.15)] bg-[rgba(0,47,167,0.03)] px-2.5 py-1.5 rounded-lg hover:bg-[rgba(0,47,167,0.08)] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Resend
+                  {pendingId === `resend-${inv.id}` ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Spinner size="sm" /> Resending...
+                    </span>
+                  ) : (
+                    "Resend"
+                  )}
                 </button>
                 <button
-                  onClick={() => onCancelInvite(inv.id)}
-                  className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                  onClick={() =>
+                    runAction(`cancel-${inv.id}`, async () =>
+                      onCancelInvite(inv.id),
+                    )
+                  }
+                  disabled={pendingId === `cancel-${inv.id}`}
+                  className="text-xs font-semibold text-[#DC2626] bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] px-2.5 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Cancel
+                  {pendingId === `cancel-${inv.id}` ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Spinner size="sm" /> Cancelling...
+                    </span>
+                  ) : (
+                    "Cancel"
+                  )}
                 </button>
               </div>
             </div>

@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { FolderPlus, X, Check } from "lucide-react";
 import { toast } from "sonner";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 interface NewFolderInputProps {
   parentFolderId: string | null;
@@ -18,6 +20,7 @@ export function NewFolderInput({
   const [showInput, setShowInput] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const { pending, execute } = useAsyncAction();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,12 +93,12 @@ export function NewFolderInput({
         className="flex-1 px-3 py-1.5 text-sm border border-[#D1D5DB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#002FA7] focus:border-transparent bg-white placeholder:text-[#A3A3A3] min-w-[160px]"
       />
       <button
-        onClick={handleCreate}
-        disabled={creating || !name.trim()}
-        className="p-1.5 rounded-lg bg-[#002FA7] text-white hover:bg-[#002482] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={() => execute(() => handleCreate())}
+        disabled={pending || creating || !name.trim()}
+        className="p-1.5 rounded-lg bg-[#002FA7] text-white hover:bg-[#002482] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         title="Create"
       >
-        <Check className="w-4 h-4" />
+        {pending ? <Spinner size="sm" /> : <Check className="w-4 h-4" />}
       </button>
       <button
         onClick={handleCancel}

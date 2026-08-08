@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { EmptyState } from "@/app/components/shared/EmptyState";
+import { Spinner } from "@/app/components/shared/Spinner";
 import { formatBytes } from "@/app/lib/utils";
 import { Eye, Download, Trash2, FileText } from "lucide-react";
 import type { GroupFile, GroupRole } from "./types";
@@ -23,6 +25,17 @@ export function GroupFilesList({
   onDownload,
   onUnshare,
 }: GroupFilesListProps) {
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const runAction = async (key: string, fn: () => Promise<void>) => {
+    setPendingId(key);
+    try {
+      await fn();
+    } finally {
+      setPendingId((cur) => (cur === key ? null : cur));
+    }
+  };
+
   return (
     <SectionCard noPadding title="Shared Files">
       {!files || files.length === 0 ? (
@@ -67,22 +80,40 @@ export function GroupFilesList({
                   )}
                   {gf.allowDownload && (
                     <button
-                      onClick={() => onDownload(gf.file)}
-                      className="p-2 rounded-lg transition-all cursor-pointer bg-white border border-[#E5E7EB] hover:bg-[#F5F5F5] text-[#171717]"
+                      onClick={() =>
+                        runAction(`download-${gf.file.id}`, async () =>
+                          onDownload(gf.file),
+                        )
+                      }
+                      disabled={pendingId === `download-${gf.file.id}`}
+                      className="p-2 rounded-lg transition-all cursor-pointer bg-white border border-[#E5E7EB] hover:bg-[#F5F5F5] text-[#171717] disabled:opacity-60"
                       title="Download"
                       aria-label="Download"
                     >
-                      <Download className="w-4 h-4" />
+                      {pendingId === `download-${gf.file.id}` ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
                     </button>
                   )}
                   {canUnshare && (
                     <button
-                      onClick={() => onUnshare(gf.file.id)}
-                      className="p-2 rounded-lg transition-all cursor-pointer bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626]"
+                      onClick={() =>
+                        runAction(`unshare-${gf.file.id}`, async () =>
+                          onUnshare(gf.file.id),
+                        )
+                      }
+                      disabled={pendingId === `unshare-${gf.file.id}`}
+                      className="p-2 rounded-lg transition-all cursor-pointer bg-[rgba(220,38,38,0.06)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626] disabled:opacity-60"
                       title="Remove"
                       aria-label="Remove"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {pendingId === `unshare-${gf.file.id}` ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </button>
                   )}
                 </div>

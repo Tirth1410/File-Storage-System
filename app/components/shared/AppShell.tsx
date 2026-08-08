@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Logo } from "@/app/components/shared/Logo";
 import { UserAvatar } from "@/app/components/shared/UserAvatar";
 import { Menu, X } from "lucide-react";
+import { Spinner } from "@/app/components/shared/Spinner";
 import "./AppShell.css";
 
 interface AppShellProps {
@@ -34,6 +35,7 @@ export function AppShell({
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState<{
     left: number;
     width: number;
@@ -105,15 +107,20 @@ export function AppShell({
     navItems.push({ label: "Admin", href: "/admin" });
   }
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     setMenuOpen(false);
-    signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.replace("/sign-in");
+    setSigningOut(true);
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            router.replace("/sign-in");
+          },
         },
-      },
-    });
+      });
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -188,8 +195,18 @@ export function AppShell({
             {showSignOut && (
               <>
                 {userName && <div className="vault-sep" />}
-                <button className="vault-btn-ghost" onClick={handleSignOut}>
-                  Sign Out
+                <button
+                  className="vault-btn-ghost disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                >
+                  {signingOut ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Spinner size="sm" /> Signing out...
+                    </span>
+                  ) : (
+                    "Sign Out"
+                  )}
                 </button>
               </>
             )}
@@ -260,10 +277,17 @@ export function AppShell({
               ))}
               {showSignOut && (
                 <button
-                  className="vault-mobile-menu-item danger"
+                  className="vault-mobile-menu-item danger disabled:opacity-60 disabled:cursor-not-allowed"
                   onClick={handleSignOut}
+                  disabled={signingOut}
                 >
-                  Sign Out
+                  {signingOut ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Spinner size="sm" /> Signing out...
+                    </span>
+                  ) : (
+                    "Sign Out"
+                  )}
                 </button>
               )}
             </div>

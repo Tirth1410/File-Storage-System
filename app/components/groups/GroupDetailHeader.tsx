@@ -1,6 +1,8 @@
 "use client";
 
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 import { roleToBadgeVariant } from "./types";
 import type { Group } from "./types";
 
@@ -17,6 +19,7 @@ export function GroupDetailHeader({
   onSettings,
   onLeave,
 }: GroupDetailHeaderProps) {
+  const { pending, execute } = useAsyncAction();
   return (
     <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 sm:p-6">
       <div className="min-w-0">
@@ -49,10 +52,17 @@ export function GroupDetailHeader({
         )}
         {group.currentUserRole !== "OWNER" && (
           <button
-            onClick={onLeave}
-            className="bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.15)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626] font-semibold py-2 px-4 rounded-xl text-sm transition-all cursor-pointer"
+            onClick={() => execute(async () => onLeave())}
+            disabled={pending}
+            className="bg-[rgba(220,38,38,0.07)] border border-[rgba(220,38,38,0.15)] hover:bg-[rgba(220,38,38,0.12)] text-[#DC2626] font-semibold py-2 px-4 rounded-xl text-sm transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Leave Group
+            {pending ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size="sm" /> Leaving...
+              </span>
+            ) : (
+              "Leave Group"
+            )}
           </button>
         )}
       </div>

@@ -2,6 +2,8 @@
 
 import { ModalShell } from "@/app/components/shared/ModalShell";
 import type { FolderData } from "./types";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 interface RenameFolderDialogProps {
   folder: FolderData;
@@ -18,6 +20,8 @@ export function RenameFolderDialog({
   onSubmit,
   onClose,
 }: RenameFolderDialogProps) {
+  const { pending, execute } = useAsyncAction();
+
   return (
     <ModalShell headerless maxWidth="sm" onClose={onClose} className="p-6">
       <h3 className="text-sm font-bold text-[#171717] mb-4">
@@ -42,11 +46,17 @@ export function RenameFolderDialog({
           Cancel
         </button>
         <button
-          onClick={onSubmit}
-          disabled={!value.trim()}
-          className="px-4 py-2 text-sm font-semibold text-white bg-[#002FA7] rounded-lg hover:bg-[#002482] transition-all cursor-pointer disabled:opacity-50"
+          onClick={() => execute(async () => onSubmit())}
+          disabled={pending || !value.trim()}
+          className="px-4 py-2 text-sm font-semibold text-white bg-[#002FA7] rounded-lg hover:bg-[#002482] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Rename
+          {pending ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner size="sm" /> Renaming...
+            </span>
+          ) : (
+            "Rename"
+          )}
         </button>
       </div>
     </ModalShell>

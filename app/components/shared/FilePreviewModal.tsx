@@ -12,6 +12,8 @@ const PDFCanvasViewer = dynamic(
 import { ModalShell } from "@/app/components/shared/ModalShell";
 import { LoadingState } from "@/app/components/shared/LoadingState";
 import { Download } from "lucide-react";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 interface FilePreviewModalProps {
   file: { id: string; originalName: string; mimeType: string };
@@ -29,6 +31,7 @@ export function FilePreviewModal({
 }: FilePreviewModalProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const { pending, execute } = useAsyncAction();
 
   useEffect(() => {
     let cancelled = false;
@@ -60,11 +63,20 @@ export function FilePreviewModal({
       headerActions={
         onDownload && allowDownload ? (
           <button
-            onClick={() => onDownload(file)}
-            className="bg-[#002FA7] hover:bg-[#002482] text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+            onClick={() => execute(async () => onDownload(file))}
+            disabled={pending}
+            className="bg-[#002FA7] hover:bg-[#002482] text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Download className="w-3.5 h-3.5" />
-            Download
+            {pending ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size="sm" /> Downloading...
+              </span>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </>
+            )}
           </button>
         ) : null
       }

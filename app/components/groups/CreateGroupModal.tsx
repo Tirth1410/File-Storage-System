@@ -2,6 +2,8 @@
 
 import { ModalShell } from "@/app/components/shared/ModalShell";
 import { ErrorBanner } from "@/app/components/shared/ErrorBanner";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 interface CreateGroupModalProps {
   name: string;
@@ -22,9 +24,13 @@ export function CreateGroupModal({
   onSubmit,
   onClose,
 }: CreateGroupModalProps) {
+  const { pending, execute } = useAsyncAction();
   return (
     <ModalShell title="Create New Group" onClose={onClose}>
-      <form onSubmit={onSubmit} className="p-4 space-y-4 sm:p-6">
+      <form
+        onSubmit={(e) => execute(async () => onSubmit(e))}
+        className="p-4 space-y-4 sm:p-6"
+      >
         {error && <ErrorBanner message={error} />}
         <div>
           <label className="block text-xs text-[#737373] mb-1 font-medium">
@@ -60,9 +66,16 @@ export function CreateGroupModal({
           </button>
           <button
             type="submit"
-            className="flex-1 bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 rounded-xl text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer"
+            disabled={pending}
+            className="flex-1 bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2 rounded-xl text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Create
+            {pending ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size="sm" /> Creating...
+              </span>
+            ) : (
+              "Create"
+            )}
           </button>
         </div>
       </form>

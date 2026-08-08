@@ -5,6 +5,7 @@ import { formatBytes } from "@/app/lib/utils";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { Download, Eye, FileText, TriangleAlert } from "lucide-react";
+import { Spinner } from "@/app/components/shared/Spinner";
 
 const PDFCanvasViewer = dynamic(
   () => import("@/app/components/shared/PDFCanvasViewer"),
@@ -35,6 +36,7 @@ export default function SharedFilePage({
   const [allowPreview, setAllowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const fetchFileData = async () => {
@@ -70,13 +72,18 @@ export default function SharedFilePage({
   }, [token]);
 
   const handleDownload = () => {
-    if (!file || !downloadUrl) return;
-    const a = document.createElement("a");
-    a.href = downloadUrl;
-    a.download = file.originalName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (!file || !downloadUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = file.originalName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   if (loading) {
@@ -161,10 +168,19 @@ export default function SharedFilePage({
             {allowDownload && downloadUrl && (
               <button
                 onClick={handleDownload}
-                className="bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] hover:brightness-110 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_4px_14px_rgba(59,111,232,0.3)] shrink-0 w-full md:w-auto flex items-center justify-center gap-2 cursor-pointer"
+                disabled={downloading}
+                className="bg-gradient-to-br from-[#3b6fe8] to-[#002FA7] hover:brightness-110 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_4px_14px_rgba(59,111,232,0.3)] shrink-0 w-full md:w-auto flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Download className="w-5 h-5" />
-                Download
+                {downloading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner size="sm" /> Downloading...
+                  </span>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5" />
+                    Download
+                  </>
+                )}
               </button>
             )}
           </div>
