@@ -64,8 +64,11 @@ export const GET = withLogging(
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const permissions = await shareService.listFilePermissions(fileId);
-      return NextResponse.json({ permissions });
+      const [permissions, pendingInvites] = await Promise.all([
+        shareService.listFilePermissions(fileId),
+        invitationService.listFileInvites(fileId),
+      ]);
+      return NextResponse.json({ permissions, pendingInvites });
     } catch {
       return NextResponse.json(
         { error: "Internal Server Error" },

@@ -118,6 +118,34 @@ async function deliverInviteEmail(input: {
   return result.success;
 }
 
+async function getResourceLabel(invite: Invitation): Promise<string> {
+  if (invite.resourceType === "FILE" && invite.fileId) {
+    const file = await prisma.file.findUnique({
+      where: { id: invite.fileId },
+      select: { originalName: true },
+    });
+    return file?.originalName ?? "a file";
+  }
+  if (invite.resourceType === "GROUP" && invite.groupId) {
+    const group = await prisma.group.findUnique({
+      where: { id: invite.groupId },
+      select: { name: true },
+    });
+    return group?.name ?? "a group";
+  }
+  return "shared content";
+}
+
+async function authorizeInvite(
+  invite: Invitation,
+  userId: string,
+): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (invite.invitedByUserId !== userId && user?.role !== "admin") {
+    throw new Error("Forbidden");
+  }
+}
+
 export const invitationService = {
   async createFileInvite({
     fileId,
@@ -316,5 +344,102 @@ export const invitationService = {
     }
 
     return grantedCount;
+  },
+
+  async resendInvite({
+    inviteId,
+    userId,
+  }: {
+    inviteId: string;
+    userId: string;
+  }): Promise<{ invite: Invitation; emailSent: boolean }> {
+    const invite = await prisma.invitation.findUnique({
+      where: { id: inviteId },
+    });
+    if (!invite) {
+      throw new Error("Invitation not found");
+    }
+    await authorizeInvite(invite, userId);
+    if (invite.status !== "PENDING") {
+      throw new Error("Only pending invitations can be resent");
+    }
+
+    const updated = await prisma.invitation.update({
+      where: { id: inviteId },
+      data: { expiresAt: computeExpiry() },
+    });
+
+    const emailSent = await deliverInviteEmail({
+      invite: updated,
+      inviterName: await getInviterName(userId),
+      resourceLabel: await getResourceLabel(updated),
+    });
+
+    await auditService.log({
+      userId,
+      action: "invite_sent",
+      fileId: updated.fileId ?? undefined,
+      details: `Resent invite to ${updated.email}`,
+    });
+
+    return { invite: updated, emailSent };
+  },
+
+  async cancelInvite({
+    inviteId,
+    userId,
+  }: {
+    inviteId: string;
+    userId: string;
+  }): Promise<Invitation> {
+    const invite = await prisma.invitation.findUnique({
+      where: { id: inviteId },
+    });
+    if (!invite) {
+      throw new Error("Invitation not found");
+    }
+    await authorizeInvite(invite, userId);
+
+    const updated = await prisma.invitation.update({
+      where: { id: inviteId },
+      data: { status: "CANCELLED" },
+    });
+
+    await auditService.log({
+      userId,
+      action: "invite_cancelled",
+      fileId: updated.fileId ?? undefined,
+      details: `Cancelled invite to ${updated.email}`,
+    });
+
+    return updated;
+  },
+
+  async listFileInvites(fileId: string): Promise<Invitation[]> {
+    return prisma.invitation.findMany({
+      where: { fileId, status: "PENDING" },
+      include: {
+        invitedByUser: { select: { name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async listGroupInvites(groupId: string): Promise<Invitation[]> {
+    return prisma.invitation.findMany({
+      where: { groupId, status: "PENDING" },
+      include: {
+        invitedByUser: { select: { name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async expireStaleInvites(): Promise<number> {
+    const result = await prisma.invitation.updateMany({
+      where: { status: "PENDING", expiresAt: { lt: new Date() } },
+      data: { status: "EXPIRED" },
+    });
+    return result.count;
   },
 };

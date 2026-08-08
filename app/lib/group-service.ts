@@ -109,6 +109,14 @@ export const groupService = {
             },
           },
         },
+        invitations: {
+          where: { status: "PENDING" },
+          include: {
+            invitedByUser: {
+              select: { name: true, email: true },
+            },
+          },
+        },
         groupFiles: {
           include: {
             file: true,
