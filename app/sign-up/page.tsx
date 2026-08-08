@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signUp, signIn } from "@/app/lib/auth-client";
 import { Logo } from "@/app/components/shared/Logo";
@@ -18,6 +18,16 @@ export default function SignUpPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const emailParam = new URLSearchParams(window.location.search).get("email");
+    if (emailParam) {
+      const input = document.getElementById(
+        "sign-up-email",
+      ) as HTMLInputElement | null;
+      if (input) input.value = emailParam;
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
