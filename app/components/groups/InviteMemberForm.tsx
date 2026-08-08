@@ -2,6 +2,8 @@
 
 import { SectionCard } from "@/app/components/shared/SectionCard";
 import { ErrorBanner } from "@/app/components/shared/ErrorBanner";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 interface InviteMemberFormProps {
   email: string;
@@ -20,9 +22,13 @@ export function InviteMemberForm({
   onRoleChange,
   onSubmit,
 }: InviteMemberFormProps) {
+  const { pending, execute } = useAsyncAction();
   return (
     <SectionCard title="Invite Member">
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form
+        onSubmit={(e) => execute(async () => onSubmit(e))}
+        className="space-y-4"
+      >
         {error && <ErrorBanner message={error} />}
         <div>
           <label className="block text-xs text-[#737373] mb-1 font-medium">
@@ -54,9 +60,16 @@ export function InviteMemberForm({
         </div>
         <button
           type="submit"
-          className="w-full bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2.5 rounded-xl text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer"
+          disabled={pending}
+          className="w-full bg-[#002FA7] hover:bg-[#002482] text-white font-semibold py-2.5 rounded-xl text-sm transition-all shadow-sm shadow-[#002FA7]/20 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Send Invitation
+          {pending ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner size="sm" /> Inviting...
+            </span>
+          ) : (
+            "Send Invitation"
+          )}
         </button>
       </form>
     </SectionCard>

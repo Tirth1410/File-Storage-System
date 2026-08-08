@@ -11,6 +11,8 @@ import {
   startTransition,
 } from "react";
 import { FileText, RefreshCw } from "lucide-react";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 import { AppShell } from "@/app/components/shared/AppShell";
 import { LoadingScreen } from "@/app/components/shared/LoadingScreen";
@@ -75,6 +77,7 @@ function DashboardContent() {
     close: closePreview,
   } = useFilePreview<UploadedFile>();
   const handleDownload = useFileDownload(showAlert);
+  const { pending: refreshPending, execute: executeRefresh } = useAsyncAction();
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [folders, setFolders] = useState<FolderData[]>([]);
@@ -620,14 +623,20 @@ function DashboardContent() {
                     )}
                     {/* Refresh */}
                     <button
-                      onClick={() => {
-                        fetchContents();
-                        fetchProfile();
-                      }}
-                      className="p-1.5 rounded-lg text-[#737373] hover:text-[#002FA7] hover:bg-[rgba(0,47,167,0.06)] transition-all cursor-pointer"
+                      onClick={() =>
+                        executeRefresh(async () => {
+                          await Promise.all([fetchContents(), fetchProfile()]);
+                        })
+                      }
+                      disabled={refreshPending}
+                      className="p-1.5 rounded-lg text-[#737373] hover:text-[#002FA7] hover:bg-[rgba(0,47,167,0.06)] transition-all cursor-pointer disabled:opacity-60"
                       title="Refresh"
                     >
-                      <RefreshCw className="w-4 h-4" />
+                      {refreshPending ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 }

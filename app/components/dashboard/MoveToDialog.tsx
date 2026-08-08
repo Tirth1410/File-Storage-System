@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Folder, ChevronRight, X, Home } from "lucide-react";
 import { MoveToDialogSkeleton } from "./MoveToDialogSkeleton";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 interface FolderNode {
   id: string;
@@ -36,6 +38,7 @@ export function MoveToDialog({
   const [loading, setLoading] = useState(true);
   const [loadingContents, setLoadingContents] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(currentFolderId);
+  const { pending, execute } = useAsyncAction();
 
   const loadContents = useCallback(async (folderId: string | null) => {
     setLoadingContents(true);
@@ -194,10 +197,17 @@ export function MoveToDialog({
               Cancel
             </button>
             <button
-              onClick={() => onSelect(selectedId)}
-              className="px-4 py-2 text-sm font-semibold text-white bg-[#002FA7] rounded-lg hover:bg-[#002482] transition-all cursor-pointer"
+              onClick={() => execute(async () => onSelect(selectedId))}
+              disabled={pending}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[#002FA7] rounded-lg hover:bg-[#002482] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Move Here
+              {pending ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size="sm" /> Moving...
+                </span>
+              ) : (
+                "Move Here"
+              )}
             </button>
           </div>
         </div>

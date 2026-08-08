@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Check, Info, TriangleAlert } from "lucide-react";
+import { Spinner } from "./Spinner";
 
 interface ConfirmationDialogProps {
   isOpen: boolean;
@@ -25,10 +27,21 @@ export function ConfirmationDialog({
   onConfirm,
   onCancel,
 }: ConfirmationDialogProps) {
+  const [confirming, setConfirming] = useState(false);
+
   if (!isOpen) return null;
 
   const isDanger = variant === "danger";
   const isConfirm = type === "confirm";
+
+  const handleConfirm = async () => {
+    setConfirming(true);
+    try {
+      await onConfirm();
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -68,20 +81,29 @@ export function ConfirmationDialog({
           {isConfirm && onCancel && (
             <button
               onClick={onCancel}
-              className="px-4 py-2 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-[#525252] hover:bg-neutral-50 transition-all cursor-pointer"
+              disabled={confirming}
+              className="px-4 py-2 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-[#525252] hover:bg-neutral-50 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {cancelLabel}
             </button>
           )}
           <button
-            onClick={onConfirm}
-            className={`px-4 py-2 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer ${
+            onClick={handleConfirm}
+            disabled={confirming}
+            className={`px-4 py-2 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
               isDanger
                 ? "bg-red-600 hover:bg-red-700 shadow-red-600/10"
                 : "bg-[#002FA7] hover:bg-[#002482] shadow-[#002FA7]/10"
             }`}
           >
-            {confirmLabel}
+            {confirming ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size="sm" />
+                {confirmLabel}
+              </span>
+            ) : (
+              confirmLabel
+            )}
           </button>
         </div>
       </div>

@@ -13,6 +13,8 @@ import { AdminStatsGrid } from "@/app/components/admin/AdminStatsGrid";
 import { UsersTable } from "@/app/components/admin/UsersTable";
 import { UserDetailModal } from "@/app/components/admin/UserDetailModal";
 import { useAuthRedirect } from "@/app/hooks/useAuthRedirect";
+import { Spinner } from "@/app/components/shared/Spinner";
+import { useAsyncAction } from "@/app/components/shared/use-async-action";
 
 import type {
   User,
@@ -41,6 +43,7 @@ export default function AdminPage() {
   const [newQuotaGB, setNewQuotaGB] = useState<number>(0);
   const [newQuotaMB, setNewQuotaMB] = useState<number>(200);
   const [savingQuota, setSavingQuota] = useState(false);
+  const { pending, execute } = useAsyncAction();
 
   /* ─── fetching ─── */
   const fetchUsers = async () => {
@@ -210,10 +213,17 @@ export default function AdminPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-[rgba(220,38,38,0.07)] text-[#DC2626] border border-[rgba(220,38,38,0.2)] px-4 py-3 rounded-xl text-sm">
               <span>{statsError}</span>
               <button
-                onClick={() => fetchStats()}
-                className="shrink-0 self-start text-xs font-semibold bg-white border border-[rgba(220,38,38,0.3)] rounded-lg px-3 py-1.5 text-[#DC2626] hover:bg-[rgba(220,38,38,0.05)] transition-all cursor-pointer"
+                onClick={() => execute(() => fetchStats())}
+                disabled={pending}
+                className="shrink-0 self-start text-xs font-semibold bg-white border border-[rgba(220,38,38,0.3)] rounded-lg px-3 py-1.5 text-[#DC2626] hover:bg-[rgba(220,38,38,0.05)] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Retry
+                {pending ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner size="sm" /> Retrying...
+                  </span>
+                ) : (
+                  "Retry"
+                )}
               </button>
             </div>
           )}
