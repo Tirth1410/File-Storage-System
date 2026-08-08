@@ -23,7 +23,7 @@ export function Hero() {
       <div className="container-site">
         <div className="grid items-center gap-y-12 gap-x-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-x-14">
           {/* Left column — product messaging */}
-          <div className="text-center lg:text-left">
+          <div className="text-center lg:text-left min-w-0">
             <Reveal>
               <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#E5E7EB] bg-white text-xs font-medium text-[#525252] shadow-sm">
                 <ShieldCheck
@@ -87,7 +87,7 @@ export function Hero() {
           </div>
 
           {/* Right column — product preview */}
-          <Reveal delay={400} className="w-full">
+          <Reveal delay={400} className="w-full min-w-0">
             <ProductPreview />
           </Reveal>
         </div>
