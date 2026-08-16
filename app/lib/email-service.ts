@@ -7,6 +7,10 @@ import {
   generateInviteEmailHtml,
   generateInviteEmailText,
 } from "./email-templates/invite-email";
+import {
+  generateInviteDigestEmailHtml,
+  generateInviteDigestEmailText,
+} from "./email-templates/invite-digest-email";
 import { APP_URL } from "./config";
 
 const logger = Logger.withContext("EmailService");
@@ -23,6 +27,13 @@ export interface SendInviteEmailOptions {
   to: string;
   inviterName: string;
   resourceLabel: string;
+  signUpUrl: string;
+  expiresAt?: Date;
+}
+
+export interface SendInviteDigestEmailOptions {
+  to: string;
+  inviterName: string;
   signUpUrl: string;
   expiresAt?: Date;
 }
@@ -185,5 +196,37 @@ export async function sendInviteEmailService({
     htmlContent,
     textContent,
     tags: ["invite"],
+  });
+}
+
+/**
+ * Sends a single digest notification email to a non-registered user after a bulk file share via Brevo Transactional Email API.
+ */
+export async function sendInviteDigestEmailService({
+  to,
+  inviterName,
+  signUpUrl,
+  expiresAt,
+}: SendInviteDigestEmailOptions): Promise<SendEmailResult> {
+  logger.info(`Initiating invite digest dispatch to [${to}] via Brevo`);
+
+  const htmlContent = generateInviteDigestEmailHtml({
+    inviterName,
+    signUpUrl,
+    appUrl: APP_URL,
+    expiresAt,
+  });
+  const textContent = generateInviteDigestEmailText({
+    inviterName,
+    signUpUrl,
+    expiresAt,
+  });
+
+  return sendBrevoEmail({
+    to,
+    subject: "Files have been shared with you on Vault",
+    htmlContent,
+    textContent,
+    tags: ["invite_digest"],
   });
 }
