@@ -50,8 +50,14 @@ describe("invite-digest-email template", () => {
     expect(html).toContain("Dec 25, 2026");
     expect(text).toContain("Dec 25, 2026");
 
-    const htmlNoExpiry = generateInviteDigestEmailHtml({ inviterName, signUpUrl });
-    const textNoExpiry = generateInviteDigestEmailText({ inviterName, signUpUrl });
+    const htmlNoExpiry = generateInviteDigestEmailHtml({
+      inviterName,
+      signUpUrl,
+    });
+    const textNoExpiry = generateInviteDigestEmailText({
+      inviterName,
+      signUpUrl,
+    });
     expect(htmlNoExpiry).not.toContain("This invitation expires on");
     expect(textNoExpiry).not.toContain("This invitation expires on");
   });
