@@ -1,5 +1,10 @@
 import prisma from "@/app/lib/prisma";
 import { auditService } from "@/app/lib/audit-service";
+import {
+  BULK_TRANSACTION_TIMEOUT,
+  buildGroupFileUpsertSql,
+  validateItemCount,
+} from "@/app/lib/bulk";
 
 export const groupService = {
   async createGroup(
@@ -440,6 +445,115 @@ export const groupService = {
     });
 
     return shared;
+  },
+
+  async bulkShareWithGroup({
+    fileIds = [],
+    groupId,
+    allowPreview = true,
+    allowDownload = true,
+    selectAll = false,
+    folderId = null,
+    excludeIds = [],
+    userId,
+  }: {
+    fileIds?: string[];
+    groupId: string;
+    allowPreview?: boolean;
+    allowDownload?: boolean;
+    selectAll?: boolean;
+    folderId?: string | null;
+    excludeIds?: string[];
+    userId: string;
+  }) {
+    let ids = Array.from(new Set(fileIds.filter(Boolean)));
+
+    if (selectAll) {
+      const excluded = new Set(excludeIds);
+      const allFiles = await prisma.file.findMany({
+        where: {
+          ownerUserId: userId,
+          folderId: folderId ?? null,
+          status: "available",
+        },
+        select: { id: true },
+      });
+      ids = allFiles.map((f) => f.id).filter((id) => !excluded.has(id));
+    }
+
+    validateItemCount(ids.length, "share");
+
+    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const isSystemAdmin = user?.role === "admin";
+    if (!isSystemAdmin) {
+      const membership = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId, userId } },
+      });
+      if (!membership) {
+        throw new Error(
+          "You must be a member of the group to share a file with it",
+        );
+      }
+    }
+
+    const files =
+      ids.length > 0
+        ? await prisma.file.findMany({ where: { id: { in: ids } } })
+        : [];
+    const fileById = new Map(files.map((f) => [f.id, f]));
+
+    const shared: { fileId: string; groupId: string }[] = [];
+    const skipped: { fileId: string; reason?: string }[] = [];
+    const notFound: { fileId: string }[] = [];
+    const forbidden: { fileId: string }[] = [];
+
+    for (const id of ids) {
+      const file = fileById.get(id);
+      if (!file) {
+        notFound.push({ fileId: id });
+        continue;
+      }
+      if (file.ownerUserId !== userId && !isSystemAdmin) {
+        forbidden.push({ fileId: id });
+        continue;
+      }
+      if (file.status !== "available") {
+        skipped.push({ fileId: id, reason: "not available" });
+        continue;
+      }
+      shared.push({ fileId: id, groupId });
+    }
+
+    if (shared.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw(
+          buildGroupFileUpsertSql(
+            shared.map((s) => ({
+              groupId: s.groupId,
+              fileId: s.fileId,
+              sharedByUserId: userId,
+              allowPreview,
+              allowDownload,
+            })),
+          ),
+        );
+        await tx.auditLog.createMany({
+          data: shared.map((s) => ({
+            userId,
+            action: "group_file_shared",
+            fileId: s.fileId,
+            details: `Shared file ${fileById.get(s.fileId)!.originalName} with group ${group.name} via bulk share`,
+          })),
+        });
+      }, BULK_TRANSACTION_TIMEOUT);
+    }
+
+    return { shared, skipped, notFound, forbidden };
   },
 
   async updateGroupFilePermissions(

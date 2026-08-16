@@ -2,6 +2,7 @@ import prisma from "@/app/lib/prisma";
 import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
 import { Prisma } from "@/app/generated/prisma/client";
+import { buildDescendantCheckSql, validateItemCount } from "@/app/lib/bulk";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -491,6 +492,8 @@ export const folderService = {
         .filter((id) => !excluded.has(id));
     }
 
+    validateItemCount(fileEntryIds.length + folderEntryIds.length, "move");
+
     const [folderRows, fileRows] = await Promise.all([
       folderEntryIds.length > 0
         ? prisma.folder.findMany({ where: { id: { in: folderEntryIds } } })
@@ -537,6 +540,10 @@ export const folderService = {
         forbidden.push({ id, type: "file" });
         continue;
       }
+      if (row.status !== "available") {
+        skipped.push({ id, type: "file", reason: "not available" });
+        continue;
+      }
       if (row.folderId === targetFolderId) {
         skipped.push({ id, type: "file" });
         continue;
@@ -546,13 +553,15 @@ export const folderService = {
 
     const foldersToMove: (typeof folderRows)[number][] = [];
     if (targetFolderId && validFolders.length > 0) {
+      const blockedRows = await prisma.$queryRaw<{ root_id: string }[]>(
+        buildDescendantCheckSql(
+          validFolders.map((f) => f.id),
+          targetFolderId,
+        ),
+      );
+      const blocked = new Set(blockedRows.map((r) => r.root_id));
       for (const folder of validFolders) {
-        const descendantRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
-          getDescendantCteSql(),
-          folder.id,
-        );
-        const descendantIds = descendantRows.map((r) => r.id);
-        if (descendantIds.includes(targetFolderId)) {
+        if (blocked.has(folder.id)) {
           failed.push({
             id: folder.id,
             type: "folder",
@@ -613,24 +622,29 @@ export const folderService = {
           data: { folderId: targetFolderId },
         });
       }
+      const auditRows = [
+        ...foldersToMove.map((folder) => ({
+          userId,
+          action: "folder_moved",
+          folderId: folder.id,
+          details: `Moved folder "${folder.name}" to ${targetFolderId ?? "root"} via bulk move`,
+        })),
+        ...filesToMove.map((file) => ({
+          userId,
+          action: "file_moved",
+          fileId: file.id,
+          details: `Moved file "${file.originalName}" to ${targetFolderId ?? "root"} via bulk move`,
+        })),
+      ];
+      if (auditRows.length > 0) {
+        await tx.auditLog.createMany({ data: auditRows });
+      }
     }, TRANSACTION_TIMEOUT);
 
     for (const folder of foldersToMove) {
-      await auditService.log({
-        userId,
-        action: "folder_moved",
-        folderId: folder.id,
-        details: `Moved folder "${folder.name}" to ${targetFolderId ?? "root"} via bulk move`,
-      });
       moved.push({ id: folder.id, type: "folder" });
     }
     for (const file of filesToMove) {
-      await auditService.log({
-        userId,
-        action: "file_moved",
-        fileId: file.id,
-        details: `Moved file "${file.originalName}" to ${targetFolderId ?? "root"} via bulk move`,
-      });
       moved.push({ id: file.id, type: "file" });
     }
 

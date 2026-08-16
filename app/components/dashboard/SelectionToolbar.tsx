@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, ArrowRightToLine, ListChecks } from "lucide-react";
+import { Trash2, ArrowRightToLine, ListChecks, Share2 } from "lucide-react";
 
 interface SelectionToolbarProps {
   totalItems: number;
@@ -9,10 +9,12 @@ interface SelectionToolbarProps {
   isSomeSelected: boolean;
   selectionMode: boolean;
   canMove: boolean;
+  canShare: boolean;
   deleteLabel: string;
   onEnterSelectionMode: () => void;
   onToggleSelectAll: () => void;
   onBatchMove: () => void;
+  onBatchShare: () => void;
   onBatchDelete: () => void;
   onDone: () => void;
 }
@@ -24,10 +26,12 @@ export function SelectionToolbar({
   isSomeSelected,
   selectionMode,
   canMove,
+  canShare,
   deleteLabel,
   onEnterSelectionMode,
   onToggleSelectAll,
   onBatchMove,
+  onBatchShare,
   onBatchDelete,
   onDone,
 }: SelectionToolbarProps) {
@@ -72,6 +76,15 @@ export function SelectionToolbar({
             >
               <ArrowRightToLine className="w-3.5 h-3.5" />
               Move ({selectedCount})
+            </button>
+          )}
+          {canShare && (
+            <button
+              onClick={onBatchShare}
+              className="flex items-center gap-1.5 bg-[#059669] hover:bg-[#047857] text-white font-bold px-3 py-1 rounded-lg transition-all shadow-sm shadow-[#059669]/20 cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Share ({selectedCount})
             </button>
           )}
           <button

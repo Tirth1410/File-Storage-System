@@ -5,8 +5,12 @@ import { auditService } from "@/app/lib/audit-service";
 import { logger } from "@/app/lib/logger";
 import { shareService } from "@/app/lib/share-service";
 import { groupService } from "@/app/lib/group-service";
-import { sendInviteEmailService } from "@/app/lib/email-service";
+import {
+  sendInviteEmailService,
+  sendInviteDigestEmailService,
+} from "@/app/lib/email-service";
 import { APP_URL, INVITE_EXPIRATION_DAYS } from "@/app/lib/config";
+import { validateItemCount } from "@/app/lib/bulk";
 
 export type Invitation =
   Prisma.InvitationGetPayload<Prisma.InvitationDefaultArgs>;
@@ -118,6 +122,21 @@ async function deliverInviteEmail(input: {
   return result.success;
 }
 
+async function deliverInviteDigestEmail(input: {
+  email: string;
+  inviterName: string;
+  expiresAt: Date;
+}): Promise<boolean> {
+  const signUpUrl = `${APP_URL}/sign-up?email=${encodeURIComponent(input.email)}`;
+  const result = await sendInviteDigestEmailService({
+    to: input.email,
+    inviterName: input.inviterName,
+    signUpUrl,
+    expiresAt: input.expiresAt,
+  });
+  return result.success;
+}
+
 async function getResourceLabel(invite: Invitation): Promise<string> {
   if (invite.resourceType === "FILE" && invite.fileId) {
     const file = await prisma.file.findUnique({
@@ -204,6 +223,123 @@ export const invitationService = {
     });
 
     return { granted: false, pending: true, emailSent, invite };
+  },
+
+  async createBulkFileInvites({
+    fileIds,
+    email,
+    permission = "read",
+    invitedByUserId,
+  }: {
+    fileIds: string[];
+    email: string;
+    permission?: "read" | "write";
+    invitedByUserId: string;
+  }): Promise<{
+    invited: {
+      fileId: string;
+      emailSent: boolean;
+      inviteId: string;
+    }[];
+  }> {
+    const normalized = normalizeEmail(email);
+
+    if (await isInvitingSelf(normalized, invitedByUserId)) {
+      throw new Error("You cannot share with yourself");
+    }
+
+    const ids = Array.from(new Set(fileIds.filter(Boolean)));
+    validateItemCount(ids.length, "share");
+    const safePermission: "read" | "write" =
+      permission === "write" ? "write" : "read";
+    const inviterName = await getInviterName(invitedByUserId);
+    const files = await prisma.file.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, originalName: true },
+    });
+    const labels = new Map(files.map((f) => [f.id, f.originalName]));
+
+    const existing = await prisma.invitation.findMany({
+      where: {
+        email: normalized,
+        resourceType: "FILE",
+        fileId: { in: ids },
+        status: "PENDING",
+      },
+    });
+    const existingByFile = new Map(
+      existing.map((invite) => [invite.fileId, invite]),
+    );
+
+    const toCreate = ids.filter((fileId) => !existingByFile.has(fileId));
+    const created =
+      toCreate.length > 0
+        ? await prisma.invitation.createManyAndReturn({
+            data: toCreate.map((fileId) => ({
+              email: normalized,
+              resourceType: "FILE",
+              fileId,
+              groupId: null,
+              permission: safePermission,
+              token: generateToken(),
+              status: "PENDING",
+              invitedByUserId,
+              expiresAt: computeExpiry(),
+            })),
+          })
+        : [];
+
+    if (existing.length > 0) {
+      await prisma.invitation.updateMany({
+        where: { id: { in: existing.map((invite) => invite.id) } },
+        data: { permission: safePermission, expiresAt: computeExpiry() },
+      });
+    }
+
+    const createdByFile = new Map(
+      created.map((invite) => [invite.fileId, invite]),
+    );
+    const invites = ids
+      .map((fileId) => existingByFile.get(fileId) ?? createdByFile.get(fileId))
+      .filter((invite): invite is Invitation => invite !== undefined);
+
+    let digestEmailSent = false;
+    if (invites.length > 0) {
+      digestEmailSent = await deliverInviteDigestEmail({
+        email: normalized,
+        inviterName,
+        expiresAt: invites[0].expiresAt,
+      });
+    }
+
+    await prisma.auditLog.createMany({
+      data: [
+        ...invites.map((invite) => ({
+          userId: invitedByUserId,
+          action: "invite_sent",
+          fileId: invite.fileId!,
+          details: `Created file-share invite to ${normalized} for ${labels.get(invite.fileId!) ?? "a file"}`,
+        })),
+        ...(invites.length > 0
+          ? [
+              {
+                userId: invitedByUserId,
+                action: "invite_digest_sent",
+                fileId: null,
+                details: `Sent bulk-share digest email to ${normalized}`,
+              },
+            ]
+          : []),
+      ],
+    });
+
+    const invited = invites.map((invite) => ({
+      fileId: invite.fileId!,
+      emailSent: digestEmailSent,
+      inviteId: invite.id,
+    }));
+
+    return { invited };
   },
 
   async createGroupInvite({

@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "db:seed": "bun run prisma/seed.ts",
     "prepare": "husky"
   },
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bun": "^1.3.14",
     "@types/ioredis": "^5.0.0",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

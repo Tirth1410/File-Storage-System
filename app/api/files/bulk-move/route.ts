@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestUser } from "@/app/lib/request-user";
 import { folderService } from "@/app/lib/folder-service";
+import { BulkOperationError } from "@/app/lib/bulk";
 import { withLogging } from "@/app/lib/logger";
 
 export const POST = withLogging(async (request: Request) => {
@@ -40,6 +41,9 @@ export const POST = withLogging(async (request: Request) => {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof BulkOperationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     const message =
       error instanceof Error ? error.message : "Internal Server Error";
     const status =

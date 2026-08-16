@@ -44,9 +44,16 @@ next-env.d.ts
 /tool-docs
 /dump
 /graphify-out
+# agent & opencode skills / tooling
 /.agents/
+/.agent/
+/.opencode/skills/
+.opencode/node_modules/
 .playwright-mcp/
 playwright-mcp/
 
 #documentation
 docs
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/

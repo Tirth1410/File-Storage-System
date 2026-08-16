@@ -3,6 +3,7 @@ import { r2Service } from "@/app/lib/r2";
 import { auditService } from "@/app/lib/audit-service";
 import { logger } from "@/app/lib/logger";
 import { getDescendantCteSql } from "@/app/lib/folder-service";
+import { MAX_BULK_OPERATION_ITEMS } from "@/app/lib/bulk";
 
 export interface InitiateUploadInput {
   filename: string;
@@ -49,7 +50,7 @@ export class BulkDeleteValidationError extends Error {
 
 const PART_SIZE_BYTES = 8 * 1024 * 1024; // 8MB default chunk size
 const DEFAULT_QUOTA_BYTES = BigInt(200 * 1024 * 1024); // 200 MB
-const MAX_BULK_DELETE_FILES = 500;
+const MAX_BULK_DELETE_FILES = MAX_BULK_OPERATION_ITEMS;
 
 // Prisma interactive transactions default to maxWait 2000ms / timeout 5000ms,
 // which is too tight when several concurrent uploads serialize on the

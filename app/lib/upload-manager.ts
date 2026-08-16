@@ -46,6 +46,68 @@ const DEFAULT_STATS: UploadBatchStats = {
 
 const COMPLETED_AUTO_REMOVE_MS = 1200;
 
+/**
+ * Compute batch stats from the current queue plus credited bytes from files
+ * that already completed. Completed jobs are credited exactly once when they
+ * finish, so they keep counting toward the overall progress even after they
+ * are removed from the queue.
+ */
+export function computeBatchStats(
+  jobs: UploadJob[],
+  creditedCompletedBytes: number,
+  creditedCompletedCount: number,
+): UploadBatchStats {
+  let failed = 0;
+  let cancelled = 0;
+  let active = 0;
+  let waiting = 0;
+  let completedInArray = 0;
+  let totalBytesSum = creditedCompletedBytes;
+  let uploadedBytesSum = creditedCompletedBytes;
+
+  for (const job of jobs) {
+    if (job.status === "completed") {
+      completedInArray++;
+      continue;
+    }
+
+    totalBytesSum += job.totalBytes;
+    uploadedBytesSum += job.uploadedBytes;
+
+    switch (job.status) {
+      case "failed":
+        failed++;
+        break;
+      case "cancelled":
+        cancelled++;
+        break;
+      case "preparing":
+      case "uploading":
+      case "completing":
+        active++;
+        break;
+      case "waiting":
+        waiting++;
+        break;
+    }
+  }
+
+  const total = creditedCompletedCount + jobs.length - completedInArray;
+
+  return {
+    total,
+    completed: creditedCompletedCount,
+    failed,
+    cancelled,
+    active,
+    waiting,
+    overallProgress:
+      totalBytesSum > 0
+        ? Math.round((uploadedBytesSum / totalBytesSum) * 100)
+        : 0,
+  };
+}
+
 export class UploadManager {
   private jobs: UploadJob[] = [];
   private concurrency: number;
@@ -54,6 +116,8 @@ export class UploadManager {
   private onBatchCompleteCallback?: () => void;
   private batchPending = false;
   private autoRemoveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private creditedCompletedBytes = 0;
+  private creditedCompletedCount = 0;
 
   private jobsSnapshot: UploadJob[] = [];
   private statsSnapshot: UploadBatchStats = DEFAULT_STATS;
@@ -84,55 +148,11 @@ export class UploadManager {
 
   private updateSnapshots() {
     this.jobsSnapshot = this.jobs.map((job) => ({ ...job }));
-
-    const total = this.jobs.length;
-    let completed = 0;
-    let failed = 0;
-    let cancelled = 0;
-    let active = 0;
-    let waiting = 0;
-    let totalBytesSum = 0;
-    let uploadedBytesSum = 0;
-
-    for (const job of this.jobs) {
-      totalBytesSum += job.totalBytes;
-      uploadedBytesSum += job.uploadedBytes;
-
-      switch (job.status) {
-        case "completed":
-          completed++;
-          break;
-        case "failed":
-          failed++;
-          break;
-        case "cancelled":
-          cancelled++;
-          break;
-        case "preparing":
-        case "uploading":
-        case "completing":
-          active++;
-          break;
-        case "waiting":
-          waiting++;
-          break;
-      }
-    }
-
-    const overallProgress =
-      totalBytesSum > 0
-        ? Math.round((uploadedBytesSum / totalBytesSum) * 100)
-        : 0;
-
-    this.statsSnapshot = {
-      total,
-      completed,
-      failed,
-      cancelled,
-      active,
-      waiting,
-      overallProgress,
-    };
+    this.statsSnapshot = computeBatchStats(
+      this.jobs,
+      this.creditedCompletedBytes,
+      this.creditedCompletedCount,
+    );
   }
 
   private notify() {
@@ -164,6 +184,14 @@ export class UploadManager {
   }
 
   public addFiles(files: File[], folderId?: string | null): void {
+    const hasInFlight = this.jobs.some((j) =>
+      ["waiting", "preparing", "uploading", "completing"].includes(j.status),
+    );
+    if (!hasInFlight) {
+      this.creditedCompletedBytes = 0;
+      this.creditedCompletedCount = 0;
+    }
+
     const newJobs: UploadJob[] = files.map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       file,
@@ -487,6 +515,8 @@ export class UploadManager {
       job.uploadedBytes = job.file.size;
       job.speedMBs = 0;
       job.etaSeconds = 0;
+      this.creditedCompletedBytes += job.file.size;
+      this.creditedCompletedCount += 1;
       this.notify();
       this.scheduleAutoRemove(job.id);
     } catch (err) {
