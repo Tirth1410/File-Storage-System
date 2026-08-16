@@ -7,6 +7,7 @@ import { shareService } from "@/app/lib/share-service";
 import { groupService } from "@/app/lib/group-service";
 import { sendInviteEmailService } from "@/app/lib/email-service";
 import { APP_URL, INVITE_EXPIRATION_DAYS } from "@/app/lib/config";
+import { validateItemCount } from "@/app/lib/bulk";
 
 export type Invitation =
   Prisma.InvitationGetPayload<Prisma.InvitationDefaultArgs>;
@@ -204,6 +205,121 @@ export const invitationService = {
     });
 
     return { granted: false, pending: true, emailSent, invite };
+  },
+
+  async createBulkFileInvites({
+    fileIds,
+    email,
+    permission = "read",
+    invitedByUserId,
+  }: {
+    fileIds: string[];
+    email: string;
+    permission?: "read" | "write";
+    invitedByUserId: string;
+  }): Promise<{
+    invited: {
+      fileId: string;
+      emailSent: boolean;
+      inviteId: string;
+    }[];
+  }> {
+    const normalized = normalizeEmail(email);
+
+    if (await isInvitingSelf(normalized, invitedByUserId)) {
+      throw new Error("You cannot share with yourself");
+    }
+
+    const ids = Array.from(new Set(fileIds.filter(Boolean)));
+    validateItemCount(ids.length, "share");
+    const safePermission: "read" | "write" =
+      permission === "write" ? "write" : "read";
+    const inviterName = await getInviterName(invitedByUserId);
+    const files = await prisma.file.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, originalName: true },
+    });
+    const labels = new Map(files.map((f) => [f.id, f.originalName]));
+
+    const existing = await prisma.invitation.findMany({
+      where: {
+        email: normalized,
+        resourceType: "FILE",
+        fileId: { in: ids },
+        status: "PENDING",
+      },
+    });
+    const existingByFile = new Map(
+      existing.map((invite) => [invite.fileId, invite]),
+    );
+
+    const toCreate = ids.filter((fileId) => !existingByFile.has(fileId));
+    const created =
+      toCreate.length > 0
+        ? await prisma.invitation.createManyAndReturn({
+            data: toCreate.map((fileId) => ({
+              email: normalized,
+              resourceType: "FILE",
+              fileId,
+              groupId: null,
+              permission: safePermission,
+              token: generateToken(),
+              status: "PENDING",
+              invitedByUserId,
+              expiresAt: computeExpiry(),
+            })),
+          })
+        : [];
+
+    if (existing.length > 0) {
+      await prisma.invitation.updateMany({
+        where: { id: { in: existing.map((invite) => invite.id) } },
+        data: { permission: safePermission, expiresAt: computeExpiry() },
+      });
+    }
+
+    const createdByFile = new Map(
+      created.map((invite) => [invite.fileId, invite]),
+    );
+    const invites = ids
+      .map((fileId) => existingByFile.get(fileId) ?? createdByFile.get(fileId))
+      .filter((invite): invite is Invitation => invite !== undefined);
+
+    const EMAIL_BATCH_SIZE = 5;
+    const emailSentByFile = new Map<string, boolean>();
+    for (let i = 0; i < invites.length; i += EMAIL_BATCH_SIZE) {
+      const batch = invites.slice(i, i + EMAIL_BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (invite) => {
+          const emailSent = await deliverInviteEmail({
+            invite,
+            inviterName,
+            resourceLabel: labels.get(invite.fileId!) ?? "a file",
+          });
+          return { fileId: invite.fileId, emailSent };
+        }),
+      );
+      for (const result of results) {
+        emailSentByFile.set(result.fileId!, result.emailSent);
+      }
+    }
+
+    await prisma.auditLog.createMany({
+      data: invites.map((invite) => ({
+        userId: invitedByUserId,
+        action: "invite_sent",
+        fileId: invite.fileId!,
+        details: `Sent file-share invite to ${normalized} for ${labels.get(invite.fileId!) ?? "a file"}`,
+      })),
+    });
+
+    const invited = invites.map((invite) => ({
+      fileId: invite.fileId!,
+      emailSent: emailSentByFile.get(invite.fileId!) ?? false,
+      inviteId: invite.id,
+    }));
+
+    return { invited };
   },
 
   async createGroupInvite({
