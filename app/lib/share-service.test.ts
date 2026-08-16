@@ -9,6 +9,8 @@ const state = {
   inviteCreates: 0,
   emailSends: 0,
   transactionCalls: 0,
+  digestFails: false,
+  noFilesFound: false,
 };
 
 const tx = {
@@ -40,6 +42,7 @@ const prismaMock = {
   },
   file: {
     findMany: async ({ where }: { where?: Record<string, unknown> }) => {
+      if (state.noFilesFound) return [];
       const w = where ?? {};
       if (w.id && typeof w.id === "object" && "in" in w.id) {
         return (w.id as { in: string[] }).in.map((id: string) => ({
@@ -109,7 +112,7 @@ mock.module("@/app/lib/email-service", () => ({
   },
   sendInviteDigestEmailService: async () => {
     state.emailSends++;
-    return { success: true };
+    return { success: !state.digestFails };
   },
 }));
 
@@ -121,6 +124,8 @@ function reset() {
   state.inviteCreates = 0;
   state.emailSends = 0;
   state.transactionCalls = 0;
+  state.digestFails = false;
+  state.noFilesFound = false;
 }
 
 describe("shareService.bulkShareWithUser", () => {
@@ -216,5 +221,39 @@ describe("shareService.bulkShareWithUser", () => {
 
     expect(result.invites).toHaveLength(500);
     expect(state.emailSends).toBe(1);
+  });
+
+  test("FR-007: digest delivery failure does not roll back the share", async () => {
+    reset();
+    state.digestFails = true;
+    const { shareService } = await import("@/app/lib/share-service");
+
+    const result = await shareService.bulkShareWithUser({
+      fileIds: ["f1", "f2", "f3"],
+      email: "new@x.com",
+      userId: "u1",
+    });
+
+    expect(result.invites).toHaveLength(3);
+    for (const invite of result.invites) {
+      expect(invite.emailSent).toBe(false);
+    }
+    expect(state.inviteCreates).toBe(1);
+  });
+
+  test("FR-008: nothing actually shared sends zero emails and creates no invites", async () => {
+    reset();
+    state.noFilesFound = true;
+    const { shareService } = await import("@/app/lib/share-service");
+
+    const result = await shareService.bulkShareWithUser({
+      fileIds: ["f1", "f2", "f3"],
+      email: "new@x.com",
+      userId: "u1",
+    });
+
+    expect(result.invites).toHaveLength(0);
+    expect(state.emailSends).toBe(0);
+    expect(state.inviteCreates).toBe(0);
   });
 });
