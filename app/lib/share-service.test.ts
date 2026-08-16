@@ -223,6 +223,23 @@ describe("shareService.bulkShareWithUser", () => {
     expect(state.emailSends).toBe(1);
   });
 
+  test("SC-002: a 500-file bulk share performs one digest send and one batched create, not per-file work", async () => {
+    reset();
+    const { shareService } = await import("@/app/lib/share-service");
+
+    const fileIds = Array.from({ length: 500 }, (_, i) => "f" + (i + 1));
+    const result = await shareService.bulkShareWithUser({
+      fileIds,
+      email: "new@x.com",
+      userId: "u1",
+    });
+
+    expect(result.invites).toHaveLength(500);
+    expect(state.emailSends).toBe(1);
+    expect(state.inviteCreates).toBe(1);
+    expect(state.transactionCalls).toBe(0);
+  });
+
   test("FR-007: digest delivery failure does not roll back the share", async () => {
     reset();
     state.digestFails = true;
