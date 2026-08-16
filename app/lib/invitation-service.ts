@@ -303,37 +303,39 @@ export const invitationService = {
       .map((fileId) => existingByFile.get(fileId) ?? createdByFile.get(fileId))
       .filter((invite): invite is Invitation => invite !== undefined);
 
-    const EMAIL_BATCH_SIZE = 5;
-    const emailSentByFile = new Map<string, boolean>();
-    for (let i = 0; i < invites.length; i += EMAIL_BATCH_SIZE) {
-      const batch = invites.slice(i, i + EMAIL_BATCH_SIZE);
-      const results = await Promise.all(
-        batch.map(async (invite) => {
-          const emailSent = await deliverInviteEmail({
-            invite,
-            inviterName,
-            resourceLabel: labels.get(invite.fileId!) ?? "a file",
-          });
-          return { fileId: invite.fileId, emailSent };
-        }),
-      );
-      for (const result of results) {
-        emailSentByFile.set(result.fileId!, result.emailSent);
-      }
+    let digestEmailSent = false;
+    if (invites.length > 0) {
+      digestEmailSent = await deliverInviteDigestEmail({
+        email: normalized,
+        inviterName,
+        expiresAt: invites[0].expiresAt,
+      });
     }
 
     await prisma.auditLog.createMany({
-      data: invites.map((invite) => ({
-        userId: invitedByUserId,
-        action: "invite_sent",
-        fileId: invite.fileId!,
-        details: `Sent file-share invite to ${normalized} for ${labels.get(invite.fileId!) ?? "a file"}`,
-      })),
+      data: [
+        ...invites.map((invite) => ({
+          userId: invitedByUserId,
+          action: "invite_sent",
+          fileId: invite.fileId!,
+          details: `Created file-share invite to ${normalized} for ${labels.get(invite.fileId!) ?? "a file"}`,
+        })),
+        ...(invites.length > 0
+          ? [
+              {
+                userId: invitedByUserId,
+                action: "invite_digest_sent",
+                fileId: null,
+                details: `Sent bulk-share digest email to ${normalized}`,
+              },
+            ]
+          : []),
+      ],
     });
 
     const invited = invites.map((invite) => ({
       fileId: invite.fileId!,
-      emailSent: emailSentByFile.get(invite.fileId!) ?? false,
+      emailSent: digestEmailSent,
       inviteId: invite.id,
     }));
 

@@ -199,7 +199,7 @@ describe("shareService.bulkShareWithUser", () => {
     expect(result.invites).toHaveLength(3);
     expect(state.inviteCreates).toBe(1);
     expect(state.emailSends).toBe(1);
-    expect(state.auditCreateManyData).toHaveLength(3);
+    expect(state.auditCreateManyData).toHaveLength(4);
     expect(state.auditCreates).toBe(0);
   });
 
