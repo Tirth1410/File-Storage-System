@@ -245,6 +245,20 @@ describe("shareService.bulkShareWithUser", () => {
     expect(state.emailSends).toBe(1);
   });
 
+  test("US3-SC1: a single-file bulk share still sends exactly one digest email", async () => {
+    reset();
+    const { shareService } = await import("@/app/lib/share-service");
+
+    const result = await shareService.bulkShareWithUser({
+      fileIds: ["f1"],
+      email: "new@x.com",
+      userId: "u1",
+    });
+
+    expect(state.emailSends).toBe(1);
+    expect(result.invites).toHaveLength(1);
+  });
+
   test("SC-002: a 500-file bulk share performs one digest send and one batched create, not per-file work", async () => {
     reset();
     const { shareService } = await import("@/app/lib/share-service");
