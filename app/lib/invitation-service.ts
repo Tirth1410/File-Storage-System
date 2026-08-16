@@ -5,7 +5,10 @@ import { auditService } from "@/app/lib/audit-service";
 import { logger } from "@/app/lib/logger";
 import { shareService } from "@/app/lib/share-service";
 import { groupService } from "@/app/lib/group-service";
-import { sendInviteEmailService } from "@/app/lib/email-service";
+import {
+  sendInviteEmailService,
+  sendInviteDigestEmailService,
+} from "@/app/lib/email-service";
 import { APP_URL, INVITE_EXPIRATION_DAYS } from "@/app/lib/config";
 import { validateItemCount } from "@/app/lib/bulk";
 
@@ -115,6 +118,21 @@ async function deliverInviteEmail(input: {
     resourceLabel: input.resourceLabel,
     signUpUrl,
     expiresAt: input.invite.expiresAt,
+  });
+  return result.success;
+}
+
+async function deliverInviteDigestEmail(input: {
+  email: string;
+  inviterName: string;
+  expiresAt: Date;
+}): Promise<boolean> {
+  const signUpUrl = `${APP_URL}/sign-up?email=${encodeURIComponent(input.email)}`;
+  const result = await sendInviteDigestEmailService({
+    to: input.email,
+    inviterName: input.inviterName,
+    signUpUrl,
+    expiresAt: input.expiresAt,
   });
   return result.success;
 }
