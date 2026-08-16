@@ -65,11 +65,7 @@ const prismaMock = {
     },
   },
   invitation: {
-    findMany: async ({
-      where,
-    }: {
-      where?: Record<string, unknown>;
-    }) => {
+    findMany: async () => {
       if (state.existingPendingInviteFileId) {
         return [
           {
