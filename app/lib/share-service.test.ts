@@ -107,6 +107,10 @@ mock.module("@/app/lib/email-service", () => ({
     state.emailSends++;
     return { success: true };
   },
+  sendInviteDigestEmailService: async () => {
+    state.emailSends++;
+    return { success: true };
+  },
 }));
 
 function reset() {
@@ -194,8 +198,23 @@ describe("shareService.bulkShareWithUser", () => {
     expect(result.shared).toHaveLength(0);
     expect(result.invites).toHaveLength(3);
     expect(state.inviteCreates).toBe(1);
-    expect(state.emailSends).toBe(3);
+    expect(state.emailSends).toBe(1);
     expect(state.auditCreateManyData).toHaveLength(3);
     expect(state.auditCreates).toBe(0);
+  });
+
+  test("sends exactly one digest email for 500 files to an unregistered recipient", async () => {
+    reset();
+    const { shareService } = await import("@/app/lib/share-service");
+
+    const fileIds = Array.from({ length: 500 }, (_, i) => "f" + (i + 1));
+    const result = await shareService.bulkShareWithUser({
+      fileIds,
+      email: "new@x.com",
+      userId: "u1",
+    });
+
+    expect(result.invites).toHaveLength(500);
+    expect(state.emailSends).toBe(1);
   });
 });
