@@ -11,6 +11,7 @@ const state = {
   transactionCalls: 0,
   digestFails: false,
   noFilesFound: false,
+  existingPendingInviteFileId: null as string | null,
 };
 
 const tx = {
@@ -64,7 +65,31 @@ const prismaMock = {
     },
   },
   invitation: {
-    findMany: async () => [],
+    findMany: async ({
+      where,
+    }: {
+      where?: Record<string, unknown>;
+    }) => {
+      if (state.existingPendingInviteFileId) {
+        return [
+          {
+            id: "inv-existing",
+            email: "new@x.com",
+            resourceType: "FILE",
+            fileId: state.existingPendingInviteFileId,
+            groupId: null,
+            permission: "read",
+            token: "tok-existing",
+            status: "PENDING",
+            invitedByUserId: "u1",
+            expiresAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ];
+      }
+      return [];
+    },
     createManyAndReturn: async ({
       data,
     }: {
@@ -126,6 +151,7 @@ function reset() {
   state.transactionCalls = 0;
   state.digestFails = false;
   state.noFilesFound = false;
+  state.existingPendingInviteFileId = null;
 }
 
 describe("shareService.bulkShareWithUser", () => {
@@ -272,5 +298,45 @@ describe("shareService.bulkShareWithUser", () => {
     expect(result.invites).toHaveLength(0);
     expect(state.emailSends).toBe(0);
     expect(state.inviteCreates).toBe(0);
+  });
+
+  test("SC-005/FR-006: two bulk-share actions send exactly two digest emails, one per action", async () => {
+    reset();
+    const { shareService } = await import("@/app/lib/share-service");
+
+    const firstIds = Array.from({ length: 100 }, (_, i) => "f" + (i + 1));
+    const result = await shareService.bulkShareWithUser({
+      fileIds: firstIds,
+      email: "new@x.com",
+      userId: "u1",
+    });
+    expect(state.emailSends).toBe(1);
+    expect(result.invites).toHaveLength(100);
+
+    const secondIds = Array.from({ length: 50 }, (_, i) => "f" + (i + 101));
+    const result2 = await shareService.bulkShareWithUser({
+      fileIds: secondIds,
+      email: "new@x.com",
+      userId: "u1",
+    });
+
+    expect(state.emailSends).toBe(2);
+    expect(result2.invites).toHaveLength(50);
+  });
+
+  test("FR-006: existing pending invite is refreshed, not re-created, with one new digest", async () => {
+    reset();
+    state.existingPendingInviteFileId = "f1";
+    const { shareService } = await import("@/app/lib/share-service");
+
+    const result = await shareService.bulkShareWithUser({
+      fileIds: ["f1", "f2", "f3"],
+      email: "new@x.com",
+      userId: "u1",
+    });
+
+    expect(state.emailSends).toBe(1);
+    expect(result.invites).toHaveLength(3);
+    expect(state.inviteCreates).toBe(1);
   });
 });
