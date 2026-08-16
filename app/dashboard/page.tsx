@@ -102,6 +102,12 @@ function DashboardContent() {
   const [selectAllMode, setSelectAllMode] = useState(false);
   const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkShareContext, setBulkShareContext] = useState<{
+    fileIds: string[];
+    selectAll: boolean;
+    folderId: string | null;
+    excludeIds: string[];
+  } | null>(null);
   const anchorIdRef = useRef<string | null>(null);
 
   const [shareFile, setShareFile] = useState<UploadedFile | null>(null);
@@ -394,6 +400,43 @@ function DashboardContent() {
   const handleBatchMove = useCallback(() => {
     setBulkMoveOpen(true);
   }, []);
+
+  const handleBatchShare = useCallback(() => {
+    if (selectAllMode) {
+      const fileIds = files
+        .filter((f) => !deselectedIds.has(f.id))
+        .map((f) => f.id);
+      if (fileIds.length === 0 && files.length === 0) {
+        showAlert("Share", "Select at least one file to share", "info");
+        return;
+      }
+      setBulkShareContext({
+        fileIds,
+        selectAll: true,
+        folderId: currentFolderId,
+        excludeIds: Array.from(deselectedIds),
+      });
+      return;
+    }
+    const fileIds = files.filter((f) => selectedIds.has(f.id)).map((f) => f.id);
+    if (fileIds.length === 0) {
+      showAlert("Share", "Select at least one file to share", "info");
+      return;
+    }
+    setBulkShareContext({
+      fileIds,
+      selectAll: false,
+      folderId: null,
+      excludeIds: [],
+    });
+  }, [
+    files,
+    selectAllMode,
+    selectedIds,
+    deselectedIds,
+    currentFolderId,
+    showAlert,
+  ]);
 
   const selectedFolderIds = useMemo(() => {
     if (activeTab === "shared") return [];
@@ -900,10 +943,12 @@ function DashboardContent() {
                     isSomeSelected={isSomeSelected}
                     selectionMode={selectionMode}
                     canMove={activeTab === "own"}
+                    canShare={activeTab === "own"}
                     deleteLabel={activeTab === "shared" ? "Remove" : "Delete"}
                     onEnterSelectionMode={handleEnterSelectionMode}
                     onToggleSelectAll={handleToggleSelectAll}
                     onBatchMove={handleBatchMove}
+                    onBatchShare={handleBatchShare}
                     onBatchDelete={handleBatchDelete}
                     onDone={handleExitSelectionMode}
                   />
@@ -998,6 +1043,17 @@ function DashboardContent() {
       {/* Share Modal */}
       {shareFile && (
         <ShareModal file={shareFile} onClose={() => setShareFile(null)} />
+      )}
+
+      {/* Bulk Share Modal */}
+      {bulkShareContext && (
+        <ShareModal
+          fileIds={bulkShareContext.fileIds}
+          selectAll={bulkShareContext.selectAll}
+          sourceFolderId={bulkShareContext.folderId}
+          excludeIds={bulkShareContext.excludeIds}
+          onClose={() => setBulkShareContext(null)}
+        />
       )}
     </>
   );
